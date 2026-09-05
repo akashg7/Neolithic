@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+ai_models/*.pkl
+ai_models/tft_model/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.gemini/
