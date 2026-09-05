@@ -18,4 +18,4 @@ jobs:
           script: |
             cd ~/Neolithic-Backend
             git pull origin main
-            docker compose up -d --build backend
+            docker compose up -d --build
