@@ -11,6 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agrisense -d agrisense"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -56,8 +61,35 @@ services:
       - pgbouncer
       - redis
 
+  # Separated API service for Alembic / Uvicorn
+  api:
+    build: .
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agrisense:agrisense@postgis:5432/agrisense
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=agrisense
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_started
+      pgbouncer:
+        condition: service_started
+      postgis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  # Dedicated Celery Worker
   celery_worker:
-    build:
+    build: .
     command: celery -A app.worker.celery_app worker --loglevel=info
     environment:
       - DATABASE_URL=postgresql+asyncpg://agrisense:agrisense@postgis:5432/agrisense
@@ -70,8 +102,14 @@ services:
     volumes:
       - .:/app
     depends_on:
-      - redis
-      - pgbouncer
+      redis:
+        condition: service_started
+      pgbouncer:
+        condition: service_started
+      postgis:
+        condition: service_healthy
+      minio:
+        condition: service_started
 
 volumes:
   pgdata:

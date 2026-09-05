@@ -1,0 +1,18 @@
+{
+  "standard_quote": {
+    "loan_paise": 10000000,
+    "interest_paise": 250000,
+    "days": 30,
+    "rate_bps_annual": 1000,
+    "is_worthwhile": true,
+    "disclaimer": "साठवणुकीच्या बदल्यात हमी कर्ज. वेळेत परतफेड आवश्यक."
+  },
+  "short_term_quote": {
+    "loan_paise": 5000000,
+    "interest_paise": 82000,
+    "days": 15,
+    "rate_bps_annual": 980,
+    "is_worthwhile": true,
+    "disclaimer": "१५ दिवसांसाठी अल्पकालीन कर्ज सुविधा."
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "hold_verdict": {
+    "action": "HOLD",
+    "hold_days": 5,
+    "confidence": "HIGH",
+    "expected_gain_paise": 4500000,
+    "worst_case_paise": -1200000,
+    "refusal_reason": null,
+    "sell_now_net_paise_per_qtl": 240000,
+    "hold_p50_net_paise_per_qtl": 285000,
+    "hold_p10_net_paise_per_qtl": 228000,
+    "band_width_bps": 2400,
+    "costs": {
+      "storage_paise_per_qtl": 1500,
+      "spoilage_paise_per_qtl": 2000,
+      "transport_paise_per_qtl": 0,
+      "interest_paise_per_qtl": 1000,
+      "total_cost_paise_per_qtl": 4500
+    },
+    "explain_mr": "पुढे ५ दिवस थांबल्यास चांगला भाव मिळण्याची शक्यता आहे.",
+    "explain_en": "Holding for 5 days is expected to yield higher net returns."
+  },
+  "split_verdict": {
+    "action": "SPLIT",
+    "hold_days": 7,
+    "confidence": "MEDIUM",
+    "expected_gain_paise": 2500000,
+    "worst_case_paise": -600000,
+    "refusal_reason": null,
+    "sell_now_net_paise_per_qtl": 240000,
+    "costs": {
+      "total_cost_paise_per_qtl": 5200
+    }
+  },
+  "sell_now_verdict": {
+    "action": "SELL_NOW",
+    "hold_days": null,
+    "confidence": "HIGH",
+    "expected_gain_paise": null,
+    "worst_case_paise": null,
+    "refusal_reason": null,
+    "sell_now_net_paise_per_qtl": 240000
+  },
+  "sell_elsewhere_verdict": {
+    "action": "SELL_ELSEWHERE",
+    "hold_days": null,
+    "confidence": "HIGH",
+    "expected_gain_paise": 3500000,
+    "worst_case_paise": null,
+    "refusal_reason": null,
+    "sell_now_net_paise_per_qtl": 240000
+  },
+  "refusal_band_too_wide": {
+    "action": "NO_ADVICE",
+    "hold_days": null,
+    "confidence": "LOW",
+    "expected_gain_paise": null,
+    "worst_case_paise": null,
+    "refusal_reason": "BAND_TOO_WIDE",
+    "sell_now_net_paise_per_qtl": 240000,
+    "band_width_bps": 6500
+  },
+  "refusal_insufficient_history": {
+    "action": "NO_ADVICE",
+    "hold_days": null,
+    "confidence": "LOW",
+    "expected_gain_paise": null,
+    "worst_case_paise": null,
+    "refusal_reason": "INSUFFICIENT_HISTORY",
+    "sell_now_net_paise_per_qtl": 240000
+  },
+  "refusal_stale_data": {
+    "action": "NO_ADVICE",
+    "hold_days": null,
+    "confidence": "LOW",
+    "expected_gain_paise": null,
+    "worst_case_paise": null,
+    "refusal_reason": "STALE_DATA",
+    "sell_now_net_paise_per_qtl": 240000
+  },
+  "refusal_gain_below_cost": {
+    "action": "NO_ADVICE",
+    "hold_days": null,
+    "confidence": "LOW",
+    "expected_gain_paise": null,
+    "worst_case_paise": null,
+    "refusal_reason": "GAIN_BELOW_COST",
+    "sell_now_net_paise_per_qtl": 240000
+  }
+}

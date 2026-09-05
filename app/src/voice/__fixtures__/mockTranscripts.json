@@ -1,0 +1,94 @@
+{
+  "lot_creation": [
+    {
+      "id": "lot_clean_lasalgaon",
+      "raw_transcript": "कांदा बारा क्विंटल लासलगाव",
+      "confidence": 0.96,
+      "expected_parse": {
+        "commodity_id": "onion",
+        "commodity_name_mr": "कांदा",
+        "commodity_confidence": 0.96,
+        "qty_kg": 1200,
+        "qty_confidence": 0.95,
+        "market_id": "lasalgaon",
+        "market_name_mr": "लासलगाव",
+        "market_confidence": 0.97
+      }
+    },
+    {
+      "id": "lot_clean_baramati",
+      "raw_transcript": "सोयाबीन पन्नास क्विंटल बारामती",
+      "confidence": 0.93,
+      "expected_parse": {
+        "commodity_id": "soybean",
+        "commodity_name_mr": "सोयाबीन",
+        "commodity_confidence": 0.94,
+        "qty_kg": 5000,
+        "qty_confidence": 0.92,
+        "market_id": "baramati",
+        "market_name_mr": "बारामती",
+        "market_confidence": 0.94
+      }
+    },
+    {
+      "id": "lot_conversational",
+      "raw_transcript": "भावा कांदा आहे दहा क्विंटल नाशिक",
+      "confidence": 0.82,
+      "expected_parse": {
+        "commodity_id": "onion",
+        "commodity_name_mr": "कांदा",
+        "commodity_confidence": 0.84,
+        "qty_kg": 1000,
+        "qty_confidence": 0.82,
+        "market_id": "nashik",
+        "market_name_mr": "नाशिक",
+        "market_confidence": 0.81
+      }
+    },
+    {
+      "id": "lot_low_confidence",
+      "raw_transcript": "अं... काहीतरी माल आहे... पंधरा...",
+      "confidence": 0.42,
+      "expected_parse": {
+        "commodity_id": null,
+        "commodity_confidence": 0.35,
+        "qty_kg": null,
+        "qty_confidence": 0.65,
+        "market_id": null,
+        "market_confidence": 0.2
+      }
+    }
+  ],
+  "registration": {
+    "name": {
+      "raw_transcript": "रमेश ज्ञानेश्वर पाटील",
+      "confidence": 0.95,
+      "field_name": "name",
+      "expected_value": "रमेश ज्ञानेश्वर पाटील"
+    },
+    "district": {
+      "raw_transcript": "नाशिक",
+      "confidence": 0.98,
+      "field_name": "district",
+      "expected_value": "नाशिक"
+    },
+    "village": {
+      "raw_transcript": "पिंपळगाव बसवंत",
+      "confidence": 0.92,
+      "field_name": "village",
+      "expected_value": "पिंपळगाव बसवंत"
+    },
+    "primary_commodity": {
+      "raw_transcript": "कांदा",
+      "confidence": 0.97,
+      "field_name": "primary_commodity",
+      "expected_value": "कांदा"
+    },
+    "low_confidence_district": {
+      "raw_transcript": "अं... बहुधा तिकडे लांब राहतो",
+      "confidence": 0.41,
+      "field_name": "district",
+      "expected_value": ""
+    }
+  }
+}
