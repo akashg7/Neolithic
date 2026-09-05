@@ -17,5 +17,6 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/Neolithic-Backend
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker compose up -d --build api celery_worker
