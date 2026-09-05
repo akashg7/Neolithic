@@ -57,7 +57,7 @@ services:
       - redis
 
   celery_worker:
-    build: .
+    build:
     command: celery -A app.worker.celery_app worker --loglevel=info
     environment:
       - DATABASE_URL=postgresql+asyncpg://agrisense:agrisense@postgis:5432/agrisense
