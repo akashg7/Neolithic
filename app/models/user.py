@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
+from geoalchemy2 import Geometry
 from app.database import Base
 
 
@@ -13,6 +14,7 @@ class User(Base):
     role = Column(String(20), nullable=False)  # 'farmer', 'buyer', 'fpo_admin'
     lat = Column(Float, nullable=True)
     lng = Column(Float, nullable=True)
+    geom = Column(Geometry('POINT', srid=4326), nullable=True, index=True)
     preferred_language = Column(String(10), default="en")
     verified = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, func
+from geoalchemy2 import Geometry
 from app.database import Base
 
 
@@ -10,6 +11,7 @@ class MandiLocation(Base):
     district = Column(String(200), nullable=False)
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
+    geom = Column(Geometry('POINT', srid=4326), nullable=True, index=True)
 
 
 class PriceForecast(Base):

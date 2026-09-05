@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.user import User
-from app.models.lot import Lot, BatchLotMember
+from app.models.lot import Lot, BatchLot, BatchLotMember
 from app.models.mandi import MandiLocation
 from app.models.demand import BuyerDemand
+from app.worker import run_matching_engine_for_lot
 from app.engines.grading_engine import grade as compute_grade
 from app.engines.price_engine import price_engine
 from app.engines.window_engine import compute_sale_window
@@ -62,7 +63,10 @@ async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut
         pass
 
     db.add(lot)
-    await db.flush()
+    await db.refresh(lot)
+
+    # Trigger async matching in background
+    run_matching_engine_for_lot.delay(lot.id)
 
     return LotOut.model_validate(lot)
 

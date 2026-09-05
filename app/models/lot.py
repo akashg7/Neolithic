@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, func
 from sqlalchemy.orm import relationship
+from geoalchemy2 import Geometry
 from app.database import Base
 
 
@@ -16,6 +17,7 @@ class Lot(Base):
     self_assay_answers = Column(JSON, nullable=True)
     lat = Column(Float, nullable=True)
     lng = Column(Float, nullable=True)
+    geom = Column(Geometry('POINT', srid=4326), nullable=True, index=True)
     price_min_paise_per_qtl = Column(Integer, nullable=True)
     price_mid_paise_per_qtl = Column(Integer, nullable=True)
     price_max_paise_per_qtl = Column(Integer, nullable=True)

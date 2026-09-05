@@ -1,18 +1,19 @@
-"""initial schema
+"""PostGIS
 
-Revision ID: e0cbcf83d912
+Revision ID: 2c47b09fff3c
 Revises: 
-Create Date: 2026-09-05 23:53:33.494414
+Create Date: 2026-09-05 20:17:39.038855
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+import geoalchemy2
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e0cbcf83d912'
+revision: str = '2c47b09fff3c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,14 +31,16 @@ def upgrade() -> None:
     op.create_table('logistics_providers',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=200), nullable=False),
-    sa.Column('type', sa.String(length=20), nullable=False),
+    sa.Column('type', sa.String(), nullable=False),
     sa.Column('lat', sa.Float(), nullable=False),
     sa.Column('lng', sa.Float(), nullable=False),
+    sa.Column('geom', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'), nullable=True),
     sa.Column('capacity_kg', sa.Integer(), nullable=True),
     sa.Column('contact', sa.String(length=50), nullable=True),
     sa.Column('source', sa.String(length=10), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_logistics_providers_geom'), 'logistics_providers', ['geom'], unique=False)
     op.create_index(op.f('ix_logistics_providers_id'), 'logistics_providers', ['id'], unique=False)
     op.create_table('mandi_locations',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -45,8 +48,10 @@ def upgrade() -> None:
     sa.Column('district', sa.String(length=200), nullable=False),
     sa.Column('lat', sa.Float(), nullable=False),
     sa.Column('lng', sa.Float(), nullable=False),
+    sa.Column('geom', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_mandi_locations_geom'), 'mandi_locations', ['geom'], unique=False)
     op.create_index(op.f('ix_mandi_locations_id'), 'mandi_locations', ['id'], unique=False)
     op.create_table('price_forecasts',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -71,11 +76,13 @@ def upgrade() -> None:
     sa.Column('role', sa.String(length=20), nullable=False),
     sa.Column('lat', sa.Float(), nullable=True),
     sa.Column('lng', sa.Float(), nullable=True),
+    sa.Column('geom', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'), nullable=True),
     sa.Column('preferred_language', sa.String(length=10), nullable=True),
     sa.Column('verified', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_users_geom'), 'users', ['geom'], unique=False)
     op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
     op.create_index(op.f('ix_users_phone'), 'users', ['phone'], unique=True)
     op.create_table('buyer_demand',
@@ -87,11 +94,13 @@ def upgrade() -> None:
     sa.Column('max_price_paise_per_qtl', sa.Integer(), nullable=True),
     sa.Column('lat', sa.Float(), nullable=True),
     sa.Column('lng', sa.Float(), nullable=True),
+    sa.Column('geom', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'), nullable=True),
     sa.Column('source', sa.String(length=10), nullable=True),
     sa.ForeignKeyConstraint(['buyer_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_buyer_demand_buyer_id'), 'buyer_demand', ['buyer_id'], unique=False)
+    op.create_index(op.f('ix_buyer_demand_geom'), 'buyer_demand', ['geom'], unique=False)
     op.create_index(op.f('ix_buyer_demand_id'), 'buyer_demand', ['id'], unique=False)
     op.create_table('buyers',
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -118,6 +127,7 @@ def upgrade() -> None:
     sa.Column('self_assay_answers', sa.JSON(), nullable=True),
     sa.Column('lat', sa.Float(), nullable=True),
     sa.Column('lng', sa.Float(), nullable=True),
+    sa.Column('geom', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'), nullable=True),
     sa.Column('price_min_paise_per_qtl', sa.Integer(), nullable=True),
     sa.Column('price_mid_paise_per_qtl', sa.Integer(), nullable=True),
     sa.Column('price_max_paise_per_qtl', sa.Integer(), nullable=True),
@@ -129,6 +139,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_lots_crop'), 'lots', ['crop'], unique=False)
     op.create_index(op.f('ix_lots_farmer_id'), 'lots', ['farmer_id'], unique=False)
+    op.create_index(op.f('ix_lots_geom'), 'lots', ['geom'], unique=False)
     op.create_index(op.f('ix_lots_id'), 'lots', ['id'], unique=False)
     op.create_index(op.f('ix_lots_status'), 'lots', ['status'], unique=False)
     op.create_table('offers',
@@ -222,11 +233,13 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_transaction_events_id'), 'transaction_events', ['id'], unique=False)
     op.create_index(op.f('ix_transaction_events_transaction_id'), 'transaction_events', ['transaction_id'], unique=False)
+    # op.drop_table('spatial_ref_sys')
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
+    # op.create_table('spatial_ref_sys' ...
     op.drop_index(op.f('ix_transaction_events_transaction_id'), table_name='transaction_events')
     op.drop_index(op.f('ix_transaction_events_id'), table_name='transaction_events')
     op.drop_table('transaction_events')
@@ -245,24 +258,34 @@ def downgrade() -> None:
     op.drop_table('offers')
     op.drop_index(op.f('ix_lots_status'), table_name='lots')
     op.drop_index(op.f('ix_lots_id'), table_name='lots')
+    op.drop_index(op.f('ix_lots_geom'), table_name='lots')
     op.drop_index(op.f('ix_lots_farmer_id'), table_name='lots')
     op.drop_index(op.f('ix_lots_crop'), table_name='lots')
+    op.drop_index('idx_lots_geom', table_name='lots', postgresql_using='gist')
     op.drop_table('lots')
     op.drop_table('farmers')
     op.drop_table('buyers')
     op.drop_index(op.f('ix_buyer_demand_id'), table_name='buyer_demand')
+    op.drop_index(op.f('ix_buyer_demand_geom'), table_name='buyer_demand')
     op.drop_index(op.f('ix_buyer_demand_buyer_id'), table_name='buyer_demand')
+    op.drop_index('idx_buyer_demand_geom', table_name='buyer_demand', postgresql_using='gist')
     op.drop_table('buyer_demand')
     op.drop_index(op.f('ix_users_phone'), table_name='users')
     op.drop_index(op.f('ix_users_id'), table_name='users')
+    op.drop_index(op.f('ix_users_geom'), table_name='users')
+    op.drop_index('idx_users_geom', table_name='users', postgresql_using='gist')
     op.drop_table('users')
     op.drop_index(op.f('ix_price_forecasts_mandi'), table_name='price_forecasts')
     op.drop_index(op.f('ix_price_forecasts_id'), table_name='price_forecasts')
     op.drop_index(op.f('ix_price_forecasts_commodity'), table_name='price_forecasts')
     op.drop_table('price_forecasts')
     op.drop_index(op.f('ix_mandi_locations_id'), table_name='mandi_locations')
+    op.drop_index(op.f('ix_mandi_locations_geom'), table_name='mandi_locations')
+    op.drop_index('idx_mandi_locations_geom', table_name='mandi_locations', postgresql_using='gist')
     op.drop_table('mandi_locations')
     op.drop_index(op.f('ix_logistics_providers_id'), table_name='logistics_providers')
+    op.drop_index(op.f('ix_logistics_providers_geom'), table_name='logistics_providers')
+    op.drop_index('idx_logistics_providers_geom', table_name='logistics_providers', postgresql_using='gist')
     op.drop_table('logistics_providers')
     op.drop_index(op.f('ix_fpos_id'), table_name='fpos')
     op.drop_table('fpos')

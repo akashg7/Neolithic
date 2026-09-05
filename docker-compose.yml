@@ -1,8 +1,8 @@
 version: "3.9"
 
 services:
-  postgres:
-    image: postgres:15-alpine
+  postgis:
+    image: postgis/postgis:15-3.4-alpine
     environment:
       POSTGRES_USER: agrisense
       POSTGRES_PASSWORD: agrisense
@@ -11,6 +11,28 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DB_USER: agrisense
+      DB_PASSWORD: agrisense
+      DB_HOST: postgis
+      DB_NAME: agrisense
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 20
+    ports:
+      - "6432:5432"
+    depends_on:
+      - postgis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
 
   minio:
     image: minio/minio:latest
@@ -24,20 +46,34 @@ services:
     volumes:
       - miniodata:/data
 
-  backend:
-    build: .
+  nginx:
+    image: nginx:alpine
     ports:
-      - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql+asyncpg://agrisense:agrisense@postgres:5432/agrisense
-      S3_ENDPOINT: http://minio:9000
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - postgres
-      - minio
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      - pgbouncer
+      - redis
+
+  celery_worker:
+    build: .
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agrisense:agrisense@postgis:5432/agrisense
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=agrisense
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - pgbouncer
 
 volumes:
   pgdata:
+  redisdata:
   miniodata:

@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://agrisense:agrisense@localhost:5432/agrisense"
+    REDIS_URL: str = "redis://localhost:6379/1"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     JWT_SECRET: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440  # 24 hours

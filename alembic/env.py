@@ -21,9 +21,11 @@ from app.models import *  # noqa: F401, F403
 target_metadata = Base.metadata
 
 
+from app.config import settings
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    url = settings.DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -46,7 +48,7 @@ def do_run_migrations(connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
     connectable = create_async_engine(
-        config.get_main_option("sqlalchemy.url"),
+        settings.DATABASE_URL,
         poolclass=pool.NullPool,
     )
 
