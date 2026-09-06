@@ -41,9 +41,12 @@ class VoiceEngineError(Exception):
 class VoiceEngine:
     def __init__(self) -> None:
         # Read live from settings on each call, not once at import — tests and
-        # env reloads mutate `settings.SARVAM_API_KEY` after the module loads.
+        # env reloads mutate `settings.SARVAM_*` after the module loads.
         self.endpoint = settings.SARVAM_ASR_ENDPOINT
         self.model = settings.SARVAM_ASR_MODEL
+        self.tts_endpoint = settings.SARVAM_TTS_ENDPOINT
+        self.tts_speaker = settings.SARVAM_TTS_SPEAKER
+        self.tts_model = "bulbul:v3"
 
     @property
     def api_key(self) -> str:
@@ -140,6 +143,69 @@ class VoiceEngine:
             "transcript": transcript,
             "language_code": payload.get("language_code"),
             "request_id": payload.get("request_id"),
+        }
+
+    async def text_to_speech(
+        self,
+        text: str,
+        *,
+        language_code: str = "mr-IN",
+    ) -> dict:
+        """Synthesize Marathi speech for `text` via Sarvam TTS (bulbul:v3).
+
+        Returns `{audio_base64, audio_format, request_id}` on success. Sarvam
+        returns the audio as a base64-encoded WAV inside a JSON `audios`
+        array; we return the raw base64 plus the format so the caller can
+        decide whether to serve it as bytes or hand a data-URI to the client.
+
+        The narration text is dynamic (a farmer's lot, dates, amounts), so it
+        cannot be a pre-generated clip — this is the live TTS path the
+        sale-window voice agent drives.
+        """
+        if not self.configured:
+            raise VoiceEngineError("Sarvam API key is not configured (SARVAM_API_KEY)")
+        if not text or not text.strip():
+            raise VoiceEngineError("Cannot synthesize empty speech text")
+
+        payload = {
+            "inputs": [text.strip()],
+            "target_language_code": language_code,
+            "speaker": self.tts_speaker,
+            "model": self.tts_model,
+        }
+        headers = {"api-subscription-key": self.api_key, "Content-Type": "application/json"}
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    self.tts_endpoint,
+                    headers=headers,
+                    json=payload,
+                )
+        except httpx.HTTPError as exc:
+            logger.warning("Sarvam TTS transport error: %s", exc)
+            raise VoiceEngineError(f"Upstream TTS unreachable: {exc}") from exc
+
+        if resp.status_code != 200:
+            logger.warning(
+                "Sarvam TTS upstream error: status=%s body=%s",
+                resp.status_code,
+                resp.text[:300],
+            )
+            raise VoiceEngineError(
+                f"Sarvam TTS failed with HTTP {resp.status_code}: {resp.text[:200]}"
+            )
+
+        payload_resp = resp.json()
+        audios = payload_resp.get("audios") or []
+        audio_base64 = audios[0] if audios else None
+        if not audio_base64:
+            raise VoiceEngineError("Sarvam TTS returned an empty audio payload")
+
+        return {
+            "audio_base64": audio_base64,
+            "audio_format": "wav",
+            "request_id": payload_resp.get("request_id"),
         }
 
 

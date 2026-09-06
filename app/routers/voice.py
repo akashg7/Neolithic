@@ -1,4 +1,4 @@
-"""Voice router — Sarvam-backed speech-to-text proxy for the mobile app.
+"""Voice router — Sarvam-backed speech proxy for the mobile app.
 
 `POST /voice/transcribe` accepts a short audio clip (multipart `file` OR
 `audio` field — see `transcribe()`), plus an optional `locale` form field
@@ -14,15 +14,18 @@ returns `{transcript}` — the exact shape `frontend/src/lib/api.ts`'s
   Abuse control belongs to a rate limiter (per-IP), not a per-user token this
   flow cannot have yet.
 
-TTS (`/voice/narrate`) is intentionally not wired: the frontend speaks dynamic
-text via on-device TTS (`speakText`) and static phrases via pre-generated
-clips, so a server round trip buys nothing today.
+`POST /voice/narrate` accepts `{text, locale}` and returns Sarvam-synthesized
+Marathi audio as base64 WAV — the sale-window voice agent's TTS path. The audio
+for a dynamic sentence (a farmer's lot, dates, amounts) can't be a pre-recorded
+clip, so it is synthesized on demand. The Sarvam key stays server-side; the app
+only ever talks to us. On-device TTS (`speakText`) remains the offline fallback
+on the device when this route is unreachable.
 """
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 
 from app.engines.voice_engine import VoiceEngineError, voice_engine
-from app.schemas.voice import TranscribeResponse
+from app.schemas.voice import NarrateRequest, NarrateResponse, TranscribeResponse
 
 router = APIRouter()
 
@@ -33,6 +36,24 @@ _LOCALE_TO_SARVAM: dict[str, str] = {
     "hi": "hi-IN",
     "en": "en-IN",
 }
+
+
+@router.post("/narrate", response_model=NarrateResponse)
+async def narrate(payload: NarrateRequest) -> NarrateResponse:
+    """Synthesize Marathi speech for `text` via Sarvam TTS (bulbul:v3) and
+    return it as base64 WAV. This is the sale-window voice agent's live spoke
+    audio path — the narration sentence is dynamic and can't be pre-recorded.
+    """
+    if not voice_engine.configured:
+        raise HTTPException(status_code=503, detail="Voice narration is not configured (SARVAM_API_KEY)")
+
+    language_code = _LOCALE_TO_SARVAM.get(payload.locale, "mr-IN")
+    try:
+        result = await voice_engine.text_to_speech(payload.text, language_code=language_code)
+    except VoiceEngineError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return NarrateResponse(**result)
 
 
 @router.post("/transcribe", response_model=TranscribeResponse)

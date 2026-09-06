@@ -19,7 +19,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { formatBps, formatNumber, formatPaise, toQuintal } from '../../lib/money';
 import { useT } from '../../lib/i18n';
-import { speakVerdict } from '../../lib/voice';
+import { speakSaleWindow } from '../../lib/voice';
 import { NO_ADVICE_BAND_THRESHOLD_BPS } from '../../config';
 import { SourceBadge } from './SourceBadge';
 import type { Confidence, Locale, WindowAction, WindowRes } from '../../types/api';
@@ -73,7 +73,7 @@ export function VerdictCard({
   const handleSpeak = async () => {
     setSpeaking(true);
     try {
-      await speakVerdict(data);
+      await speakSaleWindow(data);
     } catch {
       // see comment above
     } finally {

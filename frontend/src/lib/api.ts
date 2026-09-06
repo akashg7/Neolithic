@@ -353,10 +353,21 @@ export async function transcribeAudio(audioUri: string, locale: Locale): Promise
 }
 
 /**
- * Live TTS — kept for when the backend route exists, but nothing in this
- * app calls it yet. `lib/voice.ts`'s `speakText()` speaks the agent's
- * dynamic prompts through the device's own on-device TTS instead, which
- * works offline today (I7) and needs no server round trip at all.
+ * Live TTS — Sarvam-synthesized Marathi speech. The sale-window voice agent
+ * (S9) prefers this prosthetic, human-grade audio over the device's own TTS;
+ * the backend proxies to Sarvam `text-to-speech` (bulbul:v3) and returns the
+ * audio as base64 WAV.
+ *
+ * Returns `{ audio_base64, audio_format }`. The caller (`lib/voice.ts`) falls
+ * back to on-device `speakText()` when this is unreachable, so a network or
+ * server problem never silences the verdict, only downgrades its voice.
  */
+export interface NarrateRes {
+  audio_base64: string;
+  audio_format: string;
+  language_code: string;
+  request_id?: string | null;
+}
+
 export const narrate = (text: string, locale: Locale) =>
-  post<{ audio_url: string }>('/voice/narrate', { text, locale });
+  post<NarrateRes>('/voice/narrate', { text, locale });
