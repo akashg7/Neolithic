@@ -1,43 +1,63 @@
-"""
-Price Engine — Loads pre-trained TFT + LightGBM models at startup.
+"""Price Engine — loads pre-trained LightGBM quantile models at startup.
+
 Provides price predictions with quantile ranges (p10/p50/p90).
 
-NOTE: This is a stub implementation using mock data. Replace with real model
-inference once Nikhil integrates the trained model artifacts.
+When real model artifacts are present (app/ml/artifacts/*.pkl), this
+delegates to app.ml.quantile.predict_quantiles.  When they are absent it
+falls back to a clearly-labelled SYNTHETIC stub so the app still boots.
 """
-import random
-from datetime import datetime, timedelta
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, date
+
+from app.ml.quantile import load_models, predict_quantiles, ModelUnavailable
 
 
 class PriceEngine:
     """Singleton — loaded once at app startup via lifespan."""
 
     def __init__(self):
-        self.tft_model = None
-        self.lgbm_model = None
         self._loaded = False
 
-    def load_models(self):
-        """Called in FastAPI lifespan startup."""
-        # TODO: Load real models when available
-        # self.tft_model = tf.saved_model.load("ai_models/tft_model")
-        # with open("ai_models/lgbm_model.pkl", "rb") as f:
-        #     self.lgbm_model = pickle.load(f)
+    def load_models(self) -> None:
+        """Called in FastAPI lifespan startup. Loads LightGBM pickles."""
+        load_models()
         self._loaded = True
 
-    def predict(self, mandi: str, commodity: str, date: str) -> dict:
-        """
-        Returns:
-          {
-            "p10_paise": int,
-            "p50_paise": int,
-            "p90_paise": int,
-            "confidence": float  # 0.0 to 1.0
-          }
+    def _try_real_predict(self, mandi: str, commodity: str, when: str) -> dict | None:
+        """Return real quantiles from the trained model, or None if unavailable."""
+        try:
+            quantiles = predict_quantiles(commodity, mandi, when, horizon=1)
+            if not quantiles:
+                return None
+            p10, p50, p90 = quantiles[0]
+            return {
+                "p10_paise": int(p10),
+                "p50_paise": int(p50),
+                "p90_paise": int(p90),
+                "confidence": 0.85,
+                "source": "AGMARKNET_ML",
+                "source_url": "https://agmarknet.gov.in",
+            }
+        except (ModelUnavailable, Exception):
+            return None
 
-        STUB: Returns realistic mock predictions until real models are integrated.
+    def predict(self, mandi: str, commodity: str, when: str | date | datetime) -> dict:
+        """Predict today's p10/p50/p90.
+
+        Returns:
+          {"p10_paise": int, "p50_paise": int, "p90_paise": int,
+           "confidence": float, "source": str, "source_url": str}
         """
-        # Base prices by commodity (paise per quintal)
+        as_of = when if isinstance(when, str) else datetime.now().isoformat()
+
+        # Try real model first.
+        real = self._try_real_predict(mandi, commodity, as_of)
+        if real is not None:
+            return real
+
+        # Fall back to a deterministic, clearly-labelled SYNTHETIC stub.
         base_prices = {
             "wheat": 210000,
             "rice": 250000,
@@ -45,11 +65,10 @@ class PriceEngine:
             "potato": 150000,
             "tomato": 200000,
             "soybean": 380000,
+            "soyabean": 380000,
         }
         base = base_prices.get(commodity.lower(), 200000)
-
-        # Deterministic base factor per mandi (instead of randomized hash seed)
-        # Use sum of ascii values as a stable seed
+        # Deterministic base factor per mandi (not randomised hash seed).
         mandi_factor = (sum(ord(c) for c in mandi) % 20 - 10) / 100.0  # -10% to +10%
         base = int(base * (1 + mandi_factor))
 
@@ -67,30 +86,60 @@ class PriceEngine:
             "p10_paise": p10,
             "p50_paise": p50,
             "p90_paise": p90,
-            "confidence": confidence,
+            "confidence": 0.85,
             "source": "SYNTHETIC",
-            "source_url": "https://agmarknet.gov.in" # Stub
+            "source_url": "https://agmarknet.gov.in",  # Stub
         }
 
-    def predict_range(self, mandi: str, commodity: str, days: int = 14) -> list[dict]:
+    def predict_range(
+        self, mandi: str, commodity: str,
+        when: str | date | datetime | None = None,
+        days: int = 14,
+    ) -> list[dict]:
         """Predict for the next N days. Returns list of daily predictions."""
-        results = []
-        base_prediction = self.predict(mandi, commodity, datetime.now().isoformat())
+        as_of = when if when is not None else datetime.now().isoformat()
 
+        # Try the real multi-horizon model.
+        try:
+            quantiles = predict_quantiles(commodity, mandi, as_of, horizon=days)
+            results = []
+            base_dt = (
+                datetime.fromisoformat(as_of)
+                if isinstance(as_of, str) else as_of
+            )
+            for i, (p10, p50, p90) in enumerate(quantiles):
+                fc_date = base_dt + timedelta(days=i + 1)
+                results.append({
+                    "date": fc_date.strftime("%Y-%m-%d"),
+                    "p10_paise": int(p10),
+                    "p50_paise": int(p50),
+                    "p90_paise": int(p90),
+                    "confidence": round(max(0.5, 0.85 - i * 0.02), 2),
+                    "source": "AGMARKNET_ML",
+                    "source_url": "https://agmarknet.gov.in",
+                })
+            return results
+        except (ModelUnavailable, Exception):
+            pass
+
+        # Fall back to the synthetic range.
+        base_prediction = self.predict(mandi, commodity, as_of)
+        results = []
+        base_dt = (
+            datetime.fromisoformat(as_of)
+            if isinstance(as_of, str) else datetime.now()
+        )
         for i in range(days):
-            date = datetime.now() + timedelta(days=i + 1)
-            # Slight trend upward with noise
-            trend = 1 + (i * 0.003) + (random.uniform(-0.02, 0.02))
+            fc_date = base_dt + timedelta(days=i + 1)
             results.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "p10_paise": int(base_prediction["p10_paise"] * trend),
-                "p50_paise": int(base_prediction["p50_paise"] * trend),
-                "p90_paise": int(base_prediction["p90_paise"] * trend),
+                "date": fc_date.strftime("%Y-%m-%d"),
+                "p10_paise": base_prediction["p10_paise"],
+                "p50_paise": base_prediction["p50_paise"],
+                "p90_paise": base_prediction["p90_paise"],
                 "confidence": round(max(0.5, base_prediction["confidence"] - i * 0.02), 2),
                 "source": "SYNTHETIC",
-                "source_url": "https://agmarknet.gov.in"
+                "source_url": "https://agmarknet.gov.in",
             })
-
         return results
 
 

@@ -9,3 +9,6 @@ dist/
 build/
 .pytest_cache/
 .gemini/
+.DS_Store
+*.DS_Store
+maharashtra_feature_data*.csv
