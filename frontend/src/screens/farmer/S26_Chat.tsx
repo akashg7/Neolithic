@@ -20,16 +20,18 @@
  *   a number that is not really the buyer's.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getChatMessages, sendChatMessage } from '../../lib/api';
+import { getLocale } from '../../lib/locale';
+import { translate } from '../../lib/i18n';
 import { CHAT_POLL_MS, USE_FIXTURES } from '../../config';
 import { fxChatMessages } from '../../fixtures/chat';
 import { Button } from '../../components/ui/Button';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
-import type { ChatMessage } from '../../types/api';
+import type { ChatMessage, Locale } from '../../types/api';
 
 const DEFAULT_TX_ID = 'tx_1';
 /** TODO(akash): no DTO exposes a buyer phone number anywhere in this app —
@@ -45,6 +47,10 @@ export default function S26_Chat() {
   const txId = DEFAULT_TX_ID;
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
+  const [locale, setLocale] = useState<Locale>('mr');
+  useEffect(() => {
+    getLocale().then(l => l && setLocale(l));
+  }, []);
 
   const { data: messages, isLoading, error, refetch } = useQuery({
     queryKey: ['chat', txId],
@@ -88,23 +94,31 @@ export default function S26_Chat() {
     );
   }
 
-  if (error) {
+  // P11, and this screen is the sharpest case of it: the query above polls
+  // every 4 s, so on a dead network a bare `if (error)` blanks a thread the
+  // farmer is reading roughly four seconds after airplane mode goes on — beat
+  // 7's exact territory. Messages already fetched stay on screen; only an
+  // empty cache plus a failure is an error state.
+  if (error && !messages) {
     return (
-      <ErrorState message="संदेश आणता आले नाहीत. पुन्हा प्रयत्न करा." onRetry={() => refetch()} />
+      <ErrorState message={translate('chat_fetch_error', locale)} onRetry={() => refetch()} />
     );
   }
 
   return (
     <View style={styles.root}>
       <View style={styles.headerRow}>
-        <Text style={styles.header}>व्यापाऱ्याशी संवाद</Text>
+        <Text style={styles.header}>{translate('chat_header', locale)}</Text>
         <TouchableOpacity onPress={call} style={styles.callButton} accessibilityRole="button">
-          <Text style={styles.callButtonText}>📞 कॉल करा</Text>
+          <Text style={styles.callButtonText}>{translate('call_button', locale)}</Text>
         </TouchableOpacity>
       </View>
 
       {!messages || messages.length === 0 ? (
-        <EmptyState title="अजून एकही संदेश नाही." description="खाली संदेश लिहून सुरुवात करा." />
+        <EmptyState
+          title={translate('chat_empty_title', locale)}
+          description={translate('chat_empty_description', locale)}
+        />
       ) : (
         <FlatList
           data={messages}
@@ -121,13 +135,13 @@ export default function S26_Chat() {
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder="संदेश लिहा…"
+          placeholder={translate('message_placeholder', locale)}
           value={draft}
           onChangeText={setDraft}
           multiline
         />
         <Button
-          title="पाठवा"
+          title={translate('send_message_button', locale)}
           onPress={() => draft.trim() && send(draft.trim())}
           disabled={sending || draft.trim().length === 0}
           style={styles.sendButton}
@@ -157,6 +171,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
+    color: '#1E293B',
     maxHeight: 100,
     backgroundColor: '#FFFFFF',
   },

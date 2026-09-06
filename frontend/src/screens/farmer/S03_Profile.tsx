@@ -20,12 +20,17 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ApiError, getDistricts, register } from '../../lib/api';
 import { clearPendingAuth, getPendingAuth, useAuth } from '../../lib/auth';
 import { getLocale } from '../../lib/locale';
+import { translate } from '../../lib/i18n';
+import { speakText } from '../../lib/voice';
+import { RegistrationAgent } from '../../lib/registrationAgent';
+import type { AgentAction } from '../../lib/registrationAgent';
+import { VoiceMic } from '../../components/ui/VoiceMic';
 import { USE_FIXTURES } from '../../config';
 import { fxAuthRegistered, fxDistricts } from '../../fixtures/auth';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
@@ -45,6 +50,14 @@ export default function S03_Profile({ navigation }: Props) {
   const [districtsLoading, setDistrictsLoading] = useState(true);
   const [districtsError, setDistrictsError] = useState(false);
 
+  // ★ Registration by voice — `RegistrationAgent` owns the name/district/
+  // village slot logic; this screen only renders whatever action it hands
+  // back and applies a confirmed value into the same state the manual form
+  // above already uses, so voice and typing stay two paths into one form,
+  // never two sources of truth.
+  const [agent, setAgent] = useState<RegistrationAgent | null>(null);
+  const [agentAction, setAgentAction] = useState<AgentAction | null>(null);
+
   const loadDistricts = () => {
     setDistrictsLoading(true);
     setDistrictsError(false);
@@ -52,9 +65,46 @@ export default function S03_Profile({ navigation }: Props) {
       .then(list => {
         setDistricts(list);
         setDistrictId(prev => prev ?? list[0]?.id ?? null);
+        const a = new RegistrationAgent(list);
+        setAgent(a);
+        setAgentAction(a.start());
       })
       .catch(() => setDistrictsError(true))
       .finally(() => setDistrictsLoading(false));
+  };
+
+  // Speaks whatever the agent is currently asking or confirming — every
+  // `ask`/`retry`/`prefill` transition gets its own utterance; `done` is
+  // silent (the "पुढे" button lighting up is feedback enough).
+  useEffect(() => {
+    if (!agentAction) return;
+    if (agentAction.type === 'ask') void speakText(agentAction.question_mr);
+    else if (agentAction.type === 'retry') void speakText(agentAction.message_mr);
+    else if (agentAction.type === 'prefill') void speakText(agentAction.confirm_mr);
+  }, [agentAction]);
+
+  const onVoiceTranscript = (transcript: string) => {
+    if (!agent) return;
+    setAgentAction(agent.next(transcript));
+  };
+
+  const applyAgentValues = (a: RegistrationAgent) => {
+    const values = a.getValues();
+    if (values.name !== undefined) setName(values.name);
+    if (values.districtId !== undefined) setDistrictId(values.districtId);
+    if (values.village !== undefined) setVillage(values.village);
+  };
+
+  const onVoiceConfirm = () => {
+    if (!agent) return;
+    const next = agent.confirm();
+    applyAgentValues(agent);
+    setAgentAction(next);
+  };
+
+  const onVoiceDeny = () => {
+    if (!agent) return;
+    setAgentAction(agent.deny());
   };
 
   useEffect(() => {
@@ -97,9 +147,7 @@ export default function S03_Profile({ navigation }: Props) {
       // failure, this one is unambiguous, so it gets a real message and sends
       // the farmer back to request a fresh code.
       setError(
-        err instanceof ApiError
-          ? 'OTP चुकीचा किंवा कालबाह्य आहे. पुन्हा सुरू करा.'
-          : 'सर्व्हरशी संपर्क होऊ शकला नाही. पुन्हा प्रयत्न करा.',
+        translate(err instanceof ApiError ? 'otp_invalid_expired' : 'server_contact_error', locale),
       );
     } finally {
       setLoading(false);
@@ -114,30 +162,55 @@ export default function S03_Profile({ navigation }: Props) {
   const canSubmit = name.trim().length > 0 && districtId !== null && !loading;
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.title}>तुमची माहिती</Text>
+    <ScrollView contentContainerStyle={styles.root}>
+      <Text style={styles.title}>{translate('profile_title', locale)}</Text>
 
-      <Text style={styles.label}>नाव</Text>
+      {agent && agentAction && agentAction.type !== 'done' ? (
+        <View style={styles.voiceCard}>
+          <Text style={styles.voicePrompt}>
+            {agentAction.type === 'ask'
+              ? agentAction.question_mr
+              : agentAction.type === 'retry'
+                ? agentAction.message_mr
+                : agentAction.confirm_mr}
+          </Text>
+
+          {agentAction.type === 'prefill' ? (
+            <View style={styles.confirmRow}>
+              <TouchableOpacity style={styles.confirmYes} onPress={onVoiceConfirm}>
+                <Text style={styles.confirmYesText}>{translate('voice_confirm_yes', locale)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmNo} onPress={onVoiceDeny}>
+                <Text style={styles.confirmNoText}>{translate('voice_confirm_no', locale)}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <VoiceMic locale={locale} onTranscript={onVoiceTranscript} />
+          )}
+        </View>
+      ) : null}
+
+      <Text style={styles.label}>{translate('name', locale)}</Text>
       <TextInput
         style={styles.input}
         value={name}
         onChangeText={setName}
-        placeholder="तुमचे नाव"
-        accessibilityLabel="नाव"
+        placeholder={translate('name_placeholder', locale)}
+        accessibilityLabel={translate('name', locale)}
       />
 
-      <Text style={styles.label}>जिल्हा</Text>
+      <Text style={styles.label}>{translate('district', locale)}</Text>
       {districtsLoading ? (
-        <Text style={styles.districtStatus}>जिल्हे आणत आहोत...</Text>
+        <Text style={styles.districtStatus}>{translate('district_loading', locale)}</Text>
       ) : districtsError ? (
         <View style={styles.districtStatusRow}>
-          <Text style={styles.districtStatusError}>जिल्हे आणता आले नाहीत.</Text>
+          <Text style={styles.districtStatusError}>{translate('district_error', locale)}</Text>
           <TouchableOpacity onPress={loadDistricts}>
-            <Text style={styles.restart}>पुन्हा प्रयत्न करा</Text>
+            <Text style={styles.restart}>{translate('retry_button', locale)}</Text>
           </TouchableOpacity>
         </View>
       ) : districts.length === 0 ? (
-        <Text style={styles.districtStatus}>जिल्हे सापडले नाहीत.</Text>
+        <Text style={styles.districtStatus}>{translate('district_empty', locale)}</Text>
       ) : (
         <View style={styles.districtRow}>
           {districts.map(d => {
@@ -156,20 +229,20 @@ export default function S03_Profile({ navigation }: Props) {
         </View>
       )}
 
-      <Text style={styles.label}>गाव (ऐच्छिक)</Text>
+      <Text style={styles.label}>{translate('village_label_optional', locale)}</Text>
       <TextInput
         style={styles.input}
         value={village}
         onChangeText={setVillage}
-        placeholder="गावाचे नाव"
-        accessibilityLabel="गाव"
+        placeholder={translate('village_placeholder', locale)}
+        accessibilityLabel={translate('village', locale)}
       />
 
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.error}>{error}</Text>
           <TouchableOpacity onPress={restart}>
-            <Text style={styles.restart}>पुन्हा OTP साठी परत जा</Text>
+            <Text style={styles.restart}>{translate('restart_otp_link', locale)}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -178,9 +251,9 @@ export default function S03_Profile({ navigation }: Props) {
         onPress={submit}
         disabled={!canSubmit}
         style={[styles.button, !canSubmit && styles.buttonDisabled]}>
-        <Text style={styles.buttonLabel}>{loading ? '...' : 'पुढे'}</Text>
+        <Text style={styles.buttonLabel}>{loading ? '...' : translate('next', locale)}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -188,7 +261,7 @@ const GREEN = '#1B5E20';
 
 const styles = StyleSheet.create({
   root: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: '700', color: '#212121', marginBottom: 24 },
   label: { fontSize: 15, color: '#555', marginBottom: 6, marginTop: 4 },
   input: {
     borderWidth: 2,
@@ -196,6 +269,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 18,
+    // A TextInput with no `color` renders what the farmer types in the
+    // platform default — invisible on a dark-mode device.
+    color: '#212121',
     marginBottom: 16,
   },
   districtRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
@@ -224,4 +300,31 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.5 },
   buttonLabel: { color: '#FFF', fontSize: 18, fontWeight: '700' },
+  voiceCard: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1.5,
+    borderColor: '#BBF7D0',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  voicePrompt: { fontSize: 16, fontWeight: '700', color: '#1B5E20', marginBottom: 8, textAlign: 'center' },
+  confirmRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  confirmYes: {
+    flex: 1,
+    backgroundColor: GREEN,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  confirmYesText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  confirmNo: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: GREEN,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  confirmNoText: { color: GREEN, fontSize: 16, fontWeight: '700' },
 });

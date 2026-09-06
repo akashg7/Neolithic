@@ -3,13 +3,15 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ApiError, requestOtp, verifyOtp } from '../../lib/api';
 import { setPendingAuth, useAuth } from '../../lib/auth';
 import { getLocale } from '../../lib/locale';
+import { translate } from '../../lib/i18n';
 import { formatNumber } from '../../lib/money';
+import { VoiceMic } from '../../components/ui/VoiceMic';
 import { USE_FIXTURES } from '../../config';
 import { fxOtpRequest } from '../../fixtures/auth';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
@@ -18,6 +20,26 @@ import type { Locale } from '../../types/api';
 type Props = NativeStackScreenProps<AuthStackParamList, 'S2_Phone'>;
 
 type Step = 'phone' | 'otp';
+
+/** Devanagari 0-9, in order — the reverse of `lib/i18n.tsx`'s `DEV_DIGITS`.
+ * An ASR transcript of spoken digits may come back in either script
+ * depending on the engine, so both are read here regardless of locale. */
+const DEV_TO_LATIN_DIGIT: Record<string, string> = {
+  '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+  '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+};
+
+/** Pulls digits out of a spoken transcript ("नऊ आठ सात..." transcribed as
+ * numerals, or "9876543210" transcribed as-is) — anything that is not a
+ * digit in either script is simply not a phone number or an OTP digit. */
+function digitsFromTranscript(text: string): string {
+  let out = '';
+  for (const ch of text) {
+    if (ch >= '0' && ch <= '9') out += ch;
+    else if (DEV_TO_LATIN_DIGIT[ch]) out += DEV_TO_LATIN_DIGIT[ch];
+  }
+  return out;
+}
 
 async function fixtureVerifyOtp(): Promise<never> {
   throw new ApiError('UNAUTHENTICATED', 'Invalid code', 401);
@@ -61,7 +83,7 @@ export default function S02_Phone({ navigation }: Props) {
       setStep('otp');
     } catch (err) {
       if (!mounted.current) return;
-      setError(err instanceof ApiError ? err.message : 'नेटवर्क समस्या. पुन्हा प्रयत्न करा.');
+      setError(err instanceof ApiError ? err.message : translate('network_error_generic', locale));
     } finally {
       if (mounted.current) setLoading(false);
     }
@@ -81,7 +103,7 @@ export default function S02_Phone({ navigation }: Props) {
         navigation.navigate('S3_Profile');
         return;
       }
-      setError('सर्व्हरशी संपर्क होऊ शकला नाही. पुन्हा प्रयत्न करा.');
+      setError(translate('server_contact_error', locale));
     } finally {
       if (mounted.current) setLoading(false);
     }
@@ -99,8 +121,8 @@ export default function S02_Phone({ navigation }: Props) {
 
   if (step === 'phone') {
     return (
-      <View style={styles.root}>
-        <Text style={styles.title}>मोबाइल नंबर टाका</Text>
+      <ScrollView contentContainerStyle={styles.root}>
+        <Text style={styles.title}>{translate('phone_title', locale)}</Text>
         <TextInput
           style={styles.input}
           value={phone}
@@ -108,28 +130,32 @@ export default function S02_Phone({ navigation }: Props) {
           keyboardType="number-pad"
           maxLength={10}
           placeholder="9876543210"
-          accessibilityLabel="मोबाइल नंबर"
+          accessibilityLabel={translate('phone_number', locale)}
+        />
+        <VoiceMic
+          locale={locale}
+          onTranscript={t => setPhone(digitsFromTranscript(t).slice(0, 10))}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <TouchableOpacity
           onPress={submitPhone}
           disabled={phone.length !== 10 || loading}
           style={[styles.button, (phone.length !== 10 || loading) && styles.buttonDisabled]}>
-          <Text style={styles.buttonLabel}>{loading ? '...' : 'OTP पाठवा'}</Text>
+          <Text style={styles.buttonLabel}>{loading ? '...' : translate('send_otp_button', locale)}</Text>
         </TouchableOpacity>
 
         {/* Buyer Option on Phone Screen - Routes to Buyer OTP Login */}
         <TouchableOpacity onPress={goToBuyerLogin} style={styles.buyerOptionBtn}>
-          <Text style={styles.buyerOptionText}>💼 व्यापारी आहात? येथे साइन इन करा (Buyer Login)</Text>
+          <Text style={styles.buyerOptionText}>{translate('buyer_login_prompt_phone', locale)}</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.title}>OTP टाका</Text>
-      <Text style={styles.subtitle}>{phone} वर पाठवला आहे</Text>
+    <ScrollView contentContainerStyle={styles.root}>
+      <Text style={styles.title}>{translate('otp_title', locale)}</Text>
+      <Text style={styles.subtitle}>{translate('otp_sent_to', locale, { phone })}</Text>
       <TextInput
         style={styles.input}
         value={code}
@@ -137,28 +163,34 @@ export default function S02_Phone({ navigation }: Props) {
         keyboardType="number-pad"
         maxLength={6}
         placeholder="123456"
-        accessibilityLabel="OTP"
+        accessibilityLabel={translate('otp_title', locale)}
+      />
+      <VoiceMic
+        locale={locale}
+        onTranscript={t => setCode(digitsFromTranscript(t).slice(0, 6))}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity
         onPress={submitCode}
         disabled={code.length !== 6 || loading}
         style={[styles.button, (code.length !== 6 || loading) && styles.buttonDisabled]}>
-        <Text style={styles.buttonLabel}>{loading ? '...' : 'पडताळणी करा'}</Text>
+        <Text style={styles.buttonLabel}>{loading ? '...' : translate('verify_otp_button', locale)}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={goToBuyerLogin} style={styles.buyerOptionBtn}>
-        <Text style={styles.buyerOptionText}>💼 व्यापारी साइन इन (Buyer OTP Login)</Text>
+        <Text style={styles.buyerOptionText}>{translate('buyer_login_prompt_otp', locale)}</Text>
       </TouchableOpacity>
 
       {remainingS > 0 ? (
-        <Text style={styles.timer}>{formatNumber(remainingS, locale)} सेकंदात पुन्हा पाठवा</Text>
+        <Text style={styles.timer}>
+          {translate('resend_in_seconds', locale, { seconds: formatNumber(remainingS, locale) })}
+        </Text>
       ) : (
         <TouchableOpacity onPress={resend} disabled={loading}>
-          <Text style={styles.resend}>पुन्हा OTP पाठवा</Text>
+          <Text style={styles.resend}>{translate('resend_otp_button', locale)}</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -174,6 +206,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 20,
+    // The OTP a farmer types must be visible whatever the device theme.
+    color: '#212121',
     marginBottom: 16,
     backgroundColor: '#FFFFFF',
     letterSpacing: 2,
