@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, AliasChoices
 from typing import Optional
 
 
@@ -25,7 +25,7 @@ class RegisterRequest(BaseModel):
     locale: str = "mr"
     district_id: Optional[str] = None
     lat: Optional[float] = None
-    lon: Optional[float] = Field(None, validation_alias="lng")
+    lon: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
     village: Optional[str] = Field(None, max_length=200)   # farmer's village
     company_name: Optional[str] = None   # required only for role=BUYER
 
@@ -83,7 +83,7 @@ class UserDetailResponse(BaseModel):
     district_id: Optional[str] = None
     village: Optional[str] = None
     lat: Optional[float] = None
-    lon: Optional[float] = Field(None, validation_alias="lng")
+    lon: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
     verified: bool
     created_at: Optional[str] = None
     farmer_profile: Optional[FarmerProfileOut] = None

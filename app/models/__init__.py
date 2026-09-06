@@ -10,6 +10,7 @@ from app.models.dispute import Dispute
 from app.models.voice import CallSession, VoiceInteraction
 from app.models.reference import District, Commodity, Warehouse, LogisticsCostRoute
 from app.models.pledge import PledgeQuoteRecord
+from app.models.otp import OtpCode
 
 __all__ = [
     "User", "Farmer", "Buyer",
@@ -24,4 +25,5 @@ __all__ = [
     "CallSession", "VoiceInteraction",
     "District", "Commodity", "Warehouse", "LogisticsCostRoute",
     "PledgeQuoteRecord",
+    "OtpCode",
 ]
