@@ -16,16 +16,62 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd ~/Neolithic-Backend
+
+            echo "=== 1. Pulling latest code ==="
             git fetch origin main
             git reset --hard origin/main
+
+            echo "=== 2. Rebuilding and starting api & celery_worker ==="
             docker compose up -d --build api celery_worker
-            echo "Waiting for API to become ready..."
+
+            echo "=== 3. Verifying API readiness on port 8000 ==="
+            API_READY=0
             for i in $(seq 1 30); do
               if curl -s -f http://localhost:8000/health > /dev/null 2>&1; then
-                echo "API is healthy!"
+                echo "API is healthy on port 8000 (attempt $i)!"
+                API_READY=1
                 break
               fi
+              echo "Waiting for API startup... ($i/30)"
               sleep 1
             done
+
+            if [ $API_READY -ne 1 ]; then
+              echo "ERROR: API failed to become healthy within 30 seconds!"
+              docker compose logs --tail 40 api
+              exit 1
+            fi
+
+            echo "=== 4. Refreshing Nginx upstream resolution ==="
             docker compose restart nginx
+
+            echo "=== 5. Verifying Nginx gateway on port 80 ==="
+            NGINX_READY=0
+            for i in $(seq 1 10); do
+              if curl -s -f http://localhost/health > /dev/null 2>&1; then
+                echo "NGINX gateway is healthy on port 80 (attempt $i)!"
+                NGINX_READY=1
+                break
+              fi
+              echo "Waiting for NGINX upstream sync... ($i/10)"
+              sleep 1
+            done
+
+            if [ $NGINX_READY -ne 1 ]; then
+              echo "ERROR: NGINX gateway health check failed (502 Bad Gateway)!"
+              docker compose logs --tail 20 nginx
+              exit 1
+            fi
+
+            echo "=== 6. Verifying Celery worker status ==="
+            if ! docker compose ps celery_worker | grep -i "Up" > /dev/null 2>&1; then
+              echo "ERROR: Celery worker is not running!"
+              docker compose logs --tail 30 celery_worker
+              exit 1
+            fi
+
+            echo "=================================================="
+            echo "All services verified and healthy! Deploy complete."
+            echo "=================================================="
