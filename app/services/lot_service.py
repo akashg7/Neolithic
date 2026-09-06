@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.user import User
-from app.models.lot import Lot, BatchLot, BatchLotMember
+from app.models.lot import Lot, BatchLotMember
 from app.models.mandi import MandiLocation
 from app.models.demand import BuyerDemand
 from app.worker import run_matching_engine_for_lot
