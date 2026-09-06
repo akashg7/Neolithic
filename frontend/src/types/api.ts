@@ -369,6 +369,41 @@ export interface AssayRes {
   tip_en: string;
 }
 
+/**
+ * The stored assay row, transcribed column-for-column from the `grade_assays`
+ * DDL in CANON §6.4 — six answers, the derived score/grade, the weakest
+ * dimension, and the evidence photo. `unique (lot_id)`, so a lot has at most
+ * one.
+ *
+ * ★ Note what this is **not**: `AssayRes` (above) is the *response* to
+ *   `POST /lots/{id}/assay` and carries only `{score, grade, weakest_dimension,
+ *   tip_*}` — it throws the six answers away. Nothing in CANON §7.5 reads them
+ *   back. S20 needs them: a buyer deciding whether to trust a grade wants to see
+ *   the answers behind it, and "ग्रेड A, because our formula said so" is the
+ *   same non-answer CANON rejects for match scores.
+ *
+ * TODO(akash): expose this row — either fold it into `GET /lots/{id}` or add
+ *   `GET /lots/{id}/assay`. The columns already exist; nothing reads them.
+ *   Raised in docs/BLOCKERS.md.
+ */
+export interface AssayRecord {
+  lot_id: string;
+  size_uniform: 1 | 2 | 3;
+  colour_uniform: 1 | 2 | 3;
+  sprouting: 1 | 2 | 3;
+  /** 0..100 integer. */
+  damage_pct: number;
+  moisture_feel: 1 | 2 | 3;
+  foreign_matter: 1 | 2 | 3;
+  /** 0..1000, integer. Deterministic from the six above — see `lib/grading.ts`. */
+  score: number;
+  grade: Grade;
+  weakest_dimension: AssayDimension;
+  /** Evidence, never classifier input (CANON §6.4's own comment). */
+  photo_path: string | null;
+  created_at: string;
+}
+
 /** One row of `PoolDto.members` — from CANON §6.4 `pool_members` + §7.5. */
 export interface SplitRow {
   lot_id: string;
@@ -417,6 +452,41 @@ export interface DemandDto {
   /** 'SEEDED' for demo buyers — I8 applies to buyers too. */
   source: string;
   created_at: string;
+}
+
+export type MatchKind = 'SINGLE' | 'COMBINATION';
+
+/**
+ * One ranked entry from `GET /demands/{id}/matches` — CANON §7.6, transcribed
+ * from its own example response.
+ *
+ * Note what is **not** here: no price, and no farmer name or village on the
+ * lots. A match answers "which lots fill this order"; the price is still the
+ * buyer's own `bid_paise_per_qtl` until an offer is made, and the lot rows carry
+ * ids only. Neither absence is a gap to paper over on screen — see the header of
+ * `screens/buyer/S19_Matches.tsx`.
+ */
+export interface MatchDto {
+  kind: MatchKind;
+  lots: Array<{ lot_id: string; qty_allocated_kg: number }>;
+  total_qty_kg: number;
+  /** I3: how much of the demand this bundle fills. 10000 bps = the whole order. */
+  fill_bps: number;
+  avg_score: number;
+  grade: Grade;
+  distance_km: number;
+  /**
+   * Ranking score, 0..1. CANON §7.6: "`score` must decompose. The UI shows the
+   * `why_*` sentence. 'Because the algorithm said so' is not an answer a judge
+   * accepts." So this number is for ordering; `why_mr` is what renders.
+   */
+  score: number;
+  why_mr: string;
+  why_en: string;
+}
+
+export interface MatchesRes {
+  matches: MatchDto[];
 }
 
 export type OfferStatus =
@@ -488,6 +558,81 @@ export interface EscrowEvent {
   actor_user_id: string | null;
   note: string | null;
   created_at: string;
+}
+
+/**
+ * The four values of `disputes.reason_code`, transcribed from CANON §6.4's DDL
+ * comment. Free text goes in `description`; the code is what a mediator sorts
+ * and reports on, so it is a closed set and not a string.
+ */
+export type DisputeReasonCode =
+  | 'QUALITY_MISMATCH'
+  | 'SHORT_WEIGHT'
+  | 'PAYMENT_DELAY'
+  | 'OTHER';
+
+/**
+ * The seven stages of CANON §6.4's `disputes.stage` CHECK constraint.
+ *
+ * ★ The three `RESOLVED_*` stages are **mediation outcomes**, not actions either
+ *   party performs on its own dispute. They pair with the escrow FSM's two
+ *   resolution edges — `DISPUTED ──► RELEASED` (resolved for the farmer) and
+ *   `DISPUTED ──► REFUNDED` (resolved for the buyer) — with `RESOLVED_SPLIT` as
+ *   the negotiated middle. Nothing a buyer taps can reach them: the FSM is the
+ *   only writer (I11), and §7.7 is explicit that "anything not on this diagram
+ *   is 409". A screen that offers a buyer a "resolve" button is offering him a
+ *   409, and telling him he is the arbiter of his own complaint.
+ */
+export type DisputeStage =
+  | 'RAISED'
+  | 'EVIDENCE'
+  | 'MEDIATION'
+  | 'RESOLVED_FARMER'
+  | 'RESOLVED_BUYER'
+  | 'RESOLVED_SPLIT'
+  | 'WITHDRAWN';
+
+/** `disputes`, column for column (CANON §6.4). */
+export interface DisputeDto {
+  id: string;
+  tx_id: string;
+  raised_by: string;
+  reason_code: DisputeReasonCode;
+  description: string | null;
+  photo_path: string | null;
+  stage: DisputeStage;
+  created_at: string;
+}
+
+/**
+ * `dispute_events` — APPEND ONLY (I5), same contract as `EscrowEvent`. The
+ * stage a dispute is at is the last event's `stage`; `DisputeDto.stage` is a
+ * denormalised convenience and the stream is the record.
+ */
+export interface DisputeEvent {
+  id: string;
+  dispute_id: string;
+  stage: DisputeStage;
+  /** null when the actor is the platform — a mediator assignment, a timeout. */
+  actor_user_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+/**
+ * `GET /disputes/{id}`. CANON §7.7 gives the path and the words "+ event
+ * timeline" and no body, so this is the wrapper reading of that phrase — the
+ * same shape as `MatchesRes` and `ProvenanceRes` rather than a bare DTO with a
+ * second round trip for the stream.
+ *
+ * TODO(akash): if you would rather return a flat `DisputeDto` and put the
+ *   events on `GET /disputes/{id}/events` (mirroring `GET /tx/{id}/events`),
+ *   say so and I will follow — either is fine, but the two must not disagree.
+ *   Raised in docs/BLOCKERS.md.
+ */
+export interface DisputeRes {
+  dispute: DisputeDto;
+  events: DisputeEvent[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

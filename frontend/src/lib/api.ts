@@ -20,15 +20,20 @@ import { API_BASE_URL } from '../config';
 import type {
   ApiErrorBody,
   AssayReq,
+  AssayRecord,
   AssayRes,
   AuthRes,
   ChatMessage,
   DemandDto,
+  DisputeDto,
+  DisputeReasonCode,
+  DisputeRes,
   District,
   EscrowEvent,
   ForecastRes,
   Locale,
   LotDto,
+  MatchesRes,
   ModelCard,
   NearbyRes,
   OfferDto,
@@ -233,6 +238,18 @@ export const getLot = (id: string) => get<LotDto>(`/lots/${id}`);
 export const submitAssay = (lotId: string, body: AssayReq) =>
   post<AssayRes>(`/lots/${lotId}/assay`, body);
 
+/**
+ * The six stored answers behind a grade, for S20.
+ *
+ * TODO(akash): this route does **not** exist in CANON §7.5 — `POST .../assay`
+ *   returns only the score/grade/tip and discards the answers, and no endpoint
+ *   reads the `grade_assays` row back. The columns are already in the DDL
+ *   (CANON §6.4), so this is an exposure, not a new feature. Fold it into
+ *   `GET /lots/{id}` instead and I will delete this. Raised in docs/BLOCKERS.md.
+ */
+export const getLotAssay = (lotId: string) =>
+  get<AssayRecord>(`/lots/${lotId}/assay`);
+
 export const getPool = (id: string) => get<PoolDto>(`/pools/${id}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,6 +257,10 @@ export const getPool = (id: string) => get<PoolDto>(`/pools/${id}`);
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getDemands = () => get<DemandDto[]>('/demands');
+
+/** ★ CANON §7.6 — ranked, and includes multi-lot combinations. S19 reads this. */
+export const getMatches = (demandId: string) =>
+  get<MatchesRes>(`/demands/${demandId}/matches`);
 
 export const getOffers = () => get<OfferDto[]>('/offers');
 
@@ -282,6 +303,32 @@ export const transitionTx = (id: string, toStatus: TxStatus, idempotencyKey: str
     body: JSON.stringify({ to_status: toStatus, note }),
     headers: { 'Idempotency-Key': idempotencyKey },
   });
+
+/**
+ * CANON §7.7 documents the request body but not the response. We assume the
+ * created row, because every other `POST` in the contract returns the row it
+ * created, and because a screen that raises a dispute and then cannot show it
+ * has to guess at a stage.
+ *
+ * TODO(akash): confirm this returns `DisputeDto`. Raised in docs/BLOCKERS.md.
+ */
+export const createDispute = (body: {
+  tx_id: string;
+  reason_code: DisputeReasonCode;
+  description: string;
+  photo_path?: string;
+}) => post<DisputeDto>('/disputes', body);
+
+/**
+ * ★ CONTRACT GAP. This takes a `dispute_id`, and nothing in CANON hands one
+ * out: `TxDto` has no `dispute_id`, and there is no `GET /disputes?tx_id=`.
+ * So a buyer arriving at S25 on an already-disputed transaction cannot look
+ * up his own complaint — the screen says so rather than inventing a route.
+ *
+ * TODO(akash): either `dispute_id` on `TxDto` or `GET /disputes?tx_id=`.
+ * Raised in docs/BLOCKERS.md.
+ */
+export const getDispute = (id: string) => get<DisputeRes>(`/disputes/${id}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Meta and provenance — §7.8. Unblocks S24_DataProvenance.
