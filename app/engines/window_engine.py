@@ -39,48 +39,6 @@ def compute_sale_window(
 ) -> dict:
     """Compute the full WindowRes dict.
 
-<<<<<<< HEAD
-    latest = forecasts[0]
-    p50_val = latest["p50_paise"]
-    p10_val = latest["p10_paise"]
-    p90_val = latest["p90_paise"]
-    
-    band_width_bps = int(((p90_val - p10_val) / p50_val) * 10000)
-    
-    # Map raw confidence to Low/Med/High
-    conf = latest["confidence"]
-    conf_enum = "HIGH" if conf >= 0.8 else ("MEDIUM" if conf >= 0.6 else "LOW")
-    
-    base_res = {
-        "confidence": conf_enum,
-        "band_width_bps": band_width_bps,
-        "sell_now_net_paise_per_qtl": 0,
-        "hold_p50_net_paise_per_qtl": 0,
-        "hold_p10_net_paise_per_qtl": 0,
-        "expected_gain_paise": 0,
-        "worst_case_paise": 0,
-        "costs": {
-            "transport_paise_per_qtl": 0,
-            "commission_paise_per_qtl": 0,
-            "storage_paise_per_qtl": 0,
-            "spoilage_paise_per_qtl": 0,
-            "loading_paise_per_qtl": 0,
-            "total_paise_per_qtl": 0
-        },
-        "model_card": {"mase": 1.2, "coverage_80_bps": 8500},
-        "data_source": latest["source"],
-        "pledge_quote": None,
-        "alt_market": None
-    }
-
-    if band_width_bps > BAND_WIDTH_THRESHOLD * 10000:
-        base_res.update({
-            "action": "NO_ADVICE",
-            "refusal_reason": "BAND_TOO_WIDE",
-            "explain_en": "Price forecast is too uncertain due to recent high volatility.",
-            "explain_mr": "नुकत्याच झालेल्या चढउतारांमुळे किमतीचा अंदाज खूप अनिश्चित आहे."
-        })
-=======
     Uses the real LightGBM forecast (via domain.window.decide) when models
     are loaded; otherwise domain.decide refuses with NO_ADVICE rather than
     fabricating a number.
@@ -143,7 +101,6 @@ def compute_sale_window(
 
     # NO_ADVICE: hold_p50/p10 nets are null-equivalent (0) per frontend contract.
     if result.action == "NO_ADVICE":
->>>>>>> 1f3d4c01e186ef4bc3b68b6daee889a5d50fce10
         return base_res
 
     # ── For HOLD/SPLIT: compute hold-day nets (per qtl) ────────────────
@@ -197,85 +154,7 @@ def compute_sale_window(
                     "disclaimer": pq.disclaimer,
                 }
 
-<<<<<<< HEAD
-    # Baseline costs that apply even if selling today (transport, commission, loading)
-    baseline_transport = int(TRANSPORT_COST_PAISE_PER_KM * distance_km / qty_qtl) if distance_km else 0
-    baseline_commission = int(current_price_mid_paise * COMMISSION_RATE)
-    baseline_loading = LOADING_UNLOADING_PAISE_PER_QTL
-    baseline_total_costs = baseline_transport + baseline_commission + baseline_loading
-
-    sell_now_net = current_price_mid_paise - baseline_total_costs
-
-    for i, fc in enumerate(forecasts):
-        days_from_now = i + 1
-        
-        storage_per_qtl = int(STORAGE_COST_PAISE_PER_KG_PER_DAY * 100 * days_from_now)
-        spoilage_per_qtl = int(current_price_mid_paise * SPOILAGE_RATE_PER_DAY * days_from_now)
-        transport_per_qtl = int(TRANSPORT_COST_PAISE_PER_KM * distance_km / qty_qtl) if distance_km else 0
-        commission_per_qtl = int(fc["p50_paise"] * COMMISSION_RATE)
-        loading_per_qtl = LOADING_UNLOADING_PAISE_PER_QTL
-        
-        total_per_qtl = storage_per_qtl + spoilage_per_qtl + transport_per_qtl + commission_per_qtl + loading_per_qtl
-        
-        p50_net = fc["p50_paise"] - total_per_qtl
-        p10_net = fc["p10_paise"] - total_per_qtl
-        
-        # Expected gain is (future net - current net) * quantity. Since we didn't subtract transport/commission from current, 
-        # let's just do (p50_net - sell_now_net) * qty
-        gain = int((p50_net - sell_now_net) * qty_qtl)
-        worst = int((p10_net - sell_now_net) * qty_qtl)
-
-        if gain > best_gain and worst > - (total_per_qtl * qty_qtl * 0.5): # simple threshold
-            best_day = i
-            best_gain = gain
-            best_worst = worst
-            best_p50_net = p50_net
-            best_p10_net = p10_net
-            best_costs = {
-                "transport_paise_per_qtl": transport_per_qtl,
-                "commission_paise_per_qtl": commission_per_qtl,
-                "storage_paise_per_qtl": storage_per_qtl,
-                "spoilage_paise_per_qtl": spoilage_per_qtl,
-                "loading_paise_per_qtl": loading_per_qtl,
-                "total_paise_per_qtl": total_per_qtl
-            }
-
-    if best_day is None or best_gain <= 0:
-        base_res.update({
-            "action": "SELL_NOW",
-            "sell_now_net_paise_per_qtl": sell_now_net,
-            "hold_p50_net_paise_per_qtl": sell_now_net,
-            "hold_p10_net_paise_per_qtl": sell_now_net,
-            "expected_gain_paise": 0,
-            "worst_case_paise": 0,
-            "costs": {
-                "transport_paise_per_qtl": baseline_transport,
-                "commission_paise_per_qtl": baseline_commission,
-                "storage_paise_per_qtl": 0,
-                "spoilage_paise_per_qtl": 0,
-                "loading_paise_per_qtl": baseline_loading,
-                "total_paise_per_qtl": baseline_total_costs
-            },
-            "explain_en": "Selling today is most profitable to avoid accruing storage and spoilage costs.",
-            "explain_mr": "साठवणूक आणि खराब होण्याचा खर्च टाळण्यासाठी आजच विकणे सर्वाधिक फायदेशीर आहे."
-        })
-        return base_res
-
-    base_res.update({
-        "action": "HOLD",
-        "sell_now_net_paise_per_qtl": sell_now_net,
-        "hold_p50_net_paise_per_qtl": best_p50_net,
-        "hold_p10_net_paise_per_qtl": best_p10_net,
-        "expected_gain_paise": best_gain,
-        "worst_case_paise": best_worst,
-        "hold_days": best_day + 1,
-        "costs": best_costs,
-        "explain_en": f"Holding for {best_day + 1} days offers the best balance of potential price appreciation versus holding costs.",
-        "explain_mr": f"{best_day + 1} दिवस थांबल्यास संभाव्य दरवाढ आणि साठवणूक खर्चाचा सर्वोत्तम समतोल मिळेल."
-    })
-=======
     # SELL_NOW: no hold-day nets; frontend shows 0/None.
->>>>>>> 1f3d4c01e186ef4bc3b68b6daee889a5d50fce10
     return base_res
 
 
