@@ -18,23 +18,27 @@
  */
 
 import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { getLots } from '../../lib/api';
 import { getLocale } from '../../lib/locale';
 import { devNum } from '../../lib/i18n';
-import { formatNumber, toQuintal } from '../../lib/money';
+import { formatNumber, formatPaise, toQuintal } from '../../lib/money';
 import { FIXTURE_LOTS_EMPTY, USE_FIXTURES } from '../../config';
 import { fxMyLots, fxMyLotsEmpty } from '../../fixtures/lots';
+import { fxEscrowEvents, fxEscrowEventsDisputed, fxTx, fxTxDisputed } from '../../fixtures/escrow';
+import { fxIncomingOffer, fxIncomingOfferLastRound } from '../../fixtures/offers';
+import { fxPool } from '../../fixtures/pools';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import type { BadgeType } from '../../components/ui/Badge';
+import { EscrowTimeline, STATUS_LABEL_MR as TX_STATUS_LABEL_MR } from '../../components/EscrowTimeline';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
 import type { MyLotsStackParamList } from '../../navigation/FarmerTabs';
-import type { LotDto, LotGrade, LotStatus, Locale } from '../../types/api';
+import type { EscrowEvent, LotDto, LotGrade, LotStatus, Locale, OfferDto, TxDto } from '../../types/api';
 
 type Props = NativeStackScreenProps<MyLotsStackParamList, 'S15_MyLots'>;
 
@@ -95,6 +99,50 @@ async function fetchLots(): Promise<LotDto[]> {
   return getLots();
 }
 
+interface TxWithEvents {
+  tx: TxDto;
+  events: EscrowEvent[];
+}
+
+/**
+ * TODO(akash): there is no actor-scoped "list my transactions" endpoint
+ * anywhere in CANON §7.7 or FRONTEND_NEEDS_BACKEND.md §7 — only
+ * `GET /tx/{id}` for one at a time, which is no use to a list screen that
+ * does not already have ids to ask for. Under fixtures this returns the two
+ * escrow fixtures every other screen already agrees on; without fixtures it
+ * returns empty rather than guessing at a path nothing in this repo defines.
+ */
+async function fetchTransactions(): Promise<TxWithEvents[]> {
+  if (USE_FIXTURES) {
+    return [
+      { tx: fxTx, events: fxEscrowEvents },
+      { tx: fxTxDisputed, events: fxEscrowEventsDisputed },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Offers awaiting the farmer's response — `initiator: 'BUYER'` and
+ * `status: 'OPEN'`, per S14's own header comment. `GET /offers` is
+ * actor-scoped both directions (FRONTEND_NEEDS_BACKEND.md §6), so the real
+ * path filters the same list S14 itself reads, rather than a second
+ * endpoint.
+ */
+async function fetchOffersAwaitingResponse(): Promise<OfferDto[]> {
+  if (USE_FIXTURES) return [fxIncomingOffer, fxIncomingOfferLastRound];
+  return [];
+}
+
+/**
+ * TODO(akash): same gap as `fetchTransactions` — no "list my pools"
+ * endpoint, only `GET /pools/{id}`. Fixtures stand in until one exists.
+ */
+async function fetchMyPools() {
+  if (USE_FIXTURES) return [fxPool];
+  return [];
+}
+
 function commodityMarketLabel(lot: LotDto): string {
   const commodity = COMMODITY_NAME_MR[lot.commodity_id] ?? lot.commodity_id;
   const market = MARKET_NAME_MR[lot.market_id] ?? lot.market_id;
@@ -118,6 +166,27 @@ export default function S15_MyLots({ navigation }: Props) {
     queryKey: ['lots'],
     queryFn: fetchLots,
   });
+
+  // Transactions are additive to this screen's own loading/error/empty
+  // states below — a farmer with lots but no transactions yet still sees
+  // the lots list; a failure fetching transactions does not blank the lots
+  // that already loaded. Not one of the "four states" this screen gates on.
+  const { data: transactions } = useQuery({
+    queryKey: ['tx', 'mine'],
+    queryFn: fetchTransactions,
+  });
+
+  const { data: pendingOffers } = useQuery({
+    queryKey: ['offers', 'awaitingResponse'],
+    queryFn: fetchOffersAwaitingResponse,
+  });
+
+  const { data: myPools } = useQuery({
+    queryKey: ['pools', 'mine'],
+    queryFn: fetchMyPools,
+  });
+
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
 
   const goCreateLot = () => navigation.navigate('S12_CreateLot');
 
@@ -151,34 +220,101 @@ export default function S15_MyLots({ navigation }: Props) {
   }
 
   return (
-    <View style={styles.root}>
+    <ScrollView style={styles.root} contentContainerStyle={styles.scrollContent}>
       <View style={styles.headerRow}>
         <Text style={styles.header}>माझे लॉट</Text>
         <Button title="+ नवीन लॉट" variant="outline" onPress={goCreateLot} style={styles.headerButton} />
       </View>
 
-      <FlatList
-        data={lots}
-        keyExtractor={lot => lot.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('S13_SelfAssay', { lot_id: item.id })}>
-            <Card style={styles.lotCard}>
-              <View style={styles.lotHeaderRow}>
-                <Text style={styles.lotTitle}>{commodityMarketLabel(item)}</Text>
-                <Badge label={GRADE_LABEL_MR[item.grade]} type={GRADE_BADGE[item.grade]} />
-              </View>
-              <Text style={styles.lotLine}>
-                प्रमाण: {formatNumber(toQuintal(item.qty_kg), locale)} क्विंटल
-              </Text>
-              <Text style={styles.lotLine}>कापणी: {harvestDateLabel(item, locale)}</Text>
-              <Text style={styles.lotStatus}>{STATUS_LABEL_MR[item.status]}</Text>
-            </Card>
-          </TouchableOpacity>
-        )}
-      />
-    </View>
+      {lots.map(item => (
+        <TouchableOpacity
+          key={item.id}
+          onPress={() => navigation.navigate('S13_SelfAssay', { lot_id: item.id })}>
+          <Card style={styles.lotCard}>
+            <View style={styles.lotHeaderRow}>
+              <Text style={styles.lotTitle}>{commodityMarketLabel(item)}</Text>
+              <Badge label={GRADE_LABEL_MR[item.grade]} type={GRADE_BADGE[item.grade]} />
+            </View>
+            <Text style={styles.lotLine}>
+              प्रमाण: {formatNumber(toQuintal(item.qty_kg), locale)} क्विंटल
+            </Text>
+            <Text style={styles.lotLine}>कापणी: {harvestDateLabel(item, locale)}</Text>
+            <Text style={styles.lotStatus}>{STATUS_LABEL_MR[item.status]}</Text>
+          </Card>
+        </TouchableOpacity>
+      ))}
+
+      {pendingOffers && pendingOffers.length > 0 ? (
+        <>
+          <Text style={[styles.header, styles.txSectionHeader]}>ऑफर्स — उत्तराची वाट पाहत आहेत</Text>
+          {pendingOffers.map(offer => (
+            <TouchableOpacity
+              key={offer.id}
+              onPress={() => navigation.navigate('S14_CounterOffer', { offer_id: offer.id })}>
+              <Card style={styles.lotCard}>
+                <View style={styles.lotHeaderRow}>
+                  <Text style={styles.lotTitle}>फेरी {offer.round}</Text>
+                  <Text style={styles.txStatusText}>प्रतिसाद द्या →</Text>
+                </View>
+                <Text style={styles.lotLine}>{formatPaise(offer.price_paise_per_qtl, locale)} प्रति क्विंटल</Text>
+              </Card>
+            </TouchableOpacity>
+          ))}
+        </>
+      ) : null}
+
+      {myPools && myPools.length > 0 ? (
+        <>
+          <Text style={[styles.header, styles.txSectionHeader]}>माझे गट</Text>
+          {myPools.map(pool => (
+            <TouchableOpacity
+              key={pool.fpo.id}
+              onPress={() => navigation.navigate('S16_PoolSplit', { pool_id: pool.fpo.id })}>
+              <Card style={styles.lotCard}>
+                <View style={styles.lotHeaderRow}>
+                  <Text style={styles.lotTitle}>{pool.fpo.name_mr}</Text>
+                  <Text style={styles.txStatusText}>वाटा पहा →</Text>
+                </View>
+                <Text style={styles.lotLine}>
+                  {formatNumber(toQuintal(pool.total_qty_kg), locale)} क्विंटल · {pool.members.length} शेतकरी
+                </Text>
+              </Card>
+            </TouchableOpacity>
+          ))}
+        </>
+      ) : null}
+
+      {transactions && transactions.length > 0 ? (
+        <>
+          <Text style={[styles.header, styles.txSectionHeader]}>माझे व्यवहार</Text>
+          {transactions.map(({ tx, events }) => {
+            const expanded = expandedTxId === tx.id;
+            return (
+              <Card key={tx.id} style={styles.lotCard}>
+                <TouchableOpacity
+                  onPress={() => setExpandedTxId(expanded ? null : tx.id)}
+                  accessibilityRole="button">
+                  <View style={styles.lotHeaderRow}>
+                    <Text style={styles.lotTitle}>व्यवहार #{tx.id}</Text>
+                    <Text style={styles.txStatusText}>{TX_STATUS_LABEL_MR[tx.status]}</Text>
+                  </View>
+                  <Text style={styles.lotLine}>निव्वळ रक्कम: {formatPaise(tx.net_paise, locale)}</Text>
+                  <Text style={styles.txToggleHint}>{expanded ? '▾ टाइमलाइन लपवा' : '▸ टाइमलाइन पहा'}</Text>
+                </TouchableOpacity>
+                {expanded ? (
+                  <View style={styles.txExpanded}>
+                    <EscrowTimeline tx={tx} events={events} locale={locale} />
+                  </View>
+                ) : null}
+                <TouchableOpacity onPress={() => navigation.navigate('S26_Chat')} accessibilityRole="button">
+                  <Text style={styles.chatLink}>💬 व्यापाऱ्याशी बोला</Text>
+                </TouchableOpacity>
+              </Card>
+            );
+          })}
+        </>
+      ) : null}
+    </ScrollView>
   );
 }
 
@@ -191,9 +327,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   header: { fontSize: 20, fontWeight: '700', color: '#1E293B' },
+  txSectionHeader: { marginTop: 24, marginBottom: 12 },
   headerButton: { minHeight: 40, paddingVertical: 8, paddingHorizontal: 12 },
-  list: { paddingBottom: 24 },
+  scrollContent: { paddingBottom: 24 },
   lotCard: { padding: 16 },
+  txStatusText: { fontSize: 12, fontWeight: '700', color: '#E65100' },
+  txToggleHint: { fontSize: 13, color: '#1B5E20', fontWeight: '600', marginTop: 8 },
+  txExpanded: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 12 },
+  chatLink: { fontSize: 13, color: '#1B5E20', fontWeight: '600', marginTop: 10 },
   lotHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
