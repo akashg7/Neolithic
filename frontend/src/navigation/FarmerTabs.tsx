@@ -27,9 +27,12 @@ import S09_Verdict from '../screens/farmer/S09_Verdict';
 import S10_CostBreakdown from '../screens/farmer/S10_CostBreakdown';
 import S12_CreateLot from '../screens/farmer/S12_CreateLot';
 import S13_SelfAssay from '../screens/farmer/S13_SelfAssay';
+import S14_CounterOffer from '../screens/farmer/S14_CounterOffer';
 import S15_MyLots from '../screens/farmer/S15_MyLots';
+import S16_PoolSplit from '../screens/farmer/S16_PoolSplit';
+import S26_Chat from '../screens/farmer/S26_Chat';
+import S28_Assistant from '../screens/farmer/S28_Assistant';
 import PricesIndex from '../screens/farmer/PricesIndex';
-import { Soon } from '../screens/Soon';
 
 export type FarmerTabParamList = {
   Home: undefined;
@@ -119,6 +122,16 @@ export type MyLotsStackParamList = {
    * from the list) navigate here with the real id of the lot in question.
    */
   S13_SelfAssay: { lot_id?: string } | undefined;
+  /** `offer_id` optional for the same reason as S13's `lot_id` — falls back
+   * to the fixture incoming offer. S15's offers-awaiting-response section
+   * navigates here with the real id. */
+  S14_CounterOffer: { offer_id?: string } | undefined;
+  /** `pool_id` optional, same shape again — falls back to the fixture pool. */
+  S16_PoolSplit: { pool_id?: string } | undefined;
+  /** P15, cuttable — reached from a transaction row in S15. No params: it
+   * reads the one demo transaction thread every chat fixture already
+   * agrees on, same fixture-first pattern as S10 reading S9's cache key. */
+  S26_Chat: undefined;
 };
 
 const MyLotsStack = createNativeStackNavigator<MyLotsStackParamList>();
@@ -129,14 +142,14 @@ function MyLotsStackNavigator() {
       <MyLotsStack.Screen name="S15_MyLots" component={S15_MyLots} />
       <MyLotsStack.Screen name="S12_CreateLot" component={S12_CreateLot} />
       <MyLotsStack.Screen name="S13_SelfAssay" component={S13_SelfAssay} />
+      <MyLotsStack.Screen name="S14_CounterOffer" component={S14_CounterOffer} />
+      <MyLotsStack.Screen name="S16_PoolSplit" component={S16_PoolSplit} />
+      <MyLotsStack.Screen name="S26_Chat" component={S26_Chat} />
     </MyLotsStack.Navigator>
   );
 }
 
 const Tab = createBottomTabNavigator<FarmerTabParamList>();
-
-// TODO(pranay): P12 → S15 lots + timeline · P16 → S28 assistant.
-const AssistantSoon = () => <Soon label="S28 · मदत" />;
 
 export function FarmerTabs() {
   return (
@@ -154,11 +167,7 @@ export function FarmerTabs() {
       <Tab.Screen name="Home" component={HomeStackNavigator} options={{ title: 'मुख्यपृष्ठ' }} />
       <Tab.Screen name="Prices" component={PricesStackNavigator} options={{ title: 'भाव' }} />
       <Tab.Screen name="MyLots" component={MyLotsStackNavigator} options={{ title: 'माझे लॉट' }} />
-      <Tab.Screen
-        name="Assistant"
-        component={AssistantSoon}
-        options={{ title: 'मदत' }}
-      />
+      <Tab.Screen name="Assistant" component={S28_Assistant} options={{ title: 'मदत' }} />
     </Tab.Navigator>
   );
 }

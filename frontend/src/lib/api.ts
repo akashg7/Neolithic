@@ -22,6 +22,7 @@ import type {
   AssayReq,
   AssayRes,
   AuthRes,
+  ChatMessage,
   DemandDto,
   District,
   EscrowEvent,
@@ -249,6 +250,19 @@ export const createOffer = (body: {
   price_paise_per_qtl: number;
 }) => post<OfferDto>('/offers', body);
 
+export const acceptOffer = (offerId: string) => post<TxDto>(`/offers/${offerId}/accept`, {});
+
+export const rejectOffer = (offerId: string) => post<OfferDto>(`/offers/${offerId}/reject`, {});
+
+/**
+ * S14's action. `round+1`, **409 MAX_ROUNDS past round 3** per
+ * FRONTEND_NEEDS_BACKEND.md §6 — S14 disables its own counter button on the
+ * third round from `OfferDto.round` rather than waiting to be told by the
+ * 409; the status code is the backstop, not the primary path.
+ */
+export const counterOffer = (offerId: string, body: { price_paise_per_qtl: number; note?: string }) =>
+  post<OfferDto>(`/offers/${offerId}/counter`, body);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Escrow and disputes — §7.7
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,3 +288,14 @@ export const transitionTx = (id: string, toStatus: TxStatus, idempotencyKey: str
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getDataProvenance = () => get<ProvenanceRes>('/meta/data-provenance');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S26 chat — PROPOSED, no CANON section defines this (see types/api.ts's
+// ChatMessage header). Paths are this frontend's own guess at what a real
+// endpoint would look like, not a transcription of a documented one.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getChatMessages = (txId: string) => get<ChatMessage[]>(`/tx/${txId}/messages`);
+
+export const sendChatMessage = (txId: string, text: string) =>
+  post<ChatMessage>(`/tx/${txId}/messages`, { text });
