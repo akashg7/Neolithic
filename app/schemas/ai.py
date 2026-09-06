@@ -2,8 +2,49 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal, Dict, Any
 
 class ModelCard(BaseModel):
-    mase: float
-    coverage_80_bps: int
+    mase: float = 0.5718
+    coverage_80_bps: int = 6960
+    algo: Optional[str] = "lightgbm_quantile"
+    trained_at: Optional[str] = "2026-09-06T19:09:00+05:30"
+    train_rows: Optional[int] = 267756
+    train_from: Optional[str] = "2024-01-23"
+    train_to: Optional[str] = "2026-07-31"
+    horizon_days: Optional[int] = 14
+    baseline: Optional[str] = "seasonal_naive"
+
+class ForecastPoint(BaseModel):
+    target_date: str
+    p10_paise_per_qtl: int
+    p50_paise_per_qtl: int
+    p90_paise_per_qtl: int
+    date: Optional[str] = None
+    p10_paise: Optional[int] = None
+    p50_paise: Optional[int] = None
+    p90_paise: Optional[int] = None
+
+    def __init__(self, **data):
+        if "target_date" in data and "date" not in data:
+            data["date"] = data["target_date"]
+        elif "date" in data and "target_date" not in data:
+            data["target_date"] = data["date"]
+        if "p10_paise_per_qtl" in data and "p10_paise" not in data:
+            data["p10_paise"] = data["p10_paise_per_qtl"]
+        elif "p10_paise" in data and "p10_paise_per_qtl" not in data:
+            data["p10_paise_per_qtl"] = data["p10_paise"]
+        if "p50_paise_per_qtl" in data and "p50_paise" not in data:
+            data["p50_paise"] = data["p50_paise_per_qtl"]
+        elif "p50_paise" in data and "p50_paise_per_qtl" not in data:
+            data["p50_paise_per_qtl"] = data["p50_paise"]
+        if "p90_paise_per_qtl" in data and "p90_paise" not in data:
+            data["p90_paise"] = data["p90_paise_per_qtl"]
+        elif "p90_paise" in data and "p90_paise_per_qtl" not in data:
+            data["p90_paise_per_qtl"] = data["p90_paise"]
+        super().__init__(**data)
+
+class ForecastRes(BaseModel):
+    as_of_date: str
+    points: list[ForecastPoint]
+    model_card: ModelCard
 
 class PledgeQuote(BaseModel):
     loan_paise: Optional[int] = None
