@@ -72,6 +72,10 @@ jobs:
               exit 1
             fi
 
+            echo "=== 7. Running Full End-to-End API Test Suite (with SOTA ML Model) ==="
+            docker compose run --rm api python scripts/test_all_apis.py http://api:8000
+
             echo "=================================================="
             echo "All services verified and healthy! Deploy complete."
             echo "=================================================="
+

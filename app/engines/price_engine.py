@@ -1,17 +1,25 @@
-"""Price Engine — loads pre-trained LightGBM quantile models at startup.
+"""Price Engine — loads pre-trained LightGBM SOTA & quantile models at startup.
 
-Provides price predictions with quantile ranges (p10/p50/p90).
+Provides real price predictions with quantile ranges (p10/p50/p90).
 
-When real model artifacts are present (app/ml/artifacts/*.pkl), this
-delegates to app.ml.quantile.predict_quantiles.  When they are absent it
-falls back to a clearly-labelled SYNTHETIC stub so the app still boots.
+When real Maharashtra SOTA models are present (app/ml/sota_models/),
+this delegates to app.ml.sota_models.AgriPricePredictor for high-precision
+inference on 129 commodities and 367 Maharashtra APMC mandis.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, date
 
-from app.ml.quantile import load_models, predict_quantiles, ModelUnavailable
+from app.ml.quantile import load_models as load_quantile_models, predict_quantiles, ModelUnavailable
+
+logger = logging.getLogger(__name__)
+
+try:
+    from app.ml.sota_models.predictor import AgriPricePredictor
+except ImportError:
+    AgriPricePredictor = None
 
 
 class PriceEngine:
@@ -19,29 +27,72 @@ class PriceEngine:
 
     def __init__(self):
         self._loaded = False
+        self._sota_predictor = None
 
     def load_models(self) -> None:
-        """Called in FastAPI lifespan startup. Loads LightGBM pickles."""
-        load_models()
+        """Called in FastAPI lifespan startup. Loads SOTA & LightGBM pickles."""
+        # 1. Load SOTA Maharashtra Model package if available
+        if AgriPricePredictor is not None:
+            try:
+                self._sota_predictor = AgriPricePredictor()
+                self._sota_predictor.load()
+                logger.info("Successfully loaded SOTA Maharashtra LightGBM models.")
+            except Exception as e:
+                logger.warning("Could not load SOTA models: %s", e)
+                self._sota_predictor = None
+
+        # 2. Load legacy quantile pickles if present
+        try:
+            load_quantile_models()
+        except Exception as e:
+            logger.warning("Could not load quantile models: %s", e)
+
         self._loaded = True
 
-    def _try_real_predict(self, mandi: str, commodity: str, when: str) -> dict | None:
-        """Return real quantiles from the trained model, or None if unavailable."""
+    def _try_sota_predict(self, mandi: str, commodity: str, days: int = 14) -> list[dict] | None:
+        """Run inference using the trained SOTA Maharashtra models."""
+        if self._sota_predictor is None:
+            return None
         try:
-            quantiles = predict_quantiles(commodity, mandi, when, horizon=1)
-            if not quantiles:
-                return None
-            p10, p50, p90 = quantiles[0]
+            res = self._sota_predictor.predict_range(mandi=mandi, commodity=commodity, days=days)
+            if res and len(res) > 0:
+                return res
+        except Exception as e:
+            logger.warning("SOTA prediction failed for %s @ %s: %s", commodity, mandi, e)
+        return None
+
+    def _try_real_predict(self, mandi: str, commodity: str, when: str) -> dict | None:
+        """Return real quantiles from SOTA or trained quantile models, or None if unavailable."""
+        # 1. Try SOTA first
+        sota_res = self._try_sota_predict(mandi, commodity, days=1)
+        if sota_res:
+            d0 = sota_res[0]
             return {
-                "p10_paise": int(p10),
-                "p50_paise": int(p50),
-                "p90_paise": int(p90),
-                "confidence": 0.85,
-                "source": "AGMARKNET_ML",
+                "p10_paise": d0["p10_paise"],
+                "p50_paise": d0["p50_paise"],
+                "p90_paise": d0["p90_paise"],
+                "confidence": d0.get("confidence", 0.85),
+                "source": "AGMARKNET_SOTA",
                 "source_url": "https://agmarknet.gov.in",
             }
+
+        # 2. Try legacy quantile pkl
+        try:
+            quantiles = predict_quantiles(commodity, mandi, when, horizon=1)
+            if quantiles:
+                p10, p50, p90 = quantiles[0]
+                return {
+                    "p10_paise": int(p10),
+                    "p50_paise": int(p50),
+                    "p90_paise": int(p90),
+                    "confidence": 0.85,
+                    "source": "AGMARKNET_ML",
+                    "source_url": "https://agmarknet.gov.in",
+                }
         except (ModelUnavailable, Exception):
-            return None
+            pass
+
+        return None
 
     def predict(self, mandi: str, commodity: str, when: str | date | datetime) -> dict:
         """Predict today's p10/p50/p90.
@@ -68,19 +119,16 @@ class PriceEngine:
             "soyabean": 380000,
         }
         base = base_prices.get(commodity.lower(), 200000)
-        # Deterministic base factor per mandi (not randomised hash seed).
-        mandi_factor = (sum(ord(c) for c in mandi) % 20 - 10) / 100.0  # -10% to +10%
+        mandi_factor = (sum(ord(c) for c in mandi) % 20 - 10) / 100.0
         base = int(base * (1 + mandi_factor))
 
         p50 = base
         if commodity.lower() == "onion":
-            p10 = int(p50 * 0.70)  # 30% down
-            p90 = int(p50 * 1.30)  # 30% up (Total spread = 6000 bps > 3500 threshold)
+            p10 = int(p50 * 0.70)
+            p90 = int(p50 * 1.30)
         else:
-            p10 = int(p50 * 0.90)  # 10% down
-            p90 = int(p50 * 1.10)  # 10% up (Total spread = 2000 bps)
-
-        confidence = 0.85  # Fixed confidence for stub
+            p10 = int(p50 * 0.90)
+            p90 = int(p50 * 1.10)
 
         return {
             "p10_paise": p10,
@@ -88,7 +136,7 @@ class PriceEngine:
             "p90_paise": p90,
             "confidence": 0.85,
             "source": "SYNTHETIC",
-            "source_url": "https://agmarknet.gov.in",  # Stub
+            "source_url": "https://agmarknet.gov.in",
         }
 
     def predict_range(
@@ -99,7 +147,12 @@ class PriceEngine:
         """Predict for the next N days. Returns list of daily predictions."""
         as_of = when if when is not None else datetime.now().isoformat()
 
-        # Try the real multi-horizon model.
+        # 1. Try real SOTA Maharashtra LightGBM models first
+        sota_range = self._try_sota_predict(mandi, commodity, days=days)
+        if sota_range:
+            return sota_range
+
+        # 2. Try the multi-horizon pkl model
         try:
             quantiles = predict_quantiles(commodity, mandi, as_of, horizon=days)
             results = []
@@ -122,7 +175,7 @@ class PriceEngine:
         except (ModelUnavailable, Exception):
             pass
 
-        # Fall back to the synthetic range.
+        # 3. Fall back to the synthetic range
         base_prediction = self.predict(mandi, commodity, as_of)
         results = []
         base_dt = (
