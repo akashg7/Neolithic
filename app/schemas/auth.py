@@ -104,6 +104,16 @@ class UserDetailResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     token: str
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
+
+    def __init__(self, **data):
+        if "token" in data and "access_token" not in data:
+            data["access_token"] = data["token"]
+        elif "access_token" in data and "token" not in data:
+            data["token"] = data["access_token"]
+        super().__init__(**data)
+
 
 
 class MeResponse(BaseModel):

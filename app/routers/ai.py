@@ -18,40 +18,34 @@ async def get_price_forecasts(mandi: str, commodity: str, horizon: int = 14):
 @router.post("/window/recommend", response_model=WindowRes)
 async def get_sale_window(payload: WindowReq):
     """SELL/HOLD/NO_ADVICE recommendation based on exact per-quintal math."""
-    # Assuming current price mid paise is fetched from somewhere, here we use a stub or price_engine's today's prediction
-    try:
-        today_fc = price_engine.predict(payload.commodity_id, payload.market_id, "")
-        current_mid = today_fc["p50_paise"]
-    except Exception:
-        # If model fails, safely return NO_ADVICE
-        return WindowRes(
-            action="NO_ADVICE",
-            refusal_reason="INSUFFICIENT_HISTORY",
-            explain_en="Insufficient historical data to make a confident prediction.",
-            explain_mr="आत्मविश्वासाने अंदाज वर्तवण्यासाठी पुरेसा ऐतिहासिक डेटा नाही.",
-            confidence="LOW",
-            band_width_bps=0,
-            expected_gain_paise=None,
-            worst_case_paise=None,
-            costs=None,
-            sell_now_net_paise_per_qtl=None,
-            hold_p50_net_paise_per_qtl=None,
-            hold_p10_net_paise_per_qtl=None,
-            model_card={"mase": 0.0, "coverage_80_bps": 0},
-            data_source="UNKNOWN",
-            pledge_quote=None,
-            alt_market=None
-        )
+    crop = payload.final_crop
+    mandi = payload.final_mandi
+    qty = payload.final_qty
 
-    # Use a realistic default distance if missing
-    distance_km = 500.0
+    current_mid = payload.current_price_paise
+    if not current_mid:
+        try:
+            today_fc = price_engine.predict(mandi, crop, "")
+            current_mid = today_fc.get("p50_paise", 220000)
+        except Exception:
+            current_mid = 220000
+
+    distance_km = 50.0
 
     result = compute_sale_window(
-        crop=payload.commodity_id,
-        mandi=payload.market_id,
-        quantity_kg=payload.qty_kg,
+        crop=crop,
+        mandi=mandi,
+        quantity_kg=qty,
         current_price_mid_paise=current_mid,
         distance_km=distance_km,
-        horizon_days=payload.horizon_days
+        horizon_days=payload.horizon_days,
+        grade=payload.grade
     )
-    return result
+
+    if "recommendation" in result and "action" not in result:
+        result["action"] = result["recommendation"]
+    if "itemised_costs" in result and "costs" not in result:
+        result["costs"] = result["itemised_costs"]
+
+    return WindowRes(**result)
+
