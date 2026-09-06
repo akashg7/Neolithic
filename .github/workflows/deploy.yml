@@ -20,3 +20,12 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             docker compose up -d --build api celery_worker
+            echo "Waiting for API to become ready..."
+            for i in $(seq 1 30); do
+              if curl -s -f http://localhost:8000/health > /dev/null 2>&1; then
+                echo "API is healthy!"
+                break
+              fi
+              sleep 1
+            done
+            docker compose restart nginx
