@@ -41,54 +41,54 @@ async def list_lots(
 
 @router.get("/{lot_id}", response_model=LotOut)
 async def get_lot(
-    lot_id: int,
+    lot_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single lot. Checks ownership or buyer-has-offer access."""
-    return await lot_service.get_lot(db, user, lot_id)
+    return await lot_service.get_lot(db, user, int(lot_id))
 
 
 @router.post("/{lot_id}/assay", response_model=SelfAssayResponse)
 async def submit_self_assay(
-    lot_id: int,
+    lot_id: str,
     payload: SelfAssayRequest,
     user: User = Depends(require_role("FARMER", "FPO_ADMIN")),
     db: AsyncSession = Depends(get_db),
 ):
     """Submit self-assay quality answers for a lot. Returns computed grade."""
-    return await lot_service.submit_self_assay(db, user, lot_id, payload)
+    return await lot_service.submit_self_assay(db, user, int(lot_id), payload)
 
 
 @router.get("/{lot_id}/price-suggestion", response_model=PriceSuggestionResponse)
 async def get_price_suggestion(
-    lot_id: int,
+    lot_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get price band + SELL/HOLD/NO_ADVICE recommendation for a lot."""
-    return await lot_service.get_price_suggestion(db, user, lot_id)
+    return await lot_service.get_price_suggestion(db, user, int(lot_id))
 
 
 @router.get("/{lot_id}/matches", response_model=MatchesRes)
 async def get_lot_matches(
-    lot_id: int,
+    lot_id: str,
     user: User = Depends(require_role("FARMER", "FPO_ADMIN")),
     db: AsyncSession = Depends(get_db),
 ):
     """Find matching buyer demands for a lot."""
-    return await lot_service.get_lot_matches(db, user, lot_id)
+    return await lot_service.get_lot_matches(db, user, int(lot_id))
 
 @router.post("/{lot_id}/photo")
 async def upload_lot_photo(
-    lot_id: int,
+    lot_id: str,
     file: UploadFile = File(...),
     user: User = Depends(require_role("FARMER", "FPO_ADMIN")),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload lot photo, strip EXIF GPS, and save."""
     # Ensure lot exists and belongs to user
-    lot = await lot_service.get_lot(db, user, lot_id)
+    lot = await lot_service.get_lot(db, user, int(lot_id))
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
 

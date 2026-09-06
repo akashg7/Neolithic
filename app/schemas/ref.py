@@ -1,38 +1,50 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, Field
 
 class DistrictOut(BaseModel):
-    id: int
+    id: str
     name: str
     name_mr: str
+    
+    @field_validator("id", mode="before")
+    def id_to_str(cls, v): return str(v)
     
     class Config:
         from_attributes = True
 
 class CommodityOut(BaseModel):
-    id: int
+    id: str
     name: str
     name_mr: str
+    
+    @field_validator("id", mode="before")
+    def id_to_str(cls, v): return str(v)
     
     class Config:
         from_attributes = True
 
 class WarehouseOut(BaseModel):
-    id: int
+    id: str
     name: str
     name_mr: str
-    district_id: int
+    district_id: str
     wdra_registered: bool
+    
+    @field_validator("id", "district_id", mode="before")
+    def id_to_str(cls, v): return str(v)
     
     class Config:
         from_attributes = True
 
 class MandiOut(BaseModel):
-    id: int
+    id: str
     name: str
     name_mr: str
-    district_id: int
+    district_id: str
     lat: float
-    lng: float
+    lon: float = Field(validation_alias="lng")
+    
+    @field_validator("id", "district_id", mode="before")
+    def id_to_str(cls, v): return str(v)
     
     class Config:
         from_attributes = True

@@ -5,7 +5,7 @@ Uses price forecasts to calculate expected gain vs. holding costs.
 from app.engines.price_engine import price_engine
 
 # Configurable thresholds
-BAND_WIDTH_THRESHOLD = 0.25  # 25%
+BAND_WIDTH_THRESHOLD = 0.35  # 35%
 TRANSPORT_COST_PAISE_PER_KM = 50
 COMMISSION_RATE = 0.025  # 2.5%
 STORAGE_COST_PAISE_PER_KG_PER_DAY = 5
@@ -42,7 +42,7 @@ def compute_sale_window(
         "hold_p10_net_paise_per_qtl": 0,
         "expected_gain_paise": 0,
         "worst_case_paise": 0,
-        "itemised_costs": {
+        "costs": {
             "transport_paise_per_qtl": 0,
             "commission_paise_per_qtl": 0,
             "storage_paise_per_qtl": 0,
@@ -58,7 +58,7 @@ def compute_sale_window(
 
     if band_width_bps > BAND_WIDTH_THRESHOLD * 10000:
         base_res.update({
-            "recommendation": "NO_ADVICE",
+            "action": "NO_ADVICE",
             "refusal_reason": "BAND_TOO_WIDE",
             "explain_en": "Price forecast is too uncertain due to recent high volatility.",
             "explain_mr": "नुकत्याच झालेल्या चढउतारांमुळे किमतीचा अंदाज खूप अनिश्चित आहे."
@@ -80,7 +80,13 @@ def compute_sale_window(
     best_p50_net = current_price_mid_paise
     best_p10_net = current_price_mid_paise
 
-    sell_now_net = current_price_mid_paise  # ignoring baseline transport for simplicity relative comparison
+    # Baseline costs that apply even if selling today (transport, commission, loading)
+    baseline_transport = int(TRANSPORT_COST_PAISE_PER_KM * distance_km / qty_qtl) if distance_km else 0
+    baseline_commission = int(current_price_mid_paise * COMMISSION_RATE)
+    baseline_loading = LOADING_UNLOADING_PAISE_PER_QTL
+    baseline_total_costs = baseline_transport + baseline_commission + baseline_loading
+
+    sell_now_net = current_price_mid_paise - baseline_total_costs
 
     for i, fc in enumerate(forecasts):
         days_from_now = i + 1
@@ -118,23 +124,35 @@ def compute_sale_window(
 
     if best_day is None or best_gain <= 0:
         base_res.update({
-            "recommendation": "SELL_NOW",
+            "action": "SELL_NOW",
             "sell_now_net_paise_per_qtl": sell_now_net,
-            "hold_p50_net_paise_per_qtl": sell_now_net, # Same as sell now since we're not holding
+            "hold_p50_net_paise_per_qtl": sell_now_net,
             "hold_p10_net_paise_per_qtl": sell_now_net,
             "expected_gain_paise": 0,
             "worst_case_paise": 0,
+            "costs": {
+                "transport_paise_per_qtl": baseline_transport,
+                "commission_paise_per_qtl": baseline_commission,
+                "storage_paise_per_qtl": 0,
+                "spoilage_paise_per_qtl": 0,
+                "loading_paise_per_qtl": baseline_loading,
+                "total_paise_per_qtl": baseline_total_costs
+            },
+            "explain_en": "Selling today is most profitable to avoid accruing storage and spoilage costs.",
+            "explain_mr": "साठवणूक आणि खराब होण्याचा खर्च टाळण्यासाठी आजच विकणे सर्वाधिक फायदेशीर आहे."
         })
         return base_res
 
     base_res.update({
-        "recommendation": "HOLD",
+        "action": "HOLD",
         "sell_now_net_paise_per_qtl": sell_now_net,
         "hold_p50_net_paise_per_qtl": best_p50_net,
         "hold_p10_net_paise_per_qtl": best_p10_net,
         "expected_gain_paise": best_gain,
         "worst_case_paise": best_worst,
         "hold_days": best_day + 1,
-        "itemised_costs": best_costs,
+        "costs": best_costs,
+        "explain_en": f"Holding for {best_day + 1} days offers the best balance of potential price appreciation versus holding costs.",
+        "explain_mr": f"{best_day + 1} दिवस थांबल्यास संभाव्य दरवाढ आणि साठवणूक खर्चाचा सर्वोत्तम समतोल मिळेल."
     })
     return base_res

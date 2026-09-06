@@ -1,0 +1,4039 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AgriSense API",
+    "description": "Backend API for AgriSense \u2014 SIH PS 26132",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/auth/otp/request": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request Otp",
+        "description": "Request an OTP for a phone number.",
+        "operationId": "request_otp_api_v1_auth_otp_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequestReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpRequestRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/otp/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify Otp",
+        "description": "Verify OTP and login an existing user.",
+        "operationId": "verify_otp_api_v1_auth_otp_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register",
+        "description": "Register a new user after verifying OTP.",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get Me",
+        "description": "Get the current authenticated user's profile.",
+        "operationId": "get_me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/locale": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Update Locale",
+        "description": "Update the user's preferred locale.",
+        "operationId": "update_locale_api_v1_auth_locale_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocaleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lots": {
+      "post": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "Create Lot",
+        "description": "Create a new lot. Auto-calls Price Engine for price band.",
+        "operationId": "create_lot_api_v1_lots_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "List Lots",
+        "description": "List lots owned by the current farmer, optionally filtered by status.",
+        "operationId": "list_lots_api_v1_lots_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LotOut"
+                  },
+                  "title": "Response List Lots Api V1 Lots Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots/{lot_id}": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "Get Lot",
+        "description": "Get a single lot. Checks ownership or buyer-has-offer access.",
+        "operationId": "get_lot_api_v1_lots__lot_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots/{lot_id}/assay": {
+      "post": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "Submit Self Assay",
+        "description": "Submit self-assay quality answers for a lot. Returns computed grade.",
+        "operationId": "submit_self_assay_api_v1_lots__lot_id__assay_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelfAssayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelfAssayResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots/{lot_id}/price-suggestion": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "Get Price Suggestion",
+        "description": "Get price band + SELL/HOLD/NO_ADVICE recommendation for a lot.",
+        "operationId": "get_price_suggestion_api_v1_lots__lot_id__price_suggestion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceSuggestionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots/{lot_id}/matches": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "Get Lot Matches",
+        "description": "Find matching buyer demands for a lot.",
+        "operationId": "get_lot_matches_api_v1_lots__lot_id__matches_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchesRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots/{lot_id}/photo": {
+      "post": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "Upload Lot Photo",
+        "description": "Upload lot photo, strip EXIF GPS, and save.",
+        "operationId": "upload_lot_photo_api_v1_lots__lot_id__photo_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_lot_photo_api_v1_lots__lot_id__photo_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demands": {
+      "post": {
+        "tags": [
+          "Demands"
+        ],
+        "summary": "Create Demand",
+        "description": "Create a new buyer demand.",
+        "operationId": "create_demand_api_v1_demands_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemandCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Demands"
+        ],
+        "summary": "List Demands",
+        "description": "List demands owned by the current buyer.",
+        "operationId": "list_demands_api_v1_demands_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandOut"
+                  },
+                  "title": "Response List Demands Api V1 Demands Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demands/{demand_id}/matches": {
+      "get": {
+        "tags": [
+          "Demands"
+        ],
+        "summary": "Get Demand Matches",
+        "description": "Find matching lots for a demand.",
+        "operationId": "get_demand_matches_api_v1_demands__demand_id__matches_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "demand_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Demand Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchesRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offers": {
+      "get": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "List Offers",
+        "description": "List offers relevant to the user (actor-scoped).",
+        "operationId": "list_offers_api_v1_offers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OfferDto"
+                  },
+                  "type": "array",
+                  "title": "Response List Offers Api V1 Offers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Create Offer",
+        "description": "Create a new offer.",
+        "operationId": "create_offer_api_v1_offers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/offers/{offer_id}/accept": {
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Accept Offer",
+        "description": "Accept an offer. Generates a transaction.",
+        "operationId": "accept_offer_api_v1_offers__offer_id__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{offer_id}/reject": {
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Reject Offer",
+        "description": "Reject an offer.",
+        "operationId": "reject_offer_api_v1_offers__offer_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{offer_id}/counter": {
+      "post": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Counter Offer",
+        "description": "Counter an offer (creates new child offer). Max 3 rounds.",
+        "operationId": "counter_offer_api_v1_offers__offer_id__counter_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferCounterReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{offer_id}/thread": {
+      "get": {
+        "tags": [
+          "Offers"
+        ],
+        "summary": "Get Offer Thread",
+        "description": "Get the full counter chain, oldest first.",
+        "operationId": "get_offer_thread_api_v1_offers__offer_id__thread_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OfferDto"
+                  },
+                  "title": "Response Get Offer Thread Api V1 Offers  Offer Id  Thread Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tx/{transaction_id}": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Get Transaction",
+        "description": "Get transaction status + events.",
+        "operationId": "get_transaction_api_v1_tx__transaction_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tx/{transaction_id}/transition": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Transition Transaction",
+        "description": "Move escrow state machine forward.",
+        "operationId": "transition_transaction_api_v1_tx__transaction_id__transition_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FSMTransitionReq"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logistics/": {
+      "get": {
+        "tags": [
+          "Logistics"
+        ],
+        "summary": "List Logistics Providers",
+        "operationId": "list_logistics_providers_api_v1_logistics__get",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogisticsProviderOut"
+                  },
+                  "title": "Response List Logistics Providers Api V1 Logistics  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pools/aggregate": {
+      "post": {
+        "tags": [
+          "FPO"
+        ],
+        "summary": "Aggregate Lots",
+        "description": "Aggregate multiple lots into a single batch lot. FPO admin only.",
+        "operationId": "aggregate_lots_api_v1_pools_aggregate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AggregateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchLotOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/forecast": {
+      "get": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Get Price Forecasts",
+        "description": "Raw quantile forecasts for the next N days.",
+        "operationId": "get_price_forecasts_api_v1_ai_forecast_get",
+        "parameters": [
+          {
+            "name": "mandi",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mandi"
+            }
+          },
+          {
+            "name": "commodity",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Commodity"
+            }
+          },
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 14,
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/window/recommend": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Get Sale Window",
+        "description": "SELL/HOLD/NO_ADVICE recommendation based on exact per-quintal math.",
+        "operationId": "get_sale_window_api_v1_ai_window_recommend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WindowReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WindowRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ref/districts": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Get Districts",
+        "description": "Get all districts.",
+        "operationId": "get_districts_api_v1_ref_districts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DistrictOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Districts Api V1 Ref Districts Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ref/commodities": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Get Commodities",
+        "description": "Get all commodities.",
+        "operationId": "get_commodities_api_v1_ref_commodities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CommodityOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Commodities Api V1 Ref Commodities Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ref/warehouses": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Get Warehouses",
+        "description": "Get all warehouses.",
+        "operationId": "get_warehouses_api_v1_ref_warehouses_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WarehouseOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Warehouses Api V1 Ref Warehouses Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ref/markets": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Get Markets",
+        "description": "Get all mandi locations (markets).",
+        "operationId": "get_markets_api_v1_ref_markets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MandiOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Markets Api V1 Ref Markets Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices/series": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Get Price Series",
+        "description": "Get price series for a commodity and market.",
+        "operationId": "get_price_series_api_v1_prices_series_get",
+        "parameters": [
+          {
+            "name": "commodity_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Commodity Id"
+            }
+          },
+          {
+            "name": "market_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Market Id"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 180,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceSeriesRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices/nearby": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Get Nearby Markets",
+        "description": "Get nearby markets sorted by net profit.",
+        "operationId": "get_nearby_markets_api_v1_prices_nearby_get",
+        "parameters": [
+          {
+            "name": "commodity_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Commodity Id"
+            }
+          },
+          {
+            "name": "district_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "District Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NearbyRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta/init": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "Get App Init",
+        "description": "Initialize app data for frontend.",
+        "operationId": "get_app_init_api_v1_meta_init_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppInitRes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta/health": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "Get Health",
+        "description": "Health check endpoint.",
+        "operationId": "get_health_api_v1_meta_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta/data-provenance": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "Get Data Provenance",
+        "description": "Data provenance stub.",
+        "operationId": "get_data_provenance_api_v1_meta_data_provenance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/buyers/{buyer_id}/reliability": {
+      "get": {
+        "tags": [
+          "Buyers"
+        ],
+        "summary": "Get Buyer Reliability",
+        "description": "Get reliability metrics for a buyer.",
+        "operationId": "get_buyer_reliability_api_v1_buyers__buyer_id__reliability_get",
+        "parameters": [
+          {
+            "name": "buyer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Buyer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyerReliabilityRes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AggregateRequest": {
+        "properties": {
+          "lot_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Lot Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_ids"
+        ],
+        "title": "AggregateRequest"
+      },
+      "AltMarket": {
+        "properties": {
+          "market_id": {
+            "type": "string",
+            "title": "Market Id"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "gross_price_paise": {
+            "type": "integer",
+            "title": "Gross Price Paise"
+          },
+          "net_price_paise": {
+            "type": "integer",
+            "title": "Net Price Paise"
+          }
+        },
+        "type": "object",
+        "required": [
+          "market_id",
+          "distance_km",
+          "gross_price_paise",
+          "net_price_paise"
+        ],
+        "title": "AltMarket"
+      },
+      "AppInitRes": {
+        "properties": {
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "commodities": {
+            "items": {
+              "$ref": "#/components/schemas/IdNamePair"
+            },
+            "type": "array",
+            "title": "Commodities"
+          },
+          "markets": {
+            "items": {
+              "$ref": "#/components/schemas/IdNamePair"
+            },
+            "type": "array",
+            "title": "Markets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roles",
+          "commodities",
+          "markets"
+        ],
+        "title": "AppInitRes"
+      },
+      "AuthResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "token"
+        ],
+        "title": "AuthResponse"
+      },
+      "BatchLotMemberOut": {
+        "properties": {
+          "source_lot_id": {
+            "type": "integer",
+            "title": "Source Lot Id"
+          },
+          "quantity_contributed_qtl": {
+            "type": "integer",
+            "title": "Quantity Contributed Qtl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_lot_id",
+          "quantity_contributed_qtl"
+        ],
+        "title": "BatchLotMemberOut"
+      },
+      "BatchLotOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "commodity_id": {
+            "type": "integer",
+            "title": "Commodity Id"
+          },
+          "quantity_qtl": {
+            "type": "integer",
+            "title": "Quantity Qtl"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
+          "expected_price_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Price Paise"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "member_lots": {
+            "items": {
+              "$ref": "#/components/schemas/BatchLotMemberOut"
+            },
+            "type": "array",
+            "title": "Member Lots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "commodity_id",
+          "quantity_qtl",
+          "status",
+          "member_lots"
+        ],
+        "title": "BatchLotOut"
+      },
+      "Body_upload_lot_photo_api_v1_lots__lot_id__photo_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_lot_photo_api_v1_lots__lot_id__photo_post"
+      },
+      "BuyerProfileOut": {
+        "properties": {
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "verified_status": {
+            "type": "boolean",
+            "title": "Verified Status",
+            "default": false
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "gst_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gst Last4"
+          },
+          "deals_completed": {
+            "type": "integer",
+            "title": "Deals Completed"
+          },
+          "on_time_payment_bps": {
+            "type": "integer",
+            "title": "On Time Payment Bps"
+          },
+          "renegotiation_bps": {
+            "type": "integer",
+            "title": "Renegotiation Bps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tier",
+          "deals_completed",
+          "on_time_payment_bps",
+          "renegotiation_bps"
+        ],
+        "title": "BuyerProfileOut"
+      },
+      "BuyerReliabilityRes": {
+        "properties": {
+          "successful_trades": {
+            "type": "integer",
+            "title": "Successful Trades"
+          },
+          "total_trades": {
+            "type": "integer",
+            "title": "Total Trades"
+          },
+          "avg_payment_delay_hrs": {
+            "type": "number",
+            "title": "Avg Payment Delay Hrs"
+          },
+          "quality_dispute_rate": {
+            "type": "number",
+            "title": "Quality Dispute Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "successful_trades",
+          "total_trades",
+          "avg_payment_delay_hrs",
+          "quality_dispute_rate"
+        ],
+        "title": "BuyerReliabilityRes"
+      },
+      "CommodityOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "name_mr"
+        ],
+        "title": "CommodityOut"
+      },
+      "DemandCreate": {
+        "properties": {
+          "commodity_id": {
+            "type": "integer",
+            "title": "Commodity Id"
+          },
+          "quantity_qtl": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity Qtl"
+          },
+          "expected_price_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Price Paise"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Id"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "desired_grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "commodity_id",
+          "quantity_qtl"
+        ],
+        "title": "DemandCreate"
+      },
+      "DemandOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "commodity_id": {
+            "type": "integer",
+            "title": "Commodity Id"
+          },
+          "quantity_qtl": {
+            "type": "integer",
+            "title": "Quantity Qtl"
+          },
+          "expected_price_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Price Paise"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Id"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "commodity_id",
+          "quantity_qtl",
+          "status"
+        ],
+        "title": "DemandOut"
+      },
+      "DistrictOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "name_mr"
+        ],
+        "title": "DistrictOut"
+      },
+      "EscrowEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "status_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PENDING_BUYER_DEPOSIT",
+                  "DEPOSIT_HELD",
+                  "IN_TRANSIT",
+                  "ARRIVED_PENDING_INSPECTION",
+                  "INSPECTION_PASSED",
+                  "FUNDS_RELEASED",
+                  "DISPUTED_QUALITY",
+                  "DISPUTED_NO_SHOW",
+                  "CANCELLED_REFUNDED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status From"
+          },
+          "status_to": {
+            "type": "string",
+            "enum": [
+              "PENDING_BUYER_DEPOSIT",
+              "DEPOSIT_HELD",
+              "IN_TRANSIT",
+              "ARRIVED_PENDING_INSPECTION",
+              "INSPECTION_PASSED",
+              "FUNDS_RELEASED",
+              "DISPUTED_QUALITY",
+              "DISPUTED_NO_SHOW",
+              "CANCELLED_REFUNDED"
+            ],
+            "title": "Status To"
+          },
+          "actor_id": {
+            "type": "string",
+            "title": "Actor Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "transaction_id",
+          "status_to",
+          "actor_id"
+        ],
+        "title": "EscrowEventOut"
+      },
+      "FSMTransitionReq": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "DEPOSIT_PAID",
+              "DISPATCHED",
+              "ARRIVED",
+              "INSPECTED_OK",
+              "INSPECTED_REJECT",
+              "FUNDS_TRANSFER",
+              "NO_SHOW",
+              "REFUND"
+            ],
+            "title": "Action"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "FSMTransitionReq"
+      },
+      "FarmerProfileOut": {
+        "properties": {
+          "fpo_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fpo Id"
+          }
+        },
+        "type": "object",
+        "title": "FarmerProfileOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IdNamePair": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "IdNamePair"
+      },
+      "LocaleUpdateRequest": {
+        "properties": {
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "locale"
+        ],
+        "title": "LocaleUpdateRequest"
+      },
+      "LogisticsProviderOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "capacity_kg": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Kg"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "demo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "lat",
+          "lng"
+        ],
+        "title": "LogisticsProviderOut"
+      },
+      "LotCreate": {
+        "properties": {
+          "commodity_id": {
+            "type": "string",
+            "title": "Commodity Id"
+          },
+          "qty_kg": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Qty Kg"
+          },
+          "expected_price_paise": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Price Paise"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Id"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "self_assay": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Self Assay"
+          }
+        },
+        "type": "object",
+        "required": [
+          "commodity_id",
+          "qty_kg",
+          "expected_price_paise"
+        ],
+        "title": "LotCreate"
+      },
+      "LotOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "commodity_id": {
+            "type": "string",
+            "title": "Commodity Id"
+          },
+          "qty_kg": {
+            "type": "integer",
+            "title": "Qty Kg"
+          },
+          "expected_price_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Price Paise"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "LISTED",
+              "IN_AUCTION",
+              "SOLD",
+              "CANCELLED",
+              "COMPLETED"
+            ],
+            "title": "Status"
+          },
+          "market_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Id"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "UNGRADED",
+              "A",
+              "B",
+              "C",
+              "REJECTED"
+            ],
+            "title": "Grade"
+          },
+          "photo_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Path"
+          },
+          "farmer_id": {
+            "type": "string",
+            "title": "Farmer Id"
+          },
+          "harvest_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Harvest Date"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "commodity_id",
+          "qty_kg",
+          "status",
+          "grade",
+          "farmer_id"
+        ],
+        "title": "LotOut"
+      },
+      "MandiOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          },
+          "district_id": {
+            "type": "string",
+            "title": "District Id"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "name_mr",
+          "district_id",
+          "lat",
+          "lon"
+        ],
+        "title": "MandiOut"
+      },
+      "MatchLotItem": {
+        "properties": {
+          "lot_id": {
+            "type": "string",
+            "title": "Lot Id"
+          },
+          "qty_allocated_kg": {
+            "type": "integer",
+            "title": "Qty Allocated Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_id",
+          "qty_allocated_kg"
+        ],
+        "title": "MatchLotItem"
+      },
+      "MatchRow": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SINGLE",
+              "COMBINATION"
+            ],
+            "title": "Kind"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/MatchLotItem"
+            },
+            "type": "array",
+            "title": "Lots"
+          },
+          "total_qty_kg": {
+            "type": "integer",
+            "title": "Total Qty Kg"
+          },
+          "fill_bps": {
+            "type": "integer",
+            "title": "Fill Bps"
+          },
+          "avg_score": {
+            "type": "integer",
+            "title": "Avg Score"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C"
+            ],
+            "title": "Grade"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "why_mr": {
+            "type": "string",
+            "title": "Why Mr"
+          },
+          "why_en": {
+            "type": "string",
+            "title": "Why En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "lots",
+          "total_qty_kg",
+          "fill_bps",
+          "avg_score",
+          "grade",
+          "distance_km",
+          "score",
+          "why_mr",
+          "why_en"
+        ],
+        "title": "MatchRow"
+      },
+      "MatchesRes": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchRow"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches"
+        ],
+        "title": "MatchesRes"
+      },
+      "MeResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserDetailResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "title": "MeResponse"
+      },
+      "ModelCard": {
+        "properties": {
+          "mase": {
+            "type": "number",
+            "title": "Mase"
+          },
+          "coverage_80_bps": {
+            "type": "integer",
+            "title": "Coverage 80 Bps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mase",
+          "coverage_80_bps"
+        ],
+        "title": "ModelCard"
+      },
+      "NearbyMarketRow": {
+        "properties": {
+          "market_id": {
+            "type": "string",
+            "title": "Market Id"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          },
+          "gross_paise_per_qtl": {
+            "type": "integer",
+            "title": "Gross Paise Per Qtl"
+          },
+          "transport_paise_per_qtl": {
+            "type": "integer",
+            "title": "Transport Paise Per Qtl"
+          },
+          "commission_paise_per_qtl": {
+            "type": "integer",
+            "title": "Commission Paise Per Qtl"
+          },
+          "net_paise_per_qtl": {
+            "type": "integer",
+            "title": "Net Paise Per Qtl"
+          },
+          "distance_km": {
+            "type": "integer",
+            "title": "Distance Km"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "AGMARKNET",
+              "MSAMB",
+              "ARCHIVE",
+              "IMPUTED",
+              "SYNTHETIC"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "market_id",
+          "name_mr",
+          "gross_paise_per_qtl",
+          "transport_paise_per_qtl",
+          "commission_paise_per_qtl",
+          "net_paise_per_qtl",
+          "distance_km",
+          "source"
+        ],
+        "title": "NearbyMarketRow"
+      },
+      "NearbyRes": {
+        "properties": {
+          "as_of_date": {
+            "type": "string",
+            "title": "As Of Date"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/NearbyMarketRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "sorted_by": {
+            "type": "string",
+            "const": "net_paise_per_qtl",
+            "title": "Sorted By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of_date",
+          "rows",
+          "sorted_by"
+        ],
+        "title": "NearbyRes"
+      },
+      "OfferCounterReq": {
+        "properties": {
+          "price_paise_per_qtl": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Price Paise Per Qtl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price_paise_per_qtl"
+        ],
+        "title": "OfferCounterReq"
+      },
+      "OfferCreate": {
+        "properties": {
+          "demand_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Id"
+          },
+          "lot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Lot Ids"
+          },
+          "qty_kg": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Qty Kg"
+          },
+          "price_paise_per_qtl": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Price Paise Per Qtl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_ids",
+          "qty_kg",
+          "price_paise_per_qtl"
+        ],
+        "title": "OfferCreate"
+      },
+      "OfferDto": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "demand_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Id"
+          },
+          "buyer_id": {
+            "type": "string",
+            "title": "Buyer Id"
+          },
+          "farmer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Farmer Id"
+          },
+          "pool_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Id"
+          },
+          "price_paise_per_qtl": {
+            "type": "integer",
+            "title": "Price Paise Per Qtl"
+          },
+          "qty_kg": {
+            "type": "integer",
+            "title": "Qty Kg"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "parent_offer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Offer Id"
+          },
+          "initiator": {
+            "type": "string",
+            "enum": [
+              "BUYER",
+              "FARMER"
+            ],
+            "title": "Initiator"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ACCEPTED",
+              "REJECTED",
+              "COUNTERED",
+              "EXPIRED",
+              "WITHDRAWN"
+            ],
+            "title": "Status"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/OfferLotItem"
+            },
+            "type": "array",
+            "title": "Lots",
+            "default": []
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "buyer_id",
+          "price_paise_per_qtl",
+          "qty_kg",
+          "round",
+          "initiator",
+          "status",
+          "created_at"
+        ],
+        "title": "OfferDto"
+      },
+      "OfferLotItem": {
+        "properties": {
+          "lot_id": {
+            "type": "string",
+            "title": "Lot Id"
+          },
+          "qty_allocated_kg": {
+            "type": "integer",
+            "title": "Qty Allocated Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_id",
+          "qty_allocated_kg"
+        ],
+        "title": "OfferLotItem"
+      },
+      "OtpRequestReq": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 15,
+            "minLength": 10,
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "OtpRequestReq"
+      },
+      "OtpRequestRes": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "expires_in_s": {
+            "type": "integer",
+            "title": "Expires In S"
+          },
+          "dev_otp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dev Otp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expires_in_s"
+        ],
+        "title": "OtpRequestRes"
+      },
+      "OtpVerifyReq": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "code"
+        ],
+        "title": "OtpVerifyReq"
+      },
+      "PledgeQuote": {
+        "properties": {
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name"
+          },
+          "ltv_percent": {
+            "type": "number",
+            "title": "Ltv Percent"
+          },
+          "interest_rate_bps": {
+            "type": "integer",
+            "title": "Interest Rate Bps"
+          },
+          "max_amount_paise": {
+            "type": "integer",
+            "title": "Max Amount Paise"
+          },
+          "terms_url": {
+            "type": "string",
+            "title": "Terms Url"
+          },
+          "contact_phone": {
+            "type": "string",
+            "title": "Contact Phone"
+          },
+          "valid_until": {
+            "type": "string",
+            "title": "Valid Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_name",
+          "ltv_percent",
+          "interest_rate_bps",
+          "max_amount_paise",
+          "terms_url",
+          "contact_phone",
+          "valid_until"
+        ],
+        "title": "PledgeQuote"
+      },
+      "PriceBand": {
+        "properties": {
+          "min_paise_per_qtl": {
+            "type": "integer",
+            "title": "Min Paise Per Qtl"
+          },
+          "mid_paise_per_qtl": {
+            "type": "integer",
+            "title": "Mid Paise Per Qtl"
+          },
+          "max_paise_per_qtl": {
+            "type": "integer",
+            "title": "Max Paise Per Qtl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_paise_per_qtl",
+          "mid_paise_per_qtl",
+          "max_paise_per_qtl"
+        ],
+        "title": "PriceBand"
+      },
+      "PricePoint": {
+        "properties": {
+          "obs_date": {
+            "type": "string",
+            "title": "Obs Date"
+          },
+          "min_paise_per_qtl": {
+            "type": "integer",
+            "title": "Min Paise Per Qtl"
+          },
+          "max_paise_per_qtl": {
+            "type": "integer",
+            "title": "Max Paise Per Qtl"
+          },
+          "modal_paise_per_qtl": {
+            "type": "integer",
+            "title": "Modal Paise Per Qtl"
+          },
+          "arrivals_qtl": {
+            "type": "integer",
+            "title": "Arrivals Qtl"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "AGMARKNET",
+              "MSAMB",
+              "ARCHIVE",
+              "IMPUTED",
+              "SYNTHETIC"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obs_date",
+          "min_paise_per_qtl",
+          "max_paise_per_qtl",
+          "modal_paise_per_qtl",
+          "arrivals_qtl",
+          "source"
+        ],
+        "title": "PricePoint"
+      },
+      "PriceSeriesRes": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "source_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "AGMARKNET",
+                "MSAMB",
+                "ARCHIVE",
+                "IMPUTED",
+                "SYNTHETIC"
+              ]
+            },
+            "type": "object",
+            "title": "Source Summary"
+          },
+          "latest_obs_date": {
+            "type": "string",
+            "title": "Latest Obs Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "source_summary",
+          "latest_obs_date"
+        ],
+        "title": "PriceSeriesRes"
+      },
+      "PriceSuggestionResponse": {
+        "properties": {
+          "lot_id": {
+            "type": "string",
+            "title": "Lot Id"
+          },
+          "price_band": {
+            "$ref": "#/components/schemas/PriceBand"
+          },
+          "sale_window": {
+            "$ref": "#/components/schemas/SaleWindowInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_id",
+          "price_band",
+          "sale_window"
+        ],
+        "title": "PriceSuggestionResponse"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 15,
+            "minLength": 10,
+            "title": "Phone"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Code"
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^(FARMER|BUYER|FPO_ADMIN)$",
+            "title": "Role"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale",
+            "default": "mr"
+          },
+          "district_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District Id"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "phone",
+          "code",
+          "role"
+        ],
+        "title": "RegisterRequest"
+      },
+      "SaleWindowInfo": {
+        "properties": {
+          "recommendation": {
+            "type": "string",
+            "title": "Recommendation"
+          },
+          "expected_gain_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Gain Paise"
+          },
+          "worst_case_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Case Paise"
+          },
+          "itemised_costs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemised Costs"
+          },
+          "hold_until_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Until Date"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recommendation"
+        ],
+        "title": "SaleWindowInfo"
+      },
+      "SelfAssayRequest": {
+        "properties": {
+          "size_uniform": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Size Uniform"
+          },
+          "colour_uniform": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Colour Uniform"
+          },
+          "damage_pct": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Damage Pct"
+          },
+          "sprouting": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Sprouting"
+          },
+          "moisture_feel": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Moisture Feel"
+          },
+          "foreign_matter": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Foreign Matter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size_uniform",
+          "colour_uniform",
+          "damage_pct",
+          "sprouting",
+          "moisture_feel",
+          "foreign_matter"
+        ],
+        "title": "SelfAssayRequest"
+      },
+      "SelfAssayResponse": {
+        "properties": {
+          "lot_id": {
+            "type": "string",
+            "title": "Lot Id"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "grade": {
+            "type": "string",
+            "title": "Grade"
+          },
+          "weakest_dimension": {
+            "type": "string",
+            "title": "Weakest Dimension"
+          },
+          "tip_mr": {
+            "type": "string",
+            "title": "Tip Mr"
+          },
+          "tip_en": {
+            "type": "string",
+            "title": "Tip En"
+          },
+          "self_assay_answers": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Self Assay Answers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_id",
+          "score",
+          "grade",
+          "weakest_dimension",
+          "tip_mr",
+          "tip_en",
+          "self_assay_answers"
+        ],
+        "title": "SelfAssayResponse"
+      },
+      "TransactionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "title": "Amount Paise"
+          },
+          "razorpay_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razorpay Order Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_BUYER_DEPOSIT",
+              "DEPOSIT_HELD",
+              "IN_TRANSIT",
+              "ARRIVED_PENDING_INSPECTION",
+              "INSPECTION_PASSED",
+              "FUNDS_RELEASED",
+              "DISPUTED_QUALITY",
+              "DISPUTED_NO_SHOW",
+              "CANCELLED_REFUNDED"
+            ],
+            "title": "Status"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EscrowEventOut"
+            },
+            "type": "array",
+            "title": "Events",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "offer_id",
+          "amount_paise",
+          "status"
+        ],
+        "title": "TransactionOut"
+      },
+      "UserDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "district_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District Id"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "farmer_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FarmerProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "buyer_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuyerProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "role",
+          "locale",
+          "verified"
+        ],
+        "title": "UserDetailResponse"
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "district_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "role",
+          "locale"
+        ],
+        "title": "UserResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WarehouseOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          },
+          "district_id": {
+            "type": "string",
+            "title": "District Id"
+          },
+          "wdra_registered": {
+            "type": "boolean",
+            "title": "Wdra Registered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "name_mr",
+          "district_id",
+          "wdra_registered"
+        ],
+        "title": "WarehouseOut"
+      },
+      "WindowItemisedCosts": {
+        "properties": {
+          "transport_paise_per_qtl": {
+            "type": "integer",
+            "title": "Transport Paise Per Qtl",
+            "default": 0
+          },
+          "commission_paise_per_qtl": {
+            "type": "integer",
+            "title": "Commission Paise Per Qtl",
+            "default": 0
+          },
+          "storage_paise_per_qtl": {
+            "type": "integer",
+            "title": "Storage Paise Per Qtl",
+            "default": 0
+          },
+          "spoilage_paise_per_qtl": {
+            "type": "integer",
+            "title": "Spoilage Paise Per Qtl",
+            "default": 0
+          },
+          "loading_paise_per_qtl": {
+            "type": "integer",
+            "title": "Loading Paise Per Qtl",
+            "default": 0
+          },
+          "total_paise_per_qtl": {
+            "type": "integer",
+            "title": "Total Paise Per Qtl",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "WindowItemisedCosts"
+      },
+      "WindowReq": {
+        "properties": {
+          "commodity_id": {
+            "type": "string",
+            "title": "Commodity Id"
+          },
+          "market_id": {
+            "type": "string",
+            "title": "Market Id"
+          },
+          "qty_kg": {
+            "type": "integer",
+            "title": "Qty Kg"
+          },
+          "grade": {
+            "type": "string",
+            "title": "Grade"
+          },
+          "lot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Id"
+          },
+          "horizon_days": {
+            "type": "integer",
+            "title": "Horizon Days",
+            "default": 14
+          }
+        },
+        "type": "object",
+        "required": [
+          "commodity_id",
+          "market_id",
+          "qty_kg",
+          "grade"
+        ],
+        "title": "WindowReq"
+      },
+      "WindowRes": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "SELL_NOW",
+              "SELL_ELSEWHERE",
+              "HOLD",
+              "SPLIT",
+              "NO_ADVICE"
+            ],
+            "title": "Action"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ],
+            "title": "Confidence"
+          },
+          "band_width_bps": {
+            "type": "integer",
+            "title": "Band Width Bps"
+          },
+          "sell_now_net_paise_per_qtl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sell Now Net Paise Per Qtl"
+          },
+          "hold_p50_net_paise_per_qtl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold P50 Net Paise Per Qtl"
+          },
+          "hold_p10_net_paise_per_qtl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold P10 Net Paise Per Qtl"
+          },
+          "expected_gain_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Gain Paise"
+          },
+          "worst_case_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Case Paise"
+          },
+          "costs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WindowItemisedCosts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hold_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Days"
+          },
+          "model_card": {
+            "$ref": "#/components/schemas/ModelCard"
+          },
+          "data_source": {
+            "type": "string",
+            "title": "Data Source"
+          },
+          "pledge_quote": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PledgeQuote"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alt_market": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AltMarket"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refusal_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "BAND_TOO_WIDE",
+                  "INSUFFICIENT_HISTORY",
+                  "STALE_DATA",
+                  "GAIN_BELOW_COST"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal Reason"
+          },
+          "explain_mr": {
+            "type": "string",
+            "title": "Explain Mr"
+          },
+          "explain_en": {
+            "type": "string",
+            "title": "Explain En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "confidence",
+          "band_width_bps",
+          "sell_now_net_paise_per_qtl",
+          "hold_p50_net_paise_per_qtl",
+          "hold_p10_net_paise_per_qtl",
+          "expected_gain_paise",
+          "worst_case_paise",
+          "costs",
+          "model_card",
+          "data_source",
+          "explain_mr",
+          "explain_en"
+        ],
+        "title": "WindowRes"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

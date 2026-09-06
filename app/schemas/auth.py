@@ -23,9 +23,9 @@ class RegisterRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=6)
     role: str = Field(..., pattern=r"^(FARMER|BUYER|FPO_ADMIN)$")
     locale: str = "mr"
-    district_id: Optional[int] = None
+    district_id: Optional[str] = None
     lat: Optional[float] = None
-    lng: Optional[float] = None
+    lon: Optional[float] = Field(None, validation_alias="lng")
     company_name: Optional[str] = None   # required only for role=BUYER
 
 
@@ -35,11 +35,11 @@ class UserResponse(BaseModel):
     phone: str
     role: str
     locale: str
-    district_id: Optional[int] = None
+    district_id: Optional[str] = None
     
-    @field_validator("id", mode="before")
+    @field_validator("id", "district_id", mode="before")
     def id_to_str(cls, v):
-        return str(v)
+        return str(v) if v is not None else v
 
     @field_validator("role", mode="before")
     def role_upper(cls, v):
@@ -50,7 +50,11 @@ class UserResponse(BaseModel):
 
 
 class FarmerProfileOut(BaseModel):
-    fpo_id: Optional[int] = None
+    fpo_id: Optional[str] = None
+
+    @field_validator("fpo_id", mode="before")
+    def id_to_str(cls, v):
+        return str(v) if v is not None else v
 
     class Config:
         from_attributes = True
@@ -75,18 +79,18 @@ class UserDetailResponse(BaseModel):
     phone: str
     role: str
     locale: str
-    district_id: Optional[int] = None
+    district_id: Optional[str] = None
     village: Optional[str] = None
     lat: Optional[float] = None
-    lng: Optional[float] = None
+    lon: Optional[float] = Field(None, validation_alias="lng")
     verified: bool
     created_at: Optional[str] = None
     farmer_profile: Optional[FarmerProfileOut] = None
     buyer_profile: Optional[BuyerProfileOut] = None
 
-    @field_validator("id", mode="before")
+    @field_validator("id", "district_id", mode="before")
     def id_to_str(cls, v):
-        return str(v)
+        return str(v) if v is not None else v
 
     @field_validator("role", mode="before")
     def role_upper(cls, v):
@@ -99,6 +103,10 @@ class UserDetailResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     token: str
+
+
+class MeResponse(BaseModel):
+    user: UserDetailResponse
 
 
 class LocaleUpdateRequest(BaseModel):

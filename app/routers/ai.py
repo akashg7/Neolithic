@@ -20,14 +20,31 @@ async def get_sale_window(payload: WindowReq):
     """SELL/HOLD/NO_ADVICE recommendation based on exact per-quintal math."""
     # Assuming current price mid paise is fetched from somewhere, here we use a stub or price_engine's today's prediction
     try:
-        today_fc = price_engine.predict(payload.market_id, payload.commodity_id, "")
+        today_fc = price_engine.predict(payload.commodity_id, payload.market_id, "")
         current_mid = today_fc["p50_paise"]
     except Exception:
-        # If model fails, provide fallback
-        current_mid = 200000
+        # If model fails, safely return NO_ADVICE
+        return WindowRes(
+            action="NO_ADVICE",
+            refusal_reason="INSUFFICIENT_HISTORY",
+            explain_en="Insufficient historical data to make a confident prediction.",
+            explain_mr="आत्मविश्वासाने अंदाज वर्तवण्यासाठी पुरेसा ऐतिहासिक डेटा नाही.",
+            confidence="LOW",
+            band_width_bps=0,
+            expected_gain_paise=None,
+            worst_case_paise=None,
+            costs=None,
+            sell_now_net_paise_per_qtl=None,
+            hold_p50_net_paise_per_qtl=None,
+            hold_p10_net_paise_per_qtl=None,
+            model_card={"mase": 0.0, "coverage_80_bps": 0},
+            data_source="UNKNOWN",
+            pledge_quote=None,
+            alt_market=None
+        )
 
-    # Assume distance is 50km for stub if we don't have farmer location
-    distance_km = 50.0
+    # Use a realistic default distance if missing
+    distance_km = 500.0
 
     result = compute_sale_window(
         crop=payload.commodity_id,

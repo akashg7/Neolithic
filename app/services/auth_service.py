@@ -1,4 +1,4 @@
-import random
+import secrets
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 import bcrypt
@@ -15,7 +15,7 @@ from app.schemas.auth import RegisterRequest, AuthResponse, UserResponse, OtpReq
 async def request_otp(db: AsyncSession, phone: str) -> OtpRequestRes:
     """Generate and store an OTP for the given phone number."""
     # Generate 6-digit OTP
-    code = f"{random.randint(0, 999999):06d}"
+    code = f"{secrets.randbelow(1000000):06d}"
     code_hash = bcrypt.hashpw(code.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=120)
 

@@ -9,7 +9,7 @@ from app.models.user import User
 from app.schemas.auth import (
     RegisterRequest, AuthResponse, OtpRequestReq, OtpRequestRes, 
     OtpVerifyReq, UserDetailResponse, FarmerProfileOut, BuyerProfileOut,
-    LocaleUpdateRequest
+    LocaleUpdateRequest, MeResponse
 )
 from app.services import auth_service
 
@@ -34,7 +34,7 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
     return await auth_service.register_user(db, payload)
 
 
-@router.get("/me", response_model=UserDetailResponse)
+@router.get("/me", response_model=MeResponse)
 async def get_me(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -65,7 +65,7 @@ async def get_me(
         buyer_profile=BuyerProfileOut.model_validate(user_with_profiles.buyer_profile)
             if user_with_profiles.buyer_profile else None,
     )
-    return response
+    return MeResponse(user=response)
 
 
 @router.post("/locale")

@@ -37,6 +37,7 @@ async def get_app_init(db: AsyncSession = Depends(get_db)):
     
     return AppInitRes(
         roles=roles,
+        commodities=comm_out,
         markets=mandis_out
     )
 
