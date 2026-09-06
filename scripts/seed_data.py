@@ -123,6 +123,9 @@ async def seed():
     engine = create_async_engine(settings.DATABASE_URL)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     async with session_factory() as db:
         # Check existing data
         result = await db.execute(select(District).limit(1))
@@ -134,20 +137,22 @@ async def seed():
 
         if force:
             print("Force flag set — wiping reference tables before seeding...")
-            await db.execute(text("DELETE FROM offer_lots;"))
-            await db.execute(text("DELETE FROM offers;"))
-            await db.execute(text("DELETE FROM lots;"))
-            await db.execute(text("DELETE FROM buyer_demand;"))
-            await db.execute(text("DELETE FROM farmers;"))
-            await db.execute(text("DELETE FROM buyers;"))
-            await db.execute(text("DELETE FROM users WHERE id IN (1, 2, 3);"))
-            await db.execute(text("DELETE FROM logistics_providers;"))
-            await db.execute(text("DELETE FROM warehouses;"))
-            await db.execute(text("DELETE FROM mandi_locations;"))
-            await db.execute(text("DELETE FROM commodities;"))
-            await db.execute(text("DELETE FROM fpos;"))
-            await db.execute(text("DELETE FROM districts;"))
-            await db.commit()
+            tables_to_clear = [
+                "offer_lots", "offers", "lots", "buyer_demands",
+                "farmers", "buyers", "logistics_providers",
+                "warehouses", "mandi_locations", "commodities", "fpos", "districts"
+            ]
+            for tbl in tables_to_clear:
+                try:
+                    await db.execute(text(f"TRUNCATE TABLE {tbl} CASCADE;"))
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+            try:
+                await db.execute(text("DELETE FROM users WHERE id IN (1, 2, 3);"))
+                await db.commit()
+            except Exception:
+                await db.rollback()
 
         print("Seeding Maharashtra Districts (36)...")
         for d in MAHARASHTRA_DISTRICTS:
