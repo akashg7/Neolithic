@@ -20,12 +20,19 @@ import {
 } from 'react-native';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { colors, fontFamily, space, radius } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
-import type { HomeStackParamList } from '../../navigation/FarmerTabs';
+import { useAuth } from '../../lib/auth';
+import type { HomeStackParamList, FarmerTabParamList } from '../../navigation/FarmerTabs';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'S4_Home'>;
+type ParentNav = CompositeNavigationProp<
+  Props['navigation'],
+  BottomTabNavigationProp<FarmerTabParamList>
+>;
 
 // ── Price chart data ────────────────────────────────────────────────
 const PRICE_DATA = [
@@ -117,6 +124,9 @@ const redOnions = require('../../assets/images/red_onions.jpg');
 
 export default function S04_Home({ navigation }: Props) {
   const { t } = useT();
+  const { user } = useAuth();
+  const parentNav = navigation as unknown as ParentNav;
+  const goToLots = () => parentNav.navigate('MyLots', { screen: 'S15_MyLots' } as never);
 
   return (
     <View style={styles.root}>
@@ -126,20 +136,31 @@ export default function S04_Home({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
 
-        {/* ── 1. Top bar ─────────────────────────────────── */}
+        {/* ── 1. Top bar ─────────────────────────────────────
+             The app name/role/sign-out chrome already renders once,
+             globally, in RootNavigator — repeating it here as a second
+             "Mandi-Setu" brand label was both wrong-branded and a
+             redundant second header. This row now shows page context
+             (who's signed in, which market) instead of the app name. */}
         <View style={styles.topBar}>
           <View>
-            <Text style={styles.topGreeting}>Mandi-Setu</Text>
-            <Text style={styles.topDate}>Lasalgaon APMC</Text>
+            <Text style={styles.topGreeting} numberOfLines={1}>
+              {user?.name ?? t('app_name')}
+            </Text>
+            <Text style={styles.topDate}>{t('home_market_name')}</Text>
           </View>
+          {/* Voice narration and buyer-bid notifications are not wired yet
+              (no TTS-per-screen pipeline, no push/poll for new offers) — a
+              tappable icon that silently does nothing reads as a broken
+              button, so these render as plain, non-interactive glyphs
+              until there is a real handler behind them. */}
           <View style={styles.topActions}>
-            <TouchableOpacity style={styles.topIconBtn}>
-              <Icon name="mic" size={18} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.topIconBtn}>
-              <Icon name="bell" size={18} color={colors.onSurface} />
-              <View style={styles.bellDot} />
-            </TouchableOpacity>
+            <View style={styles.topIconBtn}>
+              <Icon name="mic" size={18} color={colors.outline} />
+            </View>
+            <View style={styles.topIconBtn}>
+              <Icon name="bell" size={18} color={colors.outline} />
+            </View>
           </View>
         </View>
 
@@ -257,7 +278,7 @@ export default function S04_Home({ navigation }: Props) {
         {/* ── 5. My lots section ────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('home_active_lots')}</Text>
-          <TouchableOpacity style={styles.sectionAction}>
+          <TouchableOpacity style={styles.sectionAction} onPress={goToLots}>
             <Text style={styles.sectionActionText}>{t('home_manage_all')}</Text>
             <Icon name="chevron-right" size={14} color={colors.primaryContainer} />
           </TouchableOpacity>
@@ -291,16 +312,15 @@ export default function S04_Home({ navigation }: Props) {
             </View>
             <View style={styles.lotStat}>
               <Text style={styles.lotStatLabel}>{t('home_lot_count', { count: '1' })}</Text>
-              <Text style={styles.lotStatValue}>#MS-2847</Text>
+              <Text style={styles.lotStatValue}>#2847</Text>
             </View>
           </View>
 
+          {/* ★ "Book Truck" removed — there is no logistics-booking endpoint
+              anywhere in CANON; this button went nowhere and promised a
+              feature the product does not have. */}
           <View style={styles.lotActions}>
-            <TouchableOpacity style={styles.lotSecondaryBtn}>
-              <Icon name="truck" size={14} color={colors.primaryContainer} />
-              <Text style={styles.lotSecondaryBtnText}>{t('home_book_truck')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.lotPrimaryBtn}>
+            <TouchableOpacity style={styles.lotPrimaryBtn} onPress={goToLots}>
               <Text style={styles.lotPrimaryBtnText}>{t('home_view_lot')}</Text>
               <Icon name="chevron-right" size={14} color={colors.onPrimary} />
             </TouchableOpacity>
@@ -312,30 +332,11 @@ export default function S04_Home({ navigation }: Props) {
           </View>
         </View>
 
-        {/* ── 6. Quick actions ──────────────────────────── */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionCard}>
-            <View style={[styles.qaIconBg, { backgroundColor: 'rgba(4,120,87,0.08)' }]}>
-              <Icon name="clipboard" size={20} color={colors.tertiary} />
-            </View>
-            <Text style={styles.qaLabel}>{t('home_weigh_slips')}</Text>
-            <Text style={styles.qaSub}>{t('home_electronic_slips')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionCard}>
-            <View style={[styles.qaIconBg, { backgroundColor: 'rgba(194,65,12,0.08)' }]}>
-              <Icon name="truck" size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.qaLabel}>{t('home_book_truck')}</Text>
-            <Text style={styles.qaSub}>{t('home_drivers_ready', { count: '8' })}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionCard}>
-            <View style={[styles.qaIconBg, { backgroundColor: 'rgba(155,47,0,0.06)' }]}>
-              <Icon name="tag" size={20} color={colors.secondary} />
-            </View>
-            <Text style={styles.qaLabel}>{t('home_manage_all')}</Text>
-            <Text style={styles.qaSub}>{t('home_lot_count', { count: '1' })}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* ★ The "Quick actions" grid (Weigh Slips, Book Truck, a second
+            Manage All) was removed outright: Weigh Slips and Book Truck have
+            no backing endpoint, and Manage All already exists once, wired,
+            in the section header above — a second copy of the same link was
+            dead weight, not a second feature. */}
       </ScrollView>
     </View>
   );
