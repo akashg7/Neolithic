@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from fastapi_cache.decorator import cache
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
+from app.schemas.logistics import LogisticsProviderOut
 
 router = APIRouter()
 
@@ -13,4 +14,4 @@ router = APIRouter()
 @router.get("/", response_model=list[LogisticsProviderOut])
 @cache(expire=3600)
 async def list_logistics_providers(type: str = None, db: AsyncSession = Depends(get_db)):
-    pass
+    return []

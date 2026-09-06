@@ -10,10 +10,10 @@ router = APIRouter()
 @router.get("/price-forecast")
 @cache(expire=3600)
 async def get_price_forecasts():
-    pass
+    return []
 
 # GET /ai/sale-window?lot_id= — SELL/HOLD/NO_ADVICE recommendation
 @router.get("/sale-window")
 @cache(expire=3600)
 async def get_sale_window():
-    pass
+    return {}

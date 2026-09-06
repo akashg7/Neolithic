@@ -12,4 +12,4 @@ router = APIRouter()
 @router.get("/", response_model=list)
 @cache(expire=3600)
 async def get_mandi_locations(db: AsyncSession = Depends(get_db)):
-    pass
+    return []
