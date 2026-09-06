@@ -1,0 +1,345 @@
+[
+  {
+    "cutoff_date": "2026-06-04",
+    "commodity": "Soyabean",
+    "market": "Latur APMC",
+    "forecast": [
+      {
+        "date": "2026-06-05",
+        "p10_paise": 622711,
+        "p50_paise": 689294,
+        "p90_paise": 727920
+      },
+      {
+        "date": "2026-06-06",
+        "p10_paise": 677140,
+        "p50_paise": 712752,
+        "p90_paise": 722186
+      },
+      {
+        "date": "2026-06-08",
+        "p10_paise": 679233,
+        "p50_paise": 693126,
+        "p90_paise": 720634
+      },
+      {
+        "date": "2026-06-11",
+        "p10_paise": 620207,
+        "p50_paise": 678585,
+        "p90_paise": 726107
+      },
+      {
+        "date": "2026-06-12",
+        "p10_paise": 663496,
+        "p50_paise": 687063,
+        "p90_paise": 720635
+      },
+      {
+        "date": "2026-06-13",
+        "p10_paise": 629133,
+        "p50_paise": 700330,
+        "p90_paise": 725149
+      },
+      {
+        "date": "2026-06-15",
+        "p10_paise": 682366,
+        "p50_paise": 694029,
+        "p90_paise": 724786
+      },
+      {
+        "date": "2026-06-16",
+        "p10_paise": 680688,
+        "p50_paise": 708143,
+        "p90_paise": 730761
+      },
+      {
+        "date": "2026-06-17",
+        "p10_paise": 704474,
+        "p50_paise": 716881,
+        "p90_paise": 732550
+      },
+      {
+        "date": "2026-06-18",
+        "p10_paise": 633184,
+        "p50_paise": 686433,
+        "p90_paise": 723695
+      },
+      {
+        "date": "2026-06-19",
+        "p10_paise": 682555,
+        "p50_paise": 704567,
+        "p90_paise": 724002
+      },
+      {
+        "date": "2026-06-20",
+        "p10_paise": 613155,
+        "p50_paise": 690651,
+        "p90_paise": 722764
+      },
+      {
+        "date": "2026-06-22",
+        "p10_paise": 611165,
+        "p50_paise": 715625,
+        "p90_paise": 726254
+      },
+      {
+        "date": "2026-06-24",
+        "p10_paise": 613173,
+        "p50_paise": 701696,
+        "p90_paise": 725176
+      }
+    ],
+    "actual_paise": [
+      690000,
+      680000,
+      685000,
+      705000,
+      710000,
+      710000,
+      700000,
+      720000,
+      710000,
+      695000,
+      700000,
+      695000,
+      705000,
+      680000
+    ],
+    "band_contained_actual": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "mase_at_cutoff": 0.473,
+    "coverage_at_cutoff_bps": 10000
+  },
+  {
+    "cutoff_date": "2026-05-02",
+    "commodity": "Onion",
+    "market": "Lasalgaon APMC",
+    "forecast": [
+      {
+        "date": "2026-05-04",
+        "p10_paise": 101745,
+        "p50_paise": 114468,
+        "p90_paise": 119072
+      },
+      {
+        "date": "2026-05-05",
+        "p10_paise": 100005,
+        "p50_paise": 111160,
+        "p90_paise": 122506
+      },
+      {
+        "date": "2026-05-06",
+        "p10_paise": 97699,
+        "p50_paise": 105229,
+        "p90_paise": 128573
+      },
+      {
+        "date": "2026-05-07",
+        "p10_paise": 93182,
+        "p50_paise": 108805,
+        "p90_paise": 121527
+      },
+      {
+        "date": "2026-05-08",
+        "p10_paise": 100239,
+        "p50_paise": 108169,
+        "p90_paise": 118693
+      },
+      {
+        "date": "2026-05-09",
+        "p10_paise": 100799,
+        "p50_paise": 106839,
+        "p90_paise": 116577
+      },
+      {
+        "date": "2026-05-11",
+        "p10_paise": 102039,
+        "p50_paise": 106363,
+        "p90_paise": 124585
+      },
+      {
+        "date": "2026-05-12",
+        "p10_paise": 101012,
+        "p50_paise": 107460,
+        "p90_paise": 115997
+      },
+      {
+        "date": "2026-05-13",
+        "p10_paise": 100971,
+        "p50_paise": 106281,
+        "p90_paise": 122446
+      },
+      {
+        "date": "2026-05-14",
+        "p10_paise": 98586,
+        "p50_paise": 108089,
+        "p90_paise": 124259
+      },
+      {
+        "date": "2026-05-15",
+        "p10_paise": 101653,
+        "p50_paise": 103913,
+        "p90_paise": 121198
+      },
+      {
+        "date": "2026-05-16",
+        "p10_paise": 98031,
+        "p50_paise": 103788,
+        "p90_paise": 124114
+      },
+      {
+        "date": "2026-05-18",
+        "p10_paise": 88951,
+        "p50_paise": 104051,
+        "p90_paise": 117827
+      },
+      {
+        "date": "2026-05-19",
+        "p10_paise": 93381,
+        "p50_paise": 102993,
+        "p90_paise": 128253
+      }
+    ],
+    "actual_paise": [
+      115100,
+      115000,
+      110000,
+      112500,
+      100100,
+      100000,
+      110000,
+      110000,
+      112500,
+      115100,
+      115000,
+      108000,
+      112500,
+      118000
+    ],
+    "band_contained_actual": [
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "mase_at_cutoff": 0.2039,
+    "coverage_at_cutoff_bps": 8571
+  },
+  {
+    "cutoff_date": "2026-08-19",
+    "commodity": "Onion",
+    "market": "Lasalgaon APMC",
+    "forecast": [
+      {
+        "date": "2026-08-20",
+        "p10_paise": 280234,
+        "p50_paise": 349243,
+        "p90_paise": 369364
+      },
+      {
+        "date": "2026-08-22",
+        "p10_paise": 280001,
+        "p50_paise": 338437,
+        "p90_paise": 364858
+      },
+      {
+        "date": "2026-08-24",
+        "p10_paise": 300881,
+        "p50_paise": 343478,
+        "p90_paise": 368628
+      },
+      {
+        "date": "2026-08-25",
+        "p10_paise": 278637,
+        "p50_paise": 329005,
+        "p90_paise": 398199
+      },
+      {
+        "date": "2026-08-26",
+        "p10_paise": 267743,
+        "p50_paise": 329284,
+        "p90_paise": 367203
+      },
+      {
+        "date": "2026-08-27",
+        "p10_paise": 266966,
+        "p50_paise": 349522,
+        "p90_paise": 363358
+      },
+      {
+        "date": "2026-08-29",
+        "p10_paise": 280014,
+        "p50_paise": 369081,
+        "p90_paise": 395833
+      },
+      {
+        "date": "2026-08-31",
+        "p10_paise": 303048,
+        "p50_paise": 365162,
+        "p90_paise": 402387
+      },
+      {
+        "date": "2026-09-01",
+        "p10_paise": 284935,
+        "p50_paise": 359481,
+        "p90_paise": 410881
+      },
+      {
+        "date": "2026-09-02",
+        "p10_paise": 296165,
+        "p50_paise": 368072,
+        "p90_paise": 433728
+      }
+    ],
+    "actual_paise": [
+      355100,
+      395100,
+      425100,
+      400000,
+      390000,
+      380000,
+      375100,
+      400000,
+      440000,
+      430000
+    ],
+    "band_contained_actual": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true
+    ],
+    "mase_at_cutoff": 1.6682,
+    "coverage_at_cutoff_bps": 4000
+  }
+]

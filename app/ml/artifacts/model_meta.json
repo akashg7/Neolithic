@@ -1,0 +1,96 @@
+{
+  "Onion": {
+    "commodity": "Onion",
+    "pooled_mandis": [
+      "Kolhapur APMC",
+      "Kopargaon APMC",
+      "Lasalgaon APMC",
+      "Pimpalgaon APMC",
+      "Pune(Manjri) APMC",
+      "Pune(Moshi) APMC",
+      "Satara APMC"
+    ],
+    "training_rows": 4824,
+    "feature_count": 40,
+    "mase_pooled": 0.98,
+    "mase_per_mandi": {
+      "Kolhapur APMC": 1.128,
+      "Kopargaon APMC": 0.757,
+      "Lasalgaon APMC": 0.658,
+      "Pimpalgaon APMC": 0.553,
+      "Pune(Manjri) APMC": 0.835,
+      "Pune(Moshi) APMC": 1.951,
+      "Satara APMC": 1.029
+    },
+    "coverage_bps_pooled": 4865,
+    "coverage_bps_per_mandi": {
+      "Kolhapur APMC": 5588,
+      "Kopargaon APMC": 5000,
+      "Lasalgaon APMC": 6364,
+      "Pimpalgaon APMC": 5952,
+      "Pune(Manjri) APMC": 6000,
+      "Pune(Moshi) APMC": 896,
+      "Satara APMC": 4627
+    },
+    "horizon_days": 14,
+    "quantile_alphas": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "trained_at": "2026-09-06T03:43:34.046395+00:00",
+    "data_source": "real",
+    "known_limitations": [
+      "Highly sensitive to sudden unseasonal rains and monsoon transport disruption.",
+      "Spot prices move >40% in single days during rabi storage transitions; band appropriately widens.",
+      "Market holidays (Sundays, national festivals) cause trading pauses where prices hold constant."
+    ]
+  },
+  "Soyabean": {
+    "commodity": "Soyabean",
+    "pooled_mandis": [
+      "Akola APMC",
+      "Amravati APMC",
+      "Hinganghat APMC",
+      "Kopargaon APMC",
+      "Latur APMC",
+      "Nanded APMC",
+      "Tuljapur APMC"
+    ],
+    "training_rows": 1626,
+    "feature_count": 40,
+    "mase_pooled": 1.125,
+    "mase_per_mandi": {
+      "Akola APMC": 1.048,
+      "Amravati APMC": 1.466,
+      "Hinganghat APMC": 1.206,
+      "Kopargaon APMC": 1.341,
+      "Latur APMC": 0.666,
+      "Nanded APMC": 1.255,
+      "Tuljapur APMC": 1.015
+    },
+    "coverage_bps_pooled": 4710,
+    "coverage_bps_per_mandi": {
+      "Akola APMC": 4571,
+      "Amravati APMC": 4638,
+      "Hinganghat APMC": 5072,
+      "Kopargaon APMC": 4429,
+      "Latur APMC": 5682,
+      "Nanded APMC": 4655,
+      "Tuljapur APMC": 4265
+    },
+    "horizon_days": 14,
+    "quantile_alphas": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "trained_at": "2026-09-06T03:46:07.008034+00:00",
+    "data_source": "real",
+    "known_limitations": [
+      "Historical tracking begins September 2025 (~1 year of observations).",
+      "Nanded APMC history currently has <180 trading days; the system appropriately issues INSUFFICIENT_HISTORY refusal.",
+      "Sensitive to global edible oil import duty adjustments and monsoon pod-filling weather anomalies."
+    ]
+  }
+}

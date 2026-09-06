@@ -17,13 +17,13 @@ ARTIFACT_DIR = PKG_DIR / "artifacts"
 # pooling_neighbors = other mandis whose rows are pooled into this commodity's model.
 CORE_SERIES = [
     # Onion
-    {"canonical": "Lasalgaon APMC",   "commodity": "Onion",   "neighbors": ["Pimpalgaon APMC", "Pune(Manjri) APMC"]},
-    {"canonical": "Pimpalgaon APMC",  "commodity": "Onion",   "neighbors": ["Lasalgaon APMC", "Pune(Manjri) APMC"]},
-    {"canonical": "Pune(Manjri) APMC","commodity": "Onion",   "neighbors": ["Lasalgaon APMC", "Pimpalgaon APMC"]},
+    {"canonical": "Lasalgaon APMC",   "commodity": "Onion",   "neighbors": ["Pimpalgaon APMC", "Pune(Manjri) APMC", "Kopargaon APMC", "Pune(Moshi) APMC", "Kolhapur APMC", "Satara APMC"]},
+    {"canonical": "Pimpalgaon APMC",  "commodity": "Onion",   "neighbors": ["Lasalgaon APMC", "Pune(Manjri) APMC", "Kopargaon APMC", "Pune(Moshi) APMC", "Kolhapur APMC", "Satara APMC"]},
+    {"canonical": "Pune(Manjri) APMC","commodity": "Onion",   "neighbors": ["Lasalgaon APMC", "Pimpalgaon APMC", "Kopargaon APMC", "Pune(Moshi) APMC", "Kolhapur APMC", "Satara APMC"]},
     # Soyabean
-    {"canonical": "Latur APMC",       "commodity": "Soyabean","neighbors": ["Nanded APMC", "Akola APMC"]},
-    {"canonical": "Nanded APMC",      "commodity": "Soyabean","neighbors": ["Latur APMC", "Akola APMC"]},
-    {"canonical": "Akola APMC",       "commodity": "Soyabean","neighbors": ["Latur APMC", "Nanded APMC"]},
+    {"canonical": "Akola APMC",       "commodity": "Soyabean","neighbors": ["Latur APMC", "Nanded APMC", "Amravati APMC", "Kopargaon APMC", "Hinganghat APMC", "Tuljapur APMC"]},
+    {"canonical": "Latur APMC",       "commodity": "Soyabean","neighbors": ["Akola APMC", "Nanded APMC", "Amravati APMC", "Kopargaon APMC", "Hinganghat APMC", "Tuljapur APMC"]},
+    {"canonical": "Nanded APMC",      "commodity": "Soyabean","neighbors": ["Akola APMC", "Latur APMC", "Amravati APMC", "Kopargaon APMC", "Hinganghat APMC", "Tuljapur APMC"]},
 ]
 
 # Commodities to train (derived from CORE_SERIES; one pooled model per commodity).
