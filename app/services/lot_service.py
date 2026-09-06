@@ -202,7 +202,7 @@ async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> Pri
     )
 
     return PriceSuggestionResponse(
-        lot_id=lot.id,
+        lot_id=str(lot.id),
         price_band=price_band,
         sale_window=sale_window,
     )

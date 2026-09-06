@@ -23,9 +23,9 @@ class RegisterRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=6)
     role: str = Field(..., pattern=r"^(FARMER|BUYER|FPO_ADMIN)$")
     locale: str = "mr"
-    district_id: Optional[str] = None
+    district_id: Optional[int | str] = None
     lat: Optional[float] = None
-    lon: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
+    lng: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
     village: Optional[str] = Field(None, max_length=200)   # farmer's village
     company_name: Optional[str] = None   # required only for role=BUYER
 

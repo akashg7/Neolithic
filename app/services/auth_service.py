@@ -119,10 +119,10 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> AuthRespo
         phone=payload.phone,
         role=payload.role.upper(),
         locale=payload.locale,
-        district_id=payload.district_id,
+        district_id=int(payload.district_id) if payload.district_id is not None and str(payload.district_id).isdigit() else None,
         village=payload.village,
         lat=payload.lat,
-        lng=payload.lng,
+        lng=getattr(payload, "lng", getattr(payload, "lon", None)),
     )
     db.add(user)
     await db.flush()

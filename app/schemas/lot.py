@@ -91,6 +91,10 @@ class PriceSuggestionResponse(BaseModel):
     price_band: PriceBand
     sale_window: SaleWindowInfo
 
+    @field_validator("lot_id", mode="before")
+    def id_to_str(cls, v):
+        return str(v) if v is not None else v
+
 class MatchResult(BaseModel):
     buyer_demand_id: int
     buyer_name: Optional[str] = None
@@ -103,6 +107,10 @@ class MatchResult(BaseModel):
 class LotMatchesResponse(BaseModel):
     lot_id: str
     matches: list[MatchResult]
+
+    @field_validator("lot_id", mode="before")
+    def id_to_str(cls, v):
+        return str(v) if v is not None else v
 
 class BatchLotMemberOut(BaseModel):
     source_lot_id: int
