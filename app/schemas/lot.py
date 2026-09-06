@@ -1,57 +1,50 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 
-
 class LotCreate(BaseModel):
-    crop: str = Field(..., min_length=1, max_length=100)
-    quantity_kg: int = Field(..., gt=0)
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    image_url: Optional[str] = None
-
+    commodity_id: int
+    quantity_qtl: int = Field(..., gt=0)
+    expected_price_paise: int = Field(..., gt=0)
+    market_id: Optional[int] = None
+    warehouse_id: Optional[int] = None
+    self_assay: Optional[dict] = None
 
 class LotOut(BaseModel):
     id: int
-    farmer_id: int
-    crop: str
-    quantity_kg: int
+    commodity_id: int
+    quantity_qtl: int
+    expected_price_paise: Optional[int] = None
+    status: str
+    market_id: Optional[int] = None
+    warehouse_id: Optional[int] = None
     grade: Optional[str] = None
     image_url: Optional[str] = None
-    self_assay_answers: Optional[dict] = None
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    price_min_paise_per_qtl: Optional[int] = None
-    price_mid_paise_per_qtl: Optional[int] = None
-    price_max_paise_per_qtl: Optional[int] = None
-    status: str = "active"
-    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-
 class SelfAssayRequest(BaseModel):
-    size_uniformity: str = Field(..., pattern=r"^(high|medium|low)$")
-    color_uniformity: str = Field(..., pattern=r"^(high|medium|low)$")
-    damage_percent: int = Field(..., ge=0, le=100)
-    sprouting_percent: int = Field(..., ge=0, le=100)
-    moisture_level: str = Field(..., pattern=r"^(dry|normal|moist)$")
-    foreign_matter: str = Field(..., pattern=r"^(none|low|moderate|high)$")
-
+    size_uniform: Literal[1, 2, 3]
+    colour_uniform: Literal[1, 2, 3]
+    damage_pct: int = Field(..., ge=0, le=100)
+    sprouting: Literal[1, 2, 3]
+    moisture_feel: Literal[1, 2, 3]
+    foreign_matter: Literal[1, 2, 3]
 
 class SelfAssayResponse(BaseModel):
     lot_id: int
+    score: int
     grade: str
-    improvement_tip: str
+    weakest_dimension: str
+    tip_mr: str
+    tip_en: str
     self_assay_answers: dict
-
 
 class PriceBand(BaseModel):
     min_paise_per_qtl: int
     mid_paise_per_qtl: int
     max_paise_per_qtl: int
-
 
 class SaleWindowInfo(BaseModel):
     recommendation: str  # "SELL" | "HOLD" | "NO_ADVICE"
@@ -61,44 +54,37 @@ class SaleWindowInfo(BaseModel):
     hold_until_date: Optional[str] = None
     reason: Optional[str] = None
 
-
 class PriceSuggestionResponse(BaseModel):
     lot_id: int
     price_band: PriceBand
     sale_window: SaleWindowInfo
 
-
 class MatchResult(BaseModel):
     buyer_demand_id: int
     buyer_name: Optional[str] = None
-    crop: str
-    desired_qty_kg: int
-    max_price_paise_per_qtl: Optional[int] = None
+    commodity_id: int
+    quantity_qtl: int
+    expected_price_paise: Optional[int] = None
     distance_km: Optional[float] = None
     match_score: float
-
 
 class LotMatchesResponse(BaseModel):
     lot_id: int
     matches: list[MatchResult]
 
-
 class BatchLotMemberOut(BaseModel):
     source_lot_id: int
-    quantity_contributed_kg: int
+    quantity_contributed_qtl: int
 
     class Config:
         from_attributes = True
 
-
 class BatchLotOut(BaseModel):
     id: int
-    crop: str
-    quantity_kg: int
+    commodity_id: int
+    quantity_qtl: int
     grade: Optional[str] = None
-    price_min_paise_per_qtl: Optional[int] = None
-    price_mid_paise_per_qtl: Optional[int] = None
-    price_max_paise_per_qtl: Optional[int] = None
+    expected_price_paise: Optional[int] = None
     status: str
     member_lots: list[BatchLotMemberOut]
 

@@ -48,20 +48,23 @@ class PriceEngine:
         }
         base = base_prices.get(commodity.lower(), 200000)
 
-        # Add some variation based on mandi name hash
-        mandi_factor = (hash(mandi) % 20 - 10) / 100  # -10% to +10%
+        # Deterministic base factor per mandi (instead of randomized hash seed)
+        # Use sum of ascii values as a stable seed
+        mandi_factor = (sum(ord(c) for c in mandi) % 20 - 10) / 100.0  # -10% to +10%
         base = int(base * (1 + mandi_factor))
 
         p50 = base
         p10 = int(p50 * 0.90)  # 10th percentile
         p90 = int(p50 * 1.10)  # 90th percentile
-        confidence = round(random.uniform(0.70, 0.92), 2)
+        confidence = 0.85  # Fixed confidence for stub
 
         return {
             "p10_paise": p10,
             "p50_paise": p50,
             "p90_paise": p90,
             "confidence": confidence,
+            "source": "SYNTHETIC",
+            "source_url": "https://agmarknet.gov.in" # Stub
         }
 
     def predict_range(self, mandi: str, commodity: str, days: int = 14) -> list[dict]:
@@ -79,6 +82,8 @@ class PriceEngine:
                 "p50_paise": int(base_prediction["p50_paise"] * trend),
                 "p90_paise": int(base_prediction["p90_paise"] * trend),
                 "confidence": round(max(0.5, base_prediction["confidence"] - i * 0.02), 2),
+                "source": "SYNTHETIC",
+                "source_url": "https://agmarknet.gov.in"
             })
 
         return results

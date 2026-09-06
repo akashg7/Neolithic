@@ -16,5 +16,11 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             logger.error(f"Unhandled error: {e}\n{traceback.format_exc()}")
             return JSONResponse(
                 status_code=500,
-                content={"detail": "Internal server error"}
+                content={
+                    "error": {
+                        "code": "INTERNAL",
+                        "message": "Internal server error",
+                        "field": None
+                    }
+                }
             )

@@ -1,38 +1,44 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List, Literal
 from datetime import datetime
 
-
 class OfferLotItem(BaseModel):
-    lot_id: int
-    quantity_allocated_kg: int = Field(..., gt=0)
+    lot_id: str
+    qty_allocated_kg: int
 
+    class Config:
+        from_attributes = True
 
 class OfferCreate(BaseModel):
-    lots: list[OfferLotItem] = Field(..., min_length=1)
-    offered_price_paise_per_qtl: int = Field(..., gt=0)
+    demand_id: Optional[str] = None
+    lot_ids: List[str] = Field(..., min_length=1)
+    qty_kg: int = Field(..., gt=0)
+    price_paise_per_qtl: int = Field(..., gt=0)
 
+class OfferCounterReq(BaseModel):
+    price_paise_per_qtl: int = Field(..., gt=0)
+    note: Optional[str] = None
 
-class OfferLotOut(BaseModel):
-    lot_id: int
-    quantity_allocated_kg: int
+class OfferDto(BaseModel):
+    id: str
+    demand_id: Optional[str] = None
+    buyer_id: str
+    farmer_id: Optional[str] = None
+    pool_id: Optional[str] = None
+    price_paise_per_qtl: int
+    qty_kg: int
+    round: int
+    parent_offer_id: Optional[str] = None
+    initiator: Literal['BUYER', 'FARMER']
+    status: Literal['OPEN', 'ACCEPTED', 'REJECTED', 'COUNTERED', 'EXPIRED', 'WITHDRAWN']
+    expires_at: Optional[datetime] = None
+    created_at: datetime
+    lots: List[OfferLotItem] = []
+    note: Optional[str] = None
 
     class Config:
         from_attributes = True
 
-
-class OfferOut(BaseModel):
-    id: int
-    buyer_id: int
-    offered_price_paise_per_qtl: int
-    total_quantity_kg: int
-    status: str
-    lots: list[OfferLotOut] = []
-    created_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class OfferAction(BaseModel):
-    action: str = Field(..., pattern=r"^(accept|reject)$")
+    @validator("id", "demand_id", "buyer_id", "farmer_id", "pool_id", "parent_offer_id", pre=True)
+    def cast_id_to_str(cls, v):
+        return str(v) if v is not None else None

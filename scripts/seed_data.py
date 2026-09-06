@@ -6,59 +6,52 @@ import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select
 
-# Must be run from project root
 import sys
 sys.path.insert(0, ".")
 
 from app.config import settings
 from app.database import Base
+from app.models.reference import District, Commodity, Warehouse
 from app.models.mandi import MandiLocation
 from app.models.logistics import LogisticsProvider
-from app.models.demand import BuyerDemand
 from app.models.fpo import FPO
-from app.models.user import User, Buyer
+from app.models.user import User, Buyer, Farmer
+from app.models.demand import BuyerDemand
+from app.models.lot import Lot
+from app.models.offer import Offer, OfferLot
 
+
+DISTRICTS = [
+    {"id": 1, "name": "Delhi", "name_mr": "दिल्ली"},
+    {"id": 2, "name": "Mumbai", "name_mr": "मुंबई"},
+    {"id": 3, "name": "Nashik", "name_mr": "नाशिक"},
+    {"id": 4, "name": "Karnal", "name_mr": "करनाल"},
+    {"id": 5, "name": "Indore", "name_mr": "इंदूर"},
+]
+
+COMMODITIES = [
+    {"id": 1, "name": "wheat", "name_mr": "गहू", "storable_days": 365},
+    {"id": 2, "name": "onion", "name_mr": "कांदा", "storable_days": 180},
+    {"id": 3, "name": "soybean", "name_mr": "सोयाबीन", "storable_days": 365},
+]
+
+WAREHOUSES = [
+    {"id": 1, "name": "Central Storage", "name_mr": "मध्यवर्ती साठवण", "district_id": 3, "wdra_registered": True, "rent_paise_per_qtl_month": 5000, "source": "demo"}
+]
 
 MANDI_LOCATIONS = [
-    {"name": "Azadpur Mandi", "district": "Delhi", "lat": 28.7041, "lng": 77.1025},
-    {"name": "Vashi APMC", "district": "Mumbai", "lat": 19.0760, "lng": 72.9987},
-    {"name": "Koyambedu Market", "district": "Chennai", "lat": 13.0694, "lng": 80.1948},
-    {"name": "Bowenpally Market", "district": "Hyderabad", "lat": 17.4611, "lng": 78.4697},
-    {"name": "Yeshwanthpur APMC", "district": "Bangalore", "lat": 13.0228, "lng": 77.5439},
-    {"name": "Devi Ahilya Bai Mandi", "district": "Indore", "lat": 22.7196, "lng": 75.8577},
-    {"name": "Sahukara Mandi", "district": "Jaipur", "lat": 26.9157, "lng": 75.8018},
-    {"name": "Lasalgaon APMC", "district": "Nashik", "lat": 20.1438, "lng": 74.2386},
-    {"name": "Karnal Grain Market", "district": "Karnal", "lat": 29.6857, "lng": 76.9905},
-    {"name": "Guntur Mirchi Yard", "district": "Guntur", "lat": 16.3067, "lng": 80.4365},
-    {"name": "Rajkot APMC", "district": "Rajkot", "lat": 22.3039, "lng": 70.8022},
-    {"name": "Unjha APMC", "district": "Mehsana", "lat": 23.7956, "lng": 72.3917},
+    {"id": 1, "name": "Azadpur Mandi", "name_mr": "आझादपूर मंडी", "district_id": 1, "lat": 28.7041, "lng": 77.1025},
+    {"id": 2, "name": "Vashi APMC", "name_mr": "वाशी कृषी उत्पन्न बाजार समिती", "district_id": 2, "lat": 19.0760, "lng": 72.9987},
+    {"id": 3, "name": "Lasalgaon APMC", "name_mr": "लासलगाव कृषी उत्पन्न बाजार समिती", "district_id": 3, "lat": 20.1438, "lng": 74.2386},
 ]
 
 LOGISTICS_PROVIDERS = [
     {"name": "ColdStore Delhi Pvt Ltd", "type": "storage", "lat": 28.68, "lng": 77.12, "capacity_kg": 50000, "contact": "9876543210"},
-    {"name": "Delhi Fresh Transport", "type": "transport", "lat": 28.71, "lng": 77.08, "capacity_kg": 10000, "contact": "9876543211"},
-    {"name": "Vashi Cold Chain Solutions", "type": "storage", "lat": 19.08, "lng": 73.00, "capacity_kg": 80000, "contact": "9876543212"},
-    {"name": "Mumbai Agri Transport", "type": "transport", "lat": 19.05, "lng": 72.95, "capacity_kg": 15000, "contact": "9876543213"},
-    {"name": "Karnal Grain Storage", "type": "storage", "lat": 29.70, "lng": 76.98, "capacity_kg": 100000, "contact": "9876543214"},
-    {"name": "Punjab Transport Services", "type": "transport", "lat": 29.65, "lng": 76.95, "capacity_kg": 20000, "contact": "9876543215"},
-    {"name": "Jaipur Agri Warehouse", "type": "storage", "lat": 26.90, "lng": 75.80, "capacity_kg": 60000, "contact": "9876543216"},
-    {"name": "Rajasthan Truck Fleet", "type": "transport", "lat": 26.92, "lng": 75.82, "capacity_kg": 25000, "contact": "9876543217"},
-]
-
-DEMO_DEMANDS = [
-    {"buyer_id": 1, "crop": "wheat", "desired_qty_kg": 2000, "desired_grade": "A", "max_price_paise_per_qtl": 220000, "lat": 28.63, "lng": 77.22, "source": "demo"},
-    {"buyer_id": 1, "crop": "rice", "desired_qty_kg": 5000, "desired_grade": "B", "max_price_paise_per_qtl": 260000, "lat": 19.07, "lng": 72.87, "source": "demo"},
-    {"buyer_id": 1, "crop": "onion", "desired_qty_kg": 1000, "desired_grade": None, "max_price_paise_per_qtl": 190000, "lat": 20.14, "lng": 74.23, "source": "demo"},
-    {"buyer_id": 1, "crop": "soybean", "desired_qty_kg": 3000, "desired_grade": "A", "max_price_paise_per_qtl": 400000, "lat": 22.72, "lng": 75.86, "source": "demo"},
-    {"buyer_id": 1, "crop": "wheat", "desired_qty_kg": 10000, "desired_grade": "B", "max_price_paise_per_qtl": 215000, "lat": 29.68, "lng": 76.99, "source": "demo"},
 ]
 
 DEMO_FPOS = [
-    {"name": "Kisan Pragati FPO", "region": "Haryana"},
-    {"name": "Sahyadri Farmers FPO", "region": "Maharashtra"},
-    {"name": "Green Valley FPO", "region": "Rajasthan"},
+    {"id": 1, "name": "Sahyadri Farmers FPO", "region": "Maharashtra"},
 ]
-
 
 async def seed():
     engine = create_async_engine(settings.DATABASE_URL)
@@ -66,49 +59,116 @@ async def seed():
 
     async with session_factory() as db:
         # Check if already seeded
-        result = await db.execute(select(MandiLocation).limit(1))
+        result = await db.execute(select(District).limit(1))
         if result.scalar_one_or_none():
             print("Database already seeded. Skipping.")
             return
 
-        # Seed FPOs
-        for fpo_data in DEMO_FPOS:
-            db.add(FPO(**fpo_data))
-        print(f"Seeded {len(DEMO_FPOS)} FPOs")
+        # Districts
+        for d in DISTRICTS:
+            db.add(District(**d))
+        await db.flush()
+        
+        # Commodities
+        for c in COMMODITIES:
+            db.add(Commodity(**c))
+        await db.flush()
 
-        # Seed Mandi Locations
-        for mandi_data in MANDI_LOCATIONS:
-            db.add(MandiLocation(**mandi_data))
-        print(f"Seeded {len(MANDI_LOCATIONS)} mandi locations")
+        # Warehouses
+        for w in WAREHOUSES:
+            db.add(Warehouse(**w))
+        await db.flush()
 
-        # Seed Logistics Providers
-        for provider_data in LOGISTICS_PROVIDERS:
-            db.add(LogisticsProvider(**provider_data, source="demo"))
-        print(f"Seeded {len(LOGISTICS_PROVIDERS)} logistics providers")
+        # FPOs
+        for f in DEMO_FPOS:
+            db.add(FPO(**f))
+        await db.flush()
+            
+        # Mandis
+        for m in MANDI_LOCATIONS:
+            db.add(MandiLocation(**m))
+        await db.flush()
 
-        # Seed Demo Demands (buyer_id=1 is placeholder — update after a buyer registers)
-        # Create the placeholder buyer first
-        buyer_check = await db.execute(select(User).where(User.id == 1))
-        if not buyer_check.scalar_one_or_none():
-            buyer_user = User(
-                id=1,
-                name="Demo Buyer",
-                phone="1234567890",
-                password_hash="hashed",
-                role="buyer",
-                preferred_language="en",
-            )
-            db.add(buyer_user)
-            db.add(Buyer(user_id=1, company_name="Demo Company"))
-            await db.flush()
+        # Logistics
+        for lp in LOGISTICS_PROVIDERS:
+            db.add(LogisticsProvider(**lp, source="demo"))
+        await db.flush()
 
-        for demand_data in DEMO_DEMANDS:
-            db.add(BuyerDemand(**demand_data))
-        print(f"Seeded {len(DEMO_DEMANDS)} demo buyer demands")
+        # Users
+        farmer_user = User(
+            id=1,
+            name="Ramesh Kumar (Demo Farmer)",
+            phone="9999999999",
+            role="FARMER",
+            district_id=3,
+        )
+        db.add(farmer_user)
+        db.add(Farmer(user_id=1, fpo_id=1))
+
+        buyer_user = User(
+            id=2,
+            name="Acme Corp (Demo Buyer)",
+            phone="8888888888",
+            role="BUYER",
+            district_id=2,
+        )
+        db.add(buyer_user)
+        db.add(Buyer(user_id=2, company_name="Acme Corp", verified_status=True))
+
+        await db.flush()
+
+        # Buyer Demand
+        demand = BuyerDemand(
+            id=1,
+            buyer_id=2,
+            commodity_id=1, # wheat
+            market_id=2,
+            quantity_qtl=50,
+            expected_price_paise=220000,
+            desired_grade="A"
+        )
+        db.add(demand)
+
+        # Lot
+        lot = Lot(
+            id=1,
+            farmer_id=1,
+            fpo_id=1,
+            commodity_id=1, # wheat
+            market_id=3,
+            quantity_qtl=10,
+            expected_price_paise=230000,
+            grade="A"
+        )
+        db.add(lot)
+
+        await db.flush()
+
+        # Offer
+        offer = Offer(
+            id=1,
+            demand_id=1,
+            buyer_id=2,
+            farmer_id=1,
+            price_paise_per_qtl=225000,
+            qty_kg=1000, # 10 qtl
+            round=1,
+            initiator="BUYER",
+            status="OPEN"
+        )
+        db.add(offer)
+
+        await db.flush()
+
+        offer_lot = OfferLot(
+            offer_id=1,
+            lot_id=1,
+            quantity_allocated_kg=1000
+        )
+        db.add(offer_lot)
 
         await db.commit()
-        print("\n✅ Seed data complete!")
-
+        print("✅ Seed data complete!")
 
 if __name__ == "__main__":
     asyncio.run(seed())

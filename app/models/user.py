@@ -10,12 +10,13 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     phone = Column(String(15), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False)  # 'farmer', 'buyer', 'fpo_admin'
+    role = Column(String(20), nullable=False)  # 'FARMER', 'BUYER'
     lat = Column(Float, nullable=True)
     lng = Column(Float, nullable=True)
     geom = Column(Geometry('POINT', srid=4326), nullable=True, index=True)
-    preferred_language = Column(String(10), default="en")
+    locale = Column(String(10), default="mr")
+    district_id = Column(Integer, ForeignKey("districts.id"), nullable=True)
+    village = Column(String(200), nullable=True)
     verified = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -40,5 +41,10 @@ class Buyer(Base):
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     company_name = Column(String(200), nullable=True)
     verified_status = Column(Boolean, default=False)
+    tier = Column(String(30), default="T0_UNVERIFIED")
+    gst_last4 = Column(String(4), nullable=True)
+    deals_completed = Column(Integer, default=0)
+    on_time_payment_bps = Column(Integer, default=10000)
+    renegotiation_bps = Column(Integer, default=0)
 
     user = relationship("User", back_populates="buyer_profile")

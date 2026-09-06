@@ -4,7 +4,7 @@ from app.models.lot import Lot, BatchLotMember
 from app.models.mandi import MandiLocation, PriceForecast
 from app.models.demand import BuyerDemand
 from app.models.offer import Offer, OfferLot
-from app.models.transaction import Transaction, TransactionEvent
+from app.models.transaction import Transaction, EscrowEvent
 from app.models.logistics import LogisticsProvider
 from app.models.dispute import Dispute
 from app.models.voice import CallSession, VoiceInteraction

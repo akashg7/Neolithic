@@ -7,12 +7,21 @@ class Offer(Base):
     __tablename__ = "offers"
 
     id = Column(Integer, primary_key=True, index=True)
+    demand_id = Column(Integer, ForeignKey("buyer_demands.id"), nullable=True)
     buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    offered_price_paise_per_qtl = Column(Integer, nullable=False)
-    total_quantity_kg = Column(Integer, nullable=False)
-    status = Column(String(30), default="pending")
-    # Statuses: pending, accepted, rejected, cancelled, paid
+    farmer_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    pool_id = Column(Integer, nullable=True)
+    price_paise_per_qtl = Column(Integer, nullable=False)
+    qty_kg = Column(Integer, nullable=False)
+    round = Column(Integer, default=1, nullable=False)
+    parent_offer_id = Column(Integer, ForeignKey("offers.id"), nullable=True)
+    initiator = Column(String(20), nullable=False) # 'BUYER' | 'FARMER'
+    status = Column(String(30), default="OPEN") # OPEN|ACCEPTED|REJECTED|COUNTERED|EXPIRED|WITHDRAWN
+    note = Column(String, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    parent_offer = relationship("Offer", remote_side=[id])
 
     lots = relationship("OfferLot", back_populates="offer")
 

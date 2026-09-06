@@ -18,7 +18,7 @@ class AggregateRequest(BaseModel):
 @router.post("/aggregate", response_model=BatchLotOut, status_code=status.HTTP_201_CREATED)
 async def aggregate_lots(
     payload: AggregateRequest,
-    user: User = Depends(require_role("fpo_admin")),
+    user: User = Depends(require_role("FPO_ADMIN")),
     db: AsyncSession = Depends(get_db),
 ):
     """Aggregate multiple lots into a single batch lot. FPO admin only."""

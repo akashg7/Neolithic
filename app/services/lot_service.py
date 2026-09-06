@@ -10,17 +10,18 @@ from app.models.user import User
 from app.models.lot import Lot, BatchLotMember
 from app.models.mandi import MandiLocation
 from app.models.demand import BuyerDemand
+from app.models.reference import Commodity
 from app.worker import run_matching_engine_for_lot
 from app.engines.grading_engine import grade as compute_grade
 from app.engines.price_engine import price_engine
 from app.engines.window_engine import compute_sale_window
-from app.engines.matching_engine import match_demands_for_lot
 from app.utils.haversine import haversine_km
 from app.schemas.lot import (
     LotCreate, LotOut, SelfAssayRequest, SelfAssayResponse,
     PriceSuggestionResponse, PriceBand, SaleWindowInfo,
-    LotMatchesResponse, MatchResult,
 )
+from app.schemas.matches import MatchesRes
+from app.engines import matching_engine
 
 
 async def _find_nearest_mandi(db: AsyncSession, lat: float, lng: float) -> Optional[MandiLocation]:
@@ -35,34 +36,29 @@ async def _find_nearest_mandi(db: AsyncSession, lat: float, lng: float) -> Optio
 
 
 async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut:
-    """Create a new lot with price band from the price engine."""
+    """Create a new lot."""
     lot = Lot(
         farmer_id=user.id,
-        crop=payload.crop,
-        quantity_kg=payload.quantity_kg,
-        lat=payload.lat or user.lat,
-        lng=payload.lng or user.lng,
-        image_url=payload.image_url,
+        commodity_id=payload.commodity_id,
+        quantity_qtl=payload.quantity_qtl,
+        expected_price_paise=payload.expected_price_paise,
+        market_id=payload.market_id,
+        warehouse_id=payload.warehouse_id,
+        lat=user.lat,
+        lng=user.lng,
         status="active",
     )
 
-    # Try to get price prediction
-    lot_lat = lot.lat or 28.6139  # Default to Delhi
-    lot_lng = lot.lng or 77.2090
-
-    nearest_mandi = await _find_nearest_mandi(db, lot_lat, lot_lng)
-    mandi_name = nearest_mandi.name if nearest_mandi else "Azadpur"
-
-    try:
-        prediction = price_engine.predict(mandi_name, payload.crop, datetime.now().isoformat())
-        lot.price_min_paise_per_qtl = prediction["p10_paise"]
-        lot.price_mid_paise_per_qtl = prediction["p50_paise"]
-        lot.price_max_paise_per_qtl = prediction["p90_paise"]
-    except Exception:
-        # Price engine may not be loaded — that's OK for now
-        pass
+    if payload.self_assay:
+        try:
+            grade_result = compute_grade(payload.self_assay)
+            lot.self_assay_answers = payload.self_assay
+            lot.grade = grade_result["grade"]
+        except Exception:
+            pass
 
     db.add(lot)
+    await db.commit()
     await db.refresh(lot)
 
     # Trigger async matching in background
@@ -125,12 +121,15 @@ async def submit_self_assay(
     lot.self_assay_answers = answers_dict
     lot.grade = grade_result["grade"]
 
-    await db.flush()
+    await db.commit()
 
     return SelfAssayResponse(
         lot_id=lot.id,
+        score=grade_result["score"],
         grade=grade_result["grade"],
-        improvement_tip=grade_result["improvement_tip"],
+        weakest_dimension=grade_result["weakest_dimension"],
+        tip_mr=grade_result["tip_mr"],
+        tip_en=grade_result["tip_en"],
         self_assay_answers=answers_dict,
     )
 
@@ -143,14 +142,11 @@ async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> Pri
     if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lot not found")
 
-    # Build price band
-    price_band = PriceBand(
-        min_paise_per_qtl=lot.price_min_paise_per_qtl or 0,
-        mid_paise_per_qtl=lot.price_mid_paise_per_qtl or 0,
-        max_paise_per_qtl=lot.price_max_paise_per_qtl or 0,
-    )
+    # Get commodity name
+    comm_result = await db.execute(select(Commodity).where(Commodity.id == lot.commodity_id))
+    commodity = comm_result.scalar_one_or_none()
+    crop_name = commodity.name if commodity else "Unknown"
 
-    # Compute sale window
     lot_lat = lot.lat or 28.6139
     lot_lng = lot.lng or 77.2090
 
@@ -159,14 +155,24 @@ async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> Pri
     mandi_lat = nearest_mandi.lat if nearest_mandi else 28.7041
     mandi_lng = nearest_mandi.lng if nearest_mandi else 77.1025
 
+    try:
+        prediction = price_engine.predict(mandi_name, crop_name, datetime.now().isoformat())
+        price_band = PriceBand(
+            min_paise_per_qtl=prediction["p10_paise"],
+            mid_paise_per_qtl=prediction["p50_paise"],
+            max_paise_per_qtl=prediction["p90_paise"],
+        )
+    except Exception:
+        price_band = PriceBand(min_paise_per_qtl=0, mid_paise_per_qtl=0, max_paise_per_qtl=0)
+
     distance_km = haversine_km(lot_lat, lot_lng, mandi_lat, mandi_lng)
 
     try:
         window_result = compute_sale_window(
-            crop=lot.crop,
+            crop=crop_name,
             mandi=mandi_name,
-            quantity_kg=lot.quantity_kg,
-            current_price_mid_paise=lot.price_mid_paise_per_qtl or 200000,
+            quantity_kg=lot.quantity_qtl * 100,
+            current_price_mid_paise=lot.expected_price_paise or price_band.mid_paise_per_qtl or 200000,
             distance_km=distance_km,
         )
     except Exception:
@@ -175,7 +181,6 @@ async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> Pri
             "reason": "Unable to compute sale window at this time."
         }
 
-    # Convert hold_days to hold_until_date
     hold_until = None
     if window_result.get("hold_days"):
         hold_until = (datetime.now() + timedelta(days=window_result["hold_days"])).strftime("%Y-%m-%d")
@@ -196,41 +201,16 @@ async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> Pri
     )
 
 
-async def get_lot_matches(db: AsyncSession, user: User, lot_id: int) -> LotMatchesResponse:
-    """Find matching buyer demands for a lot."""
+async def get_lot_matches(db: AsyncSession, user: User, lot_id: int) -> dict:
+    """Find matching buyer demands for a lot. Returns MatchesRes format dict."""
     result = await db.execute(select(Lot).where(Lot.id == lot_id))
     lot = result.scalar_one_or_none()
 
     if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lot not found")
 
-    # Get all demands matching this crop
-    demand_result = await db.execute(select(BuyerDemand).where(BuyerDemand.crop == lot.crop))
+    demand_result = await db.execute(select(BuyerDemand).where(BuyerDemand.commodity_id == lot.commodity_id))
     demands = demand_result.scalars().all()
 
-    # Run matching engine
-    matches = match_demands_for_lot(demands, lot)
-
-    # Build response
-    match_results = []
-    for match in matches:
-        demand = match["demand"]
-        # Get buyer name
-        buyer_result = await db.execute(select(User).where(User.id == demand.buyer_id))
-        buyer = buyer_result.scalar_one_or_none()
-
-        distance_km = None
-        if lot.lat and lot.lng and demand.lat and demand.lng:
-            distance_km = round(haversine_km(lot.lat, lot.lng, demand.lat, demand.lng), 1)
-
-        match_results.append(MatchResult(
-            buyer_demand_id=demand.id,
-            buyer_name=buyer.name if buyer else None,
-            crop=demand.crop,
-            desired_qty_kg=demand.desired_qty_kg,
-            max_price_paise_per_qtl=demand.max_price_paise_per_qtl,
-            distance_km=distance_km,
-            match_score=match["match_score"],
-        ))
-
-    return LotMatchesResponse(lot_id=lot.id, matches=match_results)
+    matches_dict = matching_engine.match_demands_for_lot(demands, lot)
+    return matches_dict

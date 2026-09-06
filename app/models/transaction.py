@@ -9,17 +9,17 @@ class Transaction(Base):
     offer_id = Column(Integer, ForeignKey("offers.id"), nullable=False, unique=True)
     amount_paise = Column(Integer, nullable=False)
     razorpay_order_id = Column(String(100), nullable=True)
-    payment_status = Column(String(30), default="pending")
-    # Statuses: pending, created, paid, failed, refunded
+    status = Column(String(50), default="PENDING_BUYER_DEPOSIT")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-class TransactionEvent(Base):
-    __tablename__ = "transaction_events"
+class EscrowEvent(Base):
+    __tablename__ = "escrow_events"
 
     id = Column(Integer, primary_key=True, index=True)
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False, index=True)
-    event_type = Column(String(50), nullable=False)
-    # Types: order_created, payment_authorized, payment_captured, payment_failed, refund_initiated
-    payload = Column(JSON, nullable=True)
+    status_from = Column(String(50), nullable=True)
+    status_to = Column(String(50), nullable=False)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    note = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
