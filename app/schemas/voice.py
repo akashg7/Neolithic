@@ -12,6 +12,12 @@ class NarrateResponse(BaseModel):
     language: str
 
 
+class TranscribeResponse(BaseModel):
+    transcript: str
+    language_code: Optional[str] = None
+    request_id: Optional[str] = None
+
+
 class CallInitiateRequest(BaseModel):
     offer_id: int
 

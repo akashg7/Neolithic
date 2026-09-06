@@ -26,6 +26,7 @@ class RegisterRequest(BaseModel):
     district_id: Optional[str] = None
     lat: Optional[float] = None
     lon: Optional[float] = Field(None, validation_alias="lng")
+    village: Optional[str] = Field(None, max_length=200)   # farmer's village
     company_name: Optional[str] = None   # required only for role=BUYER
 
 

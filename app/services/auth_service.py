@@ -120,6 +120,7 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> AuthRespo
         role=payload.role.upper(),
         locale=payload.locale,
         district_id=payload.district_id,
+        village=payload.village,
         lat=payload.lat,
         lng=payload.lng,
     )

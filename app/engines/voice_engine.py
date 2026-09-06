@@ -1,23 +1,116 @@
 """
-Voice Engine — Tier 3 (stretch).
-TTS/STT via Bhashini API for vernacular language support.
-Stub implementation — will be filled by Nikhil if time allows.
+Voice Engine — Sarvam AI speech-to-text (STT) proxy.
+
+The mobile app (`VoiceMic`) records a clip and POSTs it to our
+`POST /api/v1/voice/transcribe`; this engine proxies the audio to Sarvam's
+`/speech-to-text` REST endpoint and returns the transcript.
+
+★ Why a proxy and not a direct client call?
+  - The Sarvam API key never ships on the device. The app holds no secrets
+    (config.ts I10) — the key lives here, server-side, in `settings`.
+  - One place to enforce auth (our JWT), rate limiting, and to swap the
+    upstream model/language without a frontend release.
+
+★ Upstream contract (docs.sarvam.ai/api-reference/speech-to-text/transcribe):
+  POST https://api.sarvam.ai/speech-to-text
+  Auth header:  `api-subscription-key: <key>`
+  Body:         multipart/form-data with fields:
+                  file          — the audio (WAV/MP3/AAC/M4A/OGG…)
+                  model         — "saaras:v3" (default)
+                  language_code — "mr-IN" etc., or "unknown" to auto-detect
+                  mode          — "transcribe" (default)
+  Response:     { request_id, transcript, language_code }
+
+★ Audio limits: sync REST accepts ≤30s clips. `VoiceMic` records short
+  single-slot utterances (a name, a district, a village), so this is fine.
 """
+
+import logging
+
+import httpx
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class VoiceEngineError(Exception):
+    """Raised when the upstream Sarvam STT call fails in a non-recoverable way."""
 
 
 class VoiceEngine:
-    def __init__(self):
-        self.api_key = None
+    def __init__(self) -> None:
+        # Read live from settings on each call, not once at import — tests and
+        # env reloads mutate `settings.SARVAM_API_KEY` after the module loads.
+        self.endpoint = settings.SARVAM_ASR_ENDPOINT
+        self.model = settings.SARVAM_ASR_MODEL
 
-    async def text_to_speech(self, text: str, language: str = "hi") -> str:
-        """Convert text to speech audio. Returns audio URL."""
-        # TODO: Integrate Bhashini/Sarvam TTS API
-        raise NotImplementedError("Voice engine not yet implemented (Tier 3)")
+    @property
+    def api_key(self) -> str:
+        return settings.SARVAM_API_KEY
 
-    async def speech_to_text(self, audio_ref: str, language: str = "hi") -> dict:
-        """Transcribe audio to text. Returns transcript + detected intent."""
-        # TODO: Integrate Bhashini/Sarvam STT API
-        raise NotImplementedError("Voice engine not yet implemented (Tier 3)")
+    @property
+    def configured(self) -> bool:
+        """True when a Sarvam API key is present. The transcribe route should
+        degrade gracefully (HTTP 503) rather than raise when it is absent."""
+        return bool(self.api_key)
+
+    async def speech_to_text(
+        self,
+        audio_bytes: bytes,
+        *,
+        language_code: str = "mr-IN",
+        mode: str = "transcribe",
+    ) -> dict:
+        """Proxy one audio clip to Sarvam STT. Returns
+        `{transcript, language_code, request_id}` on success; raises
+        `VoiceEngineError` on an upstream failure (after translating the
+        upstream HTTP status into a message the router can surface)."""
+        if not self.configured:
+            raise VoiceEngineError("Sarvam API key is not configured (SARVAM_API_KEY)")
+
+        headers = {
+            "api-subscription-key": self.api_key,
+        }
+        data = {
+            "model": self.model,
+            "language_code": language_code,
+            "mode": mode,
+        }
+        files = {"file": ("clip.m4a", audio_bytes, "audio/mp4")}
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    self.endpoint,
+                    headers=headers,
+                    data=data,
+                    files=files,
+                )
+        except httpx.HTTPError as exc:
+            logger.warning("Sarvam STT transport error: %s", exc)
+            raise VoiceEngineError(f"Upstream STT unreachable: {exc}") from exc
+
+        if resp.status_code != 200:
+            logger.warning(
+                "Sarvam STT upstream error: status=%s body=%s",
+                resp.status_code,
+                resp.text[:300],
+            )
+            raise VoiceEngineError(
+                f"Sarvam STT failed with HTTP {resp.status_code}: {resp.text[:200]}"
+            )
+
+        payload = resp.json()
+        transcript = (payload.get("transcript") or "").strip()
+        if not transcript:
+            raise VoiceEngineError("Sarvam STT returned an empty transcript")
+
+        return {
+            "transcript": transcript,
+            "language_code": payload.get("language_code"),
+            "request_id": payload.get("request_id"),
+        }
 
 
 voice_engine = VoiceEngine()
