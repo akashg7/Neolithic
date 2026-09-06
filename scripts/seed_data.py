@@ -272,7 +272,21 @@ async def seed():
         db.add(offer_lot)
 
         await db.commit()
+
+        print("Resetting PostgreSQL primary key sequences...")
+        seq_tables = [
+            "users", "lots", "buyer_demands", "offers",
+            "logistics_providers", "warehouses", "mandi_locations",
+            "commodities", "districts", "fpos"
+        ]
+        for tbl in seq_tables:
+            try:
+                await db.execute(text(f"SELECT setval(pg_get_serial_sequence('{tbl}', 'id'), COALESCE(MAX(id), 1)) FROM {tbl};"))
+            except Exception:
+                pass
+        await db.commit()
         print("✅ Maharashtra seed data populated successfully!")
+
 
 if __name__ == "__main__":
     asyncio.run(seed())

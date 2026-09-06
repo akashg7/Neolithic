@@ -4,11 +4,13 @@ from datetime import datetime
 
 class LotCreate(BaseModel):
     commodity_id: str
-    qty_kg: int = Field(..., gt=0)
+    qty_kg: Optional[int] = None
+    quantity_qtl: Optional[int] = None
     expected_price_paise: int = Field(..., gt=0)
     market_id: Optional[str] = None
     warehouse_id: Optional[str] = None
     self_assay: Optional[dict] = None
+
 
 class LotOut(BaseModel):
     id: str
@@ -65,6 +67,11 @@ class SelfAssayResponse(BaseModel):
     tip_mr: str
     tip_en: str
     self_assay_answers: dict
+
+    @field_validator("lot_id", mode="before")
+    def id_to_str(cls, v):
+        return str(v) if v is not None else v
+
 
 class PriceBand(BaseModel):
     min_paise_per_qtl: int

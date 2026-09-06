@@ -6,13 +6,34 @@ class ModelCard(BaseModel):
     coverage_80_bps: int
 
 class PledgeQuote(BaseModel):
-    provider_name: str
-    ltv_percent: float
-    interest_rate_bps: int
-    max_amount_paise: int
-    terms_url: str
-    contact_phone: str
-    valid_until: str
+    loan_paise: Optional[int] = None
+    interest_paise: Optional[int] = None
+    net_benefit_paise: Optional[int] = None
+    assessed_value_paise: Optional[int] = None
+    days: Optional[int] = None
+    ltv_bps: Optional[int] = None
+    rate_bps_annual: Optional[int] = None
+    warehouse_id: Optional[int] = None
+    is_wdra_registered: Optional[bool] = None
+    disclaimer: Optional[str] = None
+
+    provider_name: str = "Samunnati Agri Finance"
+    ltv_percent: float = 75.0
+    interest_rate_bps: int = 1050
+    max_amount_paise: Optional[int] = None
+    terms_url: str = "https://mandisetu.gov.in/terms/pledge"
+    contact_phone: str = "1800-123-AGRI"
+    valid_until: str = "14 days"
+
+    def __init__(self, **data):
+        if "loan_paise" in data and "max_amount_paise" not in data:
+            data["max_amount_paise"] = data["loan_paise"]
+        if "ltv_bps" in data and "ltv_percent" not in data:
+            data["ltv_percent"] = data["ltv_bps"] / 100.0
+        if "rate_bps_annual" in data and "interest_rate_bps" not in data:
+            data["interest_rate_bps"] = data["rate_bps_annual"]
+        super().__init__(**data)
+
 
 class AltMarket(BaseModel):
     market_id: str

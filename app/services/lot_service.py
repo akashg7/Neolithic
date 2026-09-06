@@ -37,17 +37,23 @@ async def _find_nearest_mandi(db: AsyncSession, lat: float, lng: float) -> Optio
 
 async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut:
     """Create a new lot."""
+    qty_qtl = payload.quantity_qtl if payload.quantity_qtl is not None else (payload.qty_kg // 100 if payload.qty_kg else 10)
+    comm_id = int(payload.commodity_id)
+    mkt_id = int(payload.market_id) if payload.market_id else None
+    wh_id = int(payload.warehouse_id) if payload.warehouse_id else None
+
     lot = Lot(
         farmer_id=user.id,
-        commodity_id=payload.commodity_id,
-        quantity_qtl=payload.quantity_qtl,
+        commodity_id=comm_id,
+        quantity_qtl=qty_qtl,
         expected_price_paise=payload.expected_price_paise,
-        market_id=payload.market_id,
-        warehouse_id=payload.warehouse_id,
+        market_id=mkt_id,
+        warehouse_id=wh_id,
         lat=user.lat,
         lng=user.lng,
         status="active",
     )
+
 
     if payload.self_assay:
         try:
@@ -124,7 +130,7 @@ async def submit_self_assay(
     await db.commit()
 
     return SelfAssayResponse(
-        lot_id=lot.id,
+        lot_id=str(lot.id),
         score=grade_result["score"],
         grade=grade_result["grade"],
         weakest_dimension=grade_result["weakest_dimension"],
@@ -132,6 +138,7 @@ async def submit_self_assay(
         tip_en=grade_result["tip_en"],
         self_assay_answers=answers_dict,
     )
+
 
 
 async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> PriceSuggestionResponse:

@@ -55,19 +55,48 @@ class VoiceEngine:
         degrade gracefully (HTTP 503) rather than raise when it is absent."""
         return bool(self.api_key)
 
+    def _detect_format(self, audio_bytes: bytes, filename: str | None = None) -> tuple[str, str]:
+        fn = (filename or "").lower()
+        if fn.endswith(".mp3"):
+            return "clip.mp3", "audio/mpeg"
+        elif fn.endswith(".wav"):
+            return "clip.wav", "audio/wav"
+        elif fn.endswith(".m4a") or fn.endswith(".mp4"):
+            return "clip.m4a", "audio/mp4"
+        elif fn.endswith(".ogg") or fn.endswith(".opus"):
+            return "clip.ogg", "audio/ogg"
+        elif fn.endswith(".flac"):
+            return "clip.flac", "audio/flac"
+        elif fn.endswith(".aac"):
+            return "clip.aac", "audio/aac"
+
+        # Byte-sniffing fallback
+        if audio_bytes.startswith(b"ID3") or audio_bytes[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
+            return "clip.mp3", "audio/mpeg"
+        elif audio_bytes.startswith(b"RIFF"):
+            return "clip.wav", "audio/wav"
+        elif b"ftyp" in audio_bytes[:16]:
+            return "clip.m4a", "audio/mp4"
+        elif audio_bytes.startswith(b"OggS"):
+            return "clip.ogg", "audio/ogg"
+
+        return "clip.mp3", "audio/mpeg"
+
     async def speech_to_text(
         self,
         audio_bytes: bytes,
         *,
+        filename: str | None = None,
         language_code: str = "mr-IN",
         mode: str = "transcribe",
     ) -> dict:
         """Proxy one audio clip to Sarvam STT. Returns
         `{transcript, language_code, request_id}` on success; raises
-        `VoiceEngineError` on an upstream failure (after translating the
-        upstream HTTP status into a message the router can surface)."""
+        `VoiceEngineError` on an upstream failure."""
         if not self.configured:
             raise VoiceEngineError("Sarvam API key is not configured (SARVAM_API_KEY)")
+
+        upload_name, mime_type = self._detect_format(audio_bytes, filename)
 
         headers = {
             "api-subscription-key": self.api_key,
@@ -77,7 +106,8 @@ class VoiceEngine:
             "language_code": language_code,
             "mode": mode,
         }
-        files = {"file": ("clip.m4a", audio_bytes, "audio/mp4")}
+        files = {"file": (upload_name, audio_bytes, mime_type)}
+
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

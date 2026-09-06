@@ -36,9 +36,13 @@ class Settings(BaseSettings):
     VOICE_CONFIDENCE_THRESHOLD: float = 0.6
     VOICE_MAX_RECORDING_SECONDS: int = 10
     VOICE_CACHE_ENABLED: bool = True
+    ENV: str = "development"
+
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
+
 
 
 settings = Settings()
