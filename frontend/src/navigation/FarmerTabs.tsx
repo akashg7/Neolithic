@@ -55,6 +55,7 @@ import S08_ModelCard from '../screens/farmer/S08_ModelCard';
 import S09_Verdict from '../screens/farmer/S09_Verdict';
 import S10_CostBreakdown from '../screens/farmer/S10_CostBreakdown';
 import S13_CropLoan from '../screens/farmer/S13_CropLoan';
+import S38_Notifications from '../screens/farmer/S38_Notifications';
 import S14_CounterOffer from '../screens/farmer/S14_CounterOffer';
 import S15_MyLots from '../screens/farmer/S15_MyLots';
 import S16_PoolSplit from '../screens/farmer/S16_PoolSplit';
@@ -86,11 +87,13 @@ import S31_DealsList from '../screens/farmer/S31_DealsList';
 import S32_DealTracking from '../screens/farmer/S32_DealTracking';
 import S33_Settled from '../screens/farmer/S33_Settled';
 import S35_FarmerProfile from '../screens/farmer/S35_FarmerProfile';
+import S37_Talks from '../screens/farmer/S37_Talks';
 
 export type FarmerTabParamList = {
   Home: undefined;
   Prices: undefined;
   MyLots: undefined;
+  Talks: undefined;
   Deals: undefined;
 };
 
@@ -123,6 +126,8 @@ export type HomeStackParamList = {
    * renders when a quote exists at all (I13) — so this route is only ever
    * offered on the branch where there is something to show. */
   S13_CropLoan: undefined;
+  /** Opened from the bell on Home. */
+  S38_Notifications: undefined;
 };
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
@@ -139,6 +144,7 @@ function HomeStackNavigator() {
         options={{ presentation: 'modal' }}
       />
       <HomeStack.Screen name="S13_CropLoan" component={S13_CropLoan} />
+      <HomeStack.Screen name="S38_Notifications" component={S38_Notifications} />
     </HomeStack.Navigator>
   );
 }
@@ -268,6 +274,29 @@ function DealsStackNavigator() {
   );
 }
 
+/**
+ * Talks is its own tab and its own stack: the inbox, and the counter-offer
+ * screen it opens into. `S14_CounterOffer` is registered here as well as on
+ * MyLots — same component, two stack instances, each keeping the history that
+ * makes sense for how it was reached. Answering an offer from the inbox
+ * should return to the inbox, not into the middle of the selling flow.
+ */
+export type TalksStackParamList = {
+  S37_Talks: undefined;
+  S14_CounterOffer: { offer_id?: string } | undefined;
+};
+
+const TalksStack = createNativeStackNavigator<TalksStackParamList>();
+
+function TalksStackNavigator() {
+  return (
+    <TalksStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
+      <TalksStack.Screen name="S37_Talks" component={S37_Talks} />
+      <TalksStack.Screen name="S14_CounterOffer" component={S14_CounterOffer} />
+    </TalksStack.Navigator>
+  );
+}
+
 const MyLotsStack = createNativeStackNavigator<MyLotsStackParamList>();
 
 function MyLotsStackNavigator() {
@@ -340,6 +369,11 @@ export function FarmerTabs() {
         name="MyLots"
         component={MyLotsStackNavigator}
         options={{ title: t('tab_my_produce'), tabBarIcon: tabIcon('lots') }}
+      />
+      <Tab.Screen
+        name="Talks"
+        component={TalksStackNavigator}
+        options={{ title: t('tab_chat'), tabBarIcon: tabIcon('chat') }}
       />
       <Tab.Screen
         name="Deals"
