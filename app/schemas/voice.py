@@ -4,12 +4,20 @@ from typing import Optional
 
 class NarrateRequest(BaseModel):
     text: str
-    language: str = "en"
+    locale: str = "mr"
 
 
 class NarrateResponse(BaseModel):
-    audio_url: str
-    language: str
+    audio_base64: str
+    audio_format: str = "wav"
+    language_code: str = "mr-IN"
+    request_id: Optional[str] = None
+
+
+class TranscribeResponse(BaseModel):
+    transcript: str
+    language_code: Optional[str] = None
+    request_id: Optional[str] = None
 
 
 class CallInitiateRequest(BaseModel):

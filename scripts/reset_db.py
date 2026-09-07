@@ -7,15 +7,7 @@ from app.config import settings
 from app.database import Base
 
 # Import all models to register them with Base.metadata
-from app.models.user import User, Farmer, Buyer
-from app.models.mandi import MandiLocation, PriceForecast, PriceObservation
-from app.models.reference import District, Commodity, Warehouse, LogisticsCostRoute
-from app.models.logistics import LogisticsProvider
-from app.models.fpo import FPO
-from app.models.demand import BuyerDemand
-from app.models.lot import Lot
-from app.models.offer import Offer
-from app.models.transaction import Transaction, EscrowEvent
+import app.models  # noqa: F401
 
 from sqlalchemy import text
 

@@ -77,7 +77,7 @@ export const API_BASE_URL = __DEV__
  *   it `true` past that point means testing against stale fixtures without
  *   noticing the real endpoint drifted.
  */
-export const USE_FIXTURES = true;
+export const USE_FIXTURES = false;
 
 /**
  * S15's empty-lots state (`fxMyLotsEmpty`) is otherwise unreachable in any

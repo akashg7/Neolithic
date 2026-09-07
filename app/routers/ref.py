@@ -28,8 +28,10 @@ async def get_warehouses(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Warehouse).order_by(Warehouse.name))
     return result.scalars().all()
 
+@router.get("/mandis", response_model=List[MandiOut])
 @router.get("/markets", response_model=List[MandiOut])
 async def get_markets(db: AsyncSession = Depends(get_db)):
     """Get all mandi locations (markets)."""
     result = await db.execute(select(MandiLocation).order_by(MandiLocation.name))
     return result.scalars().all()
+
