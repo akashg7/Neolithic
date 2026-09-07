@@ -1,11 +1,15 @@
 /**
- * The farmer app. Four tabs: Home, Prices, My Lots, Deals. Pranay.
+ * The farmer app. Four tabs: Home, Market, My Produce, Deals. Pranay.
  *
- * ★ Deals replaced what used to be a fourth "Assistant" tab (the canned
- *   Q&A/FAQ screen, S28) — the actual Stitch design's footer is Home /
- *   Market / My Produce / Deals, and Deals had no tab at all before this,
- *   reachable only by going Menu → Deals, several taps deep. The FAQ
- *   assistant moved to the hamburger menu instead (`S34_MenuDrawer`).
+ * ★ Those four names are the Stitch footer, verbatim, and getting there took
+ *   two fixes. The fourth slot used to be an "Assistant" tab (the canned
+ *   Q&A/FAQ screen, S28) with Deals having no tab at all — reachable only
+ *   through Menu → Deals, several taps deep; the FAQ moved to the hamburger
+ *   menu (`S34_MenuDrawer`) and Deals took the slot. The middle two were then
+ *   still labelled "Prices" and "My Lots", which is what a farmer actually
+ *   saw at the bottom of every screen while the design said "Market" and
+ *   "My Produce". The route names stay `Prices`/`MyLots` — renaming those
+ *   would touch every cross-tab `navigate` call for no user-visible gain.
  *
  * ★ Four, not seven. This is a phone held by someone who may not read fluently, in
  *   a mandi, in sunlight, possibly one-handed. Every tab past the fourth is a tab
@@ -32,6 +36,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useT } from '../lib/i18n';
 import { tabIcon } from './TabIcon';
+import type { AssayReq, AssayRes } from '../types/api';
 
 /** The one background colour for every farmer scene. */
 const SCREEN_BG = '#FAF6EE';
@@ -50,7 +55,7 @@ import S08_ModelCard from '../screens/farmer/S08_ModelCard';
 import S09_Verdict from '../screens/farmer/S09_Verdict';
 import S10_CostBreakdown from '../screens/farmer/S10_CostBreakdown';
 import S12_CreateLot from '../screens/farmer/S12_CreateLot';
-import S13_SelfAssay from '../screens/farmer/S13_SelfAssay';
+import S13_CropLoan from '../screens/farmer/S13_CropLoan';
 import S14_CounterOffer from '../screens/farmer/S14_CounterOffer';
 import S15_MyLots from '../screens/farmer/S15_MyLots';
 import S16_PoolSplit from '../screens/farmer/S16_PoolSplit';
@@ -60,10 +65,12 @@ import PricesIndex from '../screens/farmer/PricesIndex';
 //   with zero navigation between them or to anything else — every one was
 //   unreachable from a running app, which is why "S12 is built" and "I
 //   cannot see anything except Home" were both true at once. Registered
-//   here and wired below; S15_MyLots/S13_SelfAssay/S14_CounterOffer/
+//   here and wired below; S15_MyLots/S14_CounterOffer/
 //   S16_PoolSplit stay as the primary, backend-wired path (real getLots(),
 //   real self-assay scoring, real offer negotiation) — none of that was
 //   replaced, since none of these new screens call a real endpoint yet.
+import S20_QualityDiagnostic from '../screens/farmer/S20_QualityDiagnostic';
+import S21_GradeReveal from '../screens/farmer/S21_GradeReveal';
 import S22_PricePublish from '../screens/farmer/S22_PricePublish';
 import S23_PublishedRadar from '../screens/farmer/S23_PublishedRadar';
 import S24_LotDetail from '../screens/farmer/S24_LotDetail';
@@ -110,6 +117,10 @@ export type HomeStackParamList = {
   S4_Home: undefined;
   S9_Verdict: undefined;
   S10_CostBreakdown: undefined;
+  /** Stitch 13. Reached from the pledge card on the verdict, which only
+   * renders when a quote exists at all (I13) — so this route is only ever
+   * offered on the branch where there is something to show. */
+  S13_CropLoan: undefined;
 };
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
@@ -119,7 +130,13 @@ function HomeStackNavigator() {
     <HomeStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
       <HomeStack.Screen name="S4_Home" component={S04_Home} />
       <HomeStack.Screen name="S9_Verdict" component={S09_Verdict} />
-      <HomeStack.Screen name="S10_CostBreakdown" component={S10_CostBreakdown} />
+      {/* Stitch 12 is a bottom sheet over the decision screen, not a page. */}
+      <HomeStack.Screen
+        name="S10_CostBreakdown"
+        component={S10_CostBreakdown}
+        options={{ presentation: 'modal' }}
+      />
+      <HomeStack.Screen name="S13_CropLoan" component={S13_CropLoan} />
     </HomeStack.Navigator>
   );
 }
@@ -167,12 +184,20 @@ export type MyLotsStackParamList = {
   S15_MyLots: undefined;
   S12_CreateLot: undefined;
   /**
-   * `lot_id` is optional so S13 stays reachable directly (e.g. from a deep
-   * link) without a lot already created in this session — it falls back to
-   * `DEFAULT_LOT_ID` from config. Both S12 (just created) and S15 (tapped
-   * from the list) navigate here with the real id of the lot in question.
+   * `lot_id` is optional so the assay stays reachable directly (e.g. from a
+   * deep link) without a lot created in this session — it falls back to
+   * `DEFAULT_LOT_ID`. Both S12 (just created) and S15 (tapped from the list)
+   * navigate here with the real id of the lot in question.
    */
-  S13_SelfAssay: { lot_id?: string } | undefined;
+  S20_QualityDiagnostic: { lot_id?: string } | undefined;
+  /**
+   * S21 is a pure reveal: it renders what S20's own submission returned and
+   * fetches nothing. `answers` rides along so the screen can echo the six
+   * answers behind the grade — CANON's `AssayRecord` header notes that
+   * `AssayRes` throws them away, and that a grade nobody can audit is the
+   * same non-answer CANON rejects for match scores.
+   */
+  S21_GradeReveal: { result: AssayRes; answers: AssayReq; lot_id?: string };
   /** `offer_id` optional for the same reason as S13's `lot_id` — falls back
    * to the fixture incoming offer. S15's offers-awaiting-response section
    * navigates here with the real id. */
@@ -243,7 +268,8 @@ function MyLotsStackNavigator() {
     <MyLotsStack.Navigator initialRouteName="S15_MyLots" screenOptions={STACK_SCREEN_OPTIONS}>
       <MyLotsStack.Screen name="S15_MyLots" component={S15_MyLots} />
       <MyLotsStack.Screen name="S12_CreateLot" component={S12_CreateLot} />
-      <MyLotsStack.Screen name="S13_SelfAssay" component={S13_SelfAssay} />
+      <MyLotsStack.Screen name="S20_QualityDiagnostic" component={S20_QualityDiagnostic} />
+      <MyLotsStack.Screen name="S21_GradeReveal" component={S21_GradeReveal} />
       <MyLotsStack.Screen name="S14_CounterOffer" component={S14_CounterOffer} />
       <MyLotsStack.Screen name="S16_PoolSplit" component={S16_PoolSplit} />
       <MyLotsStack.Screen name="S22_PricePublish" component={S22_PricePublish} />
@@ -299,17 +325,17 @@ export function FarmerTabs() {
       <Tab.Screen
         name="Prices"
         component={PricesStackNavigator}
-        options={{ title: t('tab_prices'), tabBarIcon: tabIcon('prices') }}
+        options={{ title: t('tab_market'), tabBarIcon: tabIcon('prices') }}
       />
       <Tab.Screen
         name="MyLots"
         component={MyLotsStackNavigator}
-        options={{ title: t('tab_my_lots'), tabBarIcon: tabIcon('lots') }}
+        options={{ title: t('tab_my_produce'), tabBarIcon: tabIcon('lots') }}
       />
       <Tab.Screen
         name="Deals"
         component={DealsStackNavigator}
-        options={{ title: t('deals_page_title'), tabBarIcon: tabIcon('deals') }}
+        options={{ title: t('tab_deals'), tabBarIcon: tabIcon('deals') }}
       />
     </Tab.Navigator>
   );
