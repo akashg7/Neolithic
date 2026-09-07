@@ -37,7 +37,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useT } from '../lib/i18n';
 import { tabIcon } from './TabIcon';
 import { TabBarButton } from './TabBarButton';
-import type { AssayReq, AssayRes } from '../types/api';
+import type { AssayReq, AssayRes, TxDto } from '../types/api';
 
 /** The one background colour for every farmer scene. */
 const SCREEN_BG = '#FAF6EE';
@@ -76,10 +76,6 @@ import S22_PricePublish from '../screens/farmer/S22_PricePublish';
 import S23_PublishedRadar from '../screens/farmer/S23_PublishedRadar';
 import S24_LotDetail from '../screens/farmer/S24_LotDetail';
 import S25_BuyersForLot from '../screens/farmer/S25_BuyersForLot';
-import S26_BuyerProfile from '../screens/farmer/S26_BuyerProfile';
-import S27_Bargaining from '../screens/farmer/S27_Bargaining';
-import S28_CounterOffer from '../screens/farmer/S28_CounterOffer';
-import S29_ConfirmAcceptance from '../screens/farmer/S29_ConfirmAcceptance';
 import S30_DealDone from '../screens/farmer/S30_DealDone';
 import S31_DealsList from '../screens/farmer/S31_DealsList';
 import S32_DealTracking from '../screens/farmer/S32_DealTracking';
@@ -225,19 +221,32 @@ export type MyLotsStackParamList = {
   S22_PricePublish: { lot_id?: string } | undefined;
   S23_PublishedRadar: { lot_id?: string; asking_paise?: number } | undefined;
   S24_LotDetail: { lot_id?: string; asking_paise?: number } | undefined;
-  /* ★ These four took no params, which is how they ended up rendering
+  /* ★ These took no params at all, which is how they ended up rendering
      hardcoded buyers and prices: a screen that is never told *which* offer
      it is about has nothing to render but literals. The id is what lets
-     them read real data. */
+     them read real data.
+
+     ★ Three that used to sit here are gone — S26 (buyer profile), S27
+     (bargaining) and S28 (counter offer). S27 and S28 were a second and
+     third copy of a negotiation screen this app already has: S14 is the
+     real one, wired to `getOfferThread`, `acceptOffer`, `rejectOffer` and
+     `counterOffer`, with the counter button disabled on round 3 from the
+     offer itself rather than by catching the server's 409. The copies were
+     module-level constants — `const BUYER_BID = 1850; const QTL = 40;` —
+     and a buyer called "Pune Trading Co" typed straight into the JSX.
+     S26 could not be built honestly at all: there is no `GET /buyers/{id}`
+     (blocker filed), so a buyer profile screen has nothing to read.
+     The Talks tab and S25 both open S14. */
   S25_BuyersForLot: { lot_id?: string } | undefined;
-  S26_BuyerProfile: { buyer_id?: string } | undefined;
-  S27_Bargaining: { offer_id?: string } | undefined;
-  S28_CounterOffer: { offer_id?: string } | undefined;
-  S29_ConfirmAcceptance: { offer_id?: string } | undefined;
-  S30_DealDone: undefined;
+  /** ★ The transaction rides in on the route rather than being fetched.
+   *  `POST /offers/{id}/accept` returns the `TxDto` and that is the only
+   *  place its id is ever visible — §7.7 has `GET /tx/{id}` but no `GET /tx`
+   *  and no `tx_id` on `OfferDto` (blocker filed). Passing the object keeps
+   *  the deal reachable from the moment it exists. */
+  S30_DealDone: { tx: TxDto };
   S31_DealsList: undefined;
-  S32_DealTracking: undefined;
-  S33_Settled: undefined;
+  S32_DealTracking: { tx_id?: string } | undefined;
+  S33_Settled: { tx_id?: string } | undefined;
   S35_FarmerProfile: undefined;
 };
 
@@ -315,14 +324,6 @@ function MyLotsStackNavigator() {
       <MyLotsStack.Screen name="S23_PublishedRadar" component={S23_PublishedRadar} />
       <MyLotsStack.Screen name="S24_LotDetail" component={S24_LotDetail} />
       <MyLotsStack.Screen name="S25_BuyersForLot" component={S25_BuyersForLot} />
-      <MyLotsStack.Screen name="S26_BuyerProfile" component={S26_BuyerProfile} />
-      <MyLotsStack.Screen name="S27_Bargaining" component={S27_Bargaining} />
-      <MyLotsStack.Screen
-        name="S28_CounterOffer"
-        component={S28_CounterOffer}
-        options={{ presentation: 'modal' }}
-      />
-      <MyLotsStack.Screen name="S29_ConfirmAcceptance" component={S29_ConfirmAcceptance} />
       <MyLotsStack.Screen name="S30_DealDone" component={S30_DealDone} />
       <MyLotsStack.Screen name="S31_DealsList" component={S31_DealsList} />
       <MyLotsStack.Screen name="S32_DealTracking" component={S32_DealTracking} />
