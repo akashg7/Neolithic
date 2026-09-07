@@ -9,7 +9,8 @@
  *   create button as the header, not a blank list.
  *
  * ★ I2: `LotDto.qty_kg` is stored in kg and **displayed in quintals**, floored
- *   via `toQuintal` — never rounded, never a raw kg number on screen.
+ *   via `formatQuintal` — never a raw kg number on screen, and a part
+ *   quintal is shown rather than quietly floored away.
  *
  * ★ `LotDto.grade` is `LotGrade` (four values, including `UNGRADED`), not
  *   `Grade` (three). An ungraded lot must read as "not yet assessed", not
@@ -17,8 +18,7 @@
  *   exact bug `types/api.ts` warns about.
  */
 
-import React, { useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -27,23 +27,18 @@ import { colors, fontFamily, radius, space, touch, type as typography } from '..
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
 import { getLots } from '../../lib/api';
-import { getLocale } from '../../lib/locale';
 import { translate } from '../../lib/i18n';
 import { formatDate } from '../../lib/dates';
-import { formatNumber, formatPaise, toQuintal } from '../../lib/money';
+import { formatNumber, formatQuintal } from '../../lib/money';
 import { FIXTURE_LOTS_EMPTY, USE_FIXTURES } from '../../config';
 import { fxMyLots, fxMyLotsEmpty } from '../../fixtures/lots';
-import { fxEscrowEvents, fxEscrowEventsDisputed, fxTx, fxTxDisputed } from '../../fixtures/escrow';
-import { fxIncomingOffer, fxIncomingOfferLastRound } from '../../fixtures/offers';
 import { fxPool } from '../../fixtures/pools';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { ListenButton } from '../../components/ui/ListenButton';
 import { Badge } from '../../components/ui/Badge';
 import type { BadgeType } from '../../components/ui/Badge';
-import { EscrowTimeline, txStatusLabel } from '../../components/EscrowTimeline';
-import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
+import { ErrorState, Skeleton } from '../../components/farmer/States';
 import type { MyLotsStackParamList } from '../../navigation/FarmerTabs';
-import type { EscrowEvent, LotDto, LotGrade, LotStatus, Locale, OfferDto, TxDto } from '../../types/api';
+import type { LotDto, LotGrade, LotStatus, Locale } from '../../types/api';
 
 type Props = NativeStackScreenProps<MyLotsStackParamList, 'S15_MyLots'>;
 
@@ -123,44 +118,9 @@ async function fetchLots(): Promise<LotDto[]> {
   return getLots();
 }
 
-interface TxWithEvents {
-  tx: TxDto;
-  events: EscrowEvent[];
-}
-
 /**
- * TODO(akash): there is no actor-scoped "list my transactions" endpoint
- * anywhere in CANON §7.7 or FRONTEND_NEEDS_BACKEND.md §7 — only
- * `GET /tx/{id}` for one at a time, which is no use to a list screen that
- * does not already have ids to ask for. Under fixtures this returns the two
- * escrow fixtures every other screen already agrees on; without fixtures it
- * returns empty rather than guessing at a path nothing in this repo defines.
- */
-async function fetchTransactions(): Promise<TxWithEvents[]> {
-  if (USE_FIXTURES) {
-    return [
-      { tx: fxTx, events: fxEscrowEvents },
-      { tx: fxTxDisputed, events: fxEscrowEventsDisputed },
-    ];
-  }
-  return [];
-}
-
-/**
- * Offers awaiting the farmer's response — `initiator: 'BUYER'` and
- * `status: 'OPEN'`, per S14's own header comment. `GET /offers` is
- * actor-scoped both directions (FRONTEND_NEEDS_BACKEND.md §6), so the real
- * path filters the same list S14 itself reads, rather than a second
- * endpoint.
- */
-async function fetchOffersAwaitingResponse(): Promise<OfferDto[]> {
-  if (USE_FIXTURES) return [fxIncomingOffer, fxIncomingOfferLastRound];
-  return [];
-}
-
-/**
- * TODO(akash): same gap as `fetchTransactions` — no "list my pools"
- * endpoint, only `GET /pools/{id}`. Fixtures stand in until one exists.
+ * TODO(akash): no "list my pools" endpoint, only `GET /pools/{id}`.
+ * Fixtures stand in until one exists.
  */
 async function fetchMyPools() {
   if (USE_FIXTURES) return [fxPool];
@@ -190,28 +150,37 @@ export default function S15_MyLots({ navigation }: Props) {
     queryFn: fetchLots,
   });
 
-  // Transactions are additive to this screen's own loading/error/empty
-  // states below — a farmer with lots but no transactions yet still sees
-  // the lots list; a failure fetching transactions does not blank the lots
-  // that already loaded. Not one of the "four states" this screen gates on.
-  const { data: transactions } = useQuery({
-    queryKey: ['tx', 'mine'],
-    queryFn: fetchTransactions,
-  });
-
-  const { data: pendingOffers } = useQuery({
-    queryKey: ['offers', 'awaitingResponse'],
-    queryFn: fetchOffersAwaitingResponse,
-  });
-
   const { data: myPools } = useQuery({
     queryKey: ['pools', 'mine'],
     queryFn: fetchMyPools,
   });
 
-  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
-
   const goCreateLot = () => navigation.navigate('S17_CameraGuide');
+
+  /* ★ The speaker reads the screen: how many lots and how much produce in
+     total, then each lot with its grade, then how many buyers are waiting on
+     a reply. Every value comes from the same query the card renders. */
+  const narration = (() => {
+    const list = lots ?? [];
+    if (list.length === 0) return t('mp_empty_title');
+    const kg = list.reduce((sum, l) => sum + l.qty_kg, 0);
+    const parts = [
+      t('mp_narr_summary', {
+        n: formatNumber(list.length, locale),
+        qty: formatQuintal(kg, locale),
+      }),
+      ...list.map(l =>
+        t('mp_narr_lot', {
+          qty: formatQuintal(l.qty_kg, locale),
+          grade: t(`lot_grade_${l.grade.toLowerCase()}`),
+        }),
+      ),
+    ];
+    /* No offer count here any more — offers belong to Talks, and a
+       narration that mentioned them would send a farmer looking for a
+       section this screen no longer has. */
+    return parts.join(' ');
+  })();
 
   const header = (
     <View style={styles.topBar}>
@@ -222,6 +191,7 @@ export default function S15_MyLots({ navigation }: Props) {
         <Text style={styles.topBarTitle}>{t('mp_title')}</Text>
         <Text style={styles.topBarSub}>{t('produce_empty_cycle')}</Text>
       </View>
+      <ListenButton text={narration} />
     </View>
   );
 
@@ -312,7 +282,10 @@ export default function S15_MyLots({ navigation }: Props) {
   // price and no offer, so a rupee total for this list would be a number this
   // app invented. Quantity it does know, so quantity is what it shows.
   const totalKg = lots.reduce((sum, l) => sum + l.qty_kg, 0);
-  const totalQtl = toQuintal(totalKg);
+  /* ★ Not `toQuintal`. Flooring here put "100 qtl" beside "201 bags of
+     50 kg" from the same 10,050 kg — both numbers correct, the pair
+     nonsense. `formatQuintal` says 100.5 and the two agree again. */
+  const totalQtl = formatQuintal(totalKg, locale);
   const bags = Math.floor(totalKg / KG_PER_BAG);
 
   return (
@@ -330,7 +303,7 @@ export default function S15_MyLots({ navigation }: Props) {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>{t('mp_stat_quantity')}</Text>
             <Text style={styles.statValue}>
-              {t('mp_qtl_unit', { qty: formatNumber(totalQtl, locale) })}
+              {t('mp_qtl_unit', { qty: totalQtl })}
             </Text>
             <Text style={styles.statSub}>{t('mp_bags_note', { bags: formatNumber(bags, locale) })}</Text>
           </View>
@@ -355,7 +328,7 @@ export default function S15_MyLots({ navigation }: Props) {
               <View style={styles.lotBodyText}>
                 <Text style={styles.lotTitle}>{commodityMarketLabel(item, locale)}</Text>
                 <Text style={styles.lotMeta}>
-                  {t('qty_label_value', { qty: formatNumber(toQuintal(item.qty_kg), locale) })}
+                  {t('qty_label_value', { qty: formatQuintal(item.qty_kg, locale) })}
                 </Text>
                 <Text style={styles.lotMeta}>
                   {t('mp_harvest', { date: harvestDateLabel(item, locale) })}
@@ -382,27 +355,13 @@ export default function S15_MyLots({ navigation }: Props) {
           <Icon name="chevron-right" size={18} color={colors.outline} />
         </TouchableOpacity>
 
-        {pendingOffers && pendingOffers.length > 0 ? (
-          <>
-            <Text style={styles.sectionTitle}>{t('mp_offers_header')}</Text>
-            {pendingOffers.map(offer => (
-              <TouchableOpacity
-                key={offer.id}
-                style={styles.rowCard}
-                onPress={() => navigation.navigate('S14_CounterOffer', { offer_id: offer.id })}>
-                <View style={styles.featureText}>
-                  <Text style={styles.rowCardTitle}>
-                    {t('offer_round_short', { round: formatNumber(offer.round, locale) })}
-                  </Text>
-                  <Text style={styles.lotMeta}>
-                    {formatPaise(offer.price_paise_per_qtl, locale)} {t('per_quintal_label')}
-                  </Text>
-                </View>
-                <Text style={styles.rowCardAction}>{t('respond_to_offer_link')}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        ) : null}
+        {/* ★ "Offers waiting on you" and "My transactions" used to sit here.
+            Both are gone, and the reason is the flow rather than the space:
+            an offer is a negotiation and lives in Talks, a transaction is a
+            deal and lives in Deals — each already has a footer tab of its
+            own. Repeating them at the bottom of My Produce gave a farmer
+            three doors to the same room and no way to tell which one was
+            current. My Produce is the lots. */}
 
         {myPools && myPools.length > 0 ? (
           <>
@@ -416,7 +375,7 @@ export default function S15_MyLots({ navigation }: Props) {
                   <Text style={styles.rowCardTitle}>{pool.fpo.name_mr}</Text>
                   <Text style={styles.lotMeta}>
                     {t('pool_summary_line', {
-                      qty: formatNumber(toQuintal(pool.total_qty_kg), locale),
+                      qty: formatQuintal(pool.total_qty_kg, locale),
                       members: formatNumber(pool.members.length, locale),
                     })}
                   </Text>
@@ -427,39 +386,6 @@ export default function S15_MyLots({ navigation }: Props) {
           </>
         ) : null}
 
-        {transactions && transactions.length > 0 ? (
-          <>
-            <Text style={styles.sectionTitle}>{t('my_transactions_section_header')}</Text>
-            {transactions.map(({ tx, events }) => {
-              const expanded = expandedTxId === tx.id;
-              return (
-                <View key={tx.id} style={styles.rowCardColumn}>
-                  <TouchableOpacity
-                    onPress={() => setExpandedTxId(expanded ? null : tx.id)}
-                    accessibilityRole="button">
-                    <View style={styles.txHeadRow}>
-                      <Text style={styles.rowCardTitle}>
-                        {t('transaction_id_line', { id: tx.id })}
-                      </Text>
-                      <Text style={styles.rowCardAction}>{txStatusLabel(tx.status, locale)}</Text>
-                    </View>
-                    <Text style={styles.lotMeta}>
-                      {t('net_amount_value', { value: formatPaise(tx.net_paise, locale) })}
-                    </Text>
-                    <Text style={styles.txToggleHint}>
-                      {t(expanded ? 'timeline_hide_link' : 'timeline_show_link')}
-                    </Text>
-                  </TouchableOpacity>
-                  {expanded ? (
-                    <View style={styles.txExpanded}>
-                      <EscrowTimeline tx={tx} events={events} locale={locale} />
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })}
-          </>
-        ) : null}
       </ScrollView>
     </View>
   );

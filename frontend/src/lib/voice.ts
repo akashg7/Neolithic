@@ -24,9 +24,9 @@
 
 import Sound from 'react-native-sound';
 import Tts from 'react-native-tts';
-import type { WindowRes } from '../types/api';
+import type { Locale, WindowRes } from '../types/api';
 import type { TFn } from './i18n';
-import { buildVerdictNarration } from './verdictVoice';
+import { buildVerdictNarrationFor } from './verdictVoice';
 // ★ Upstream wrote this as `from '../api'`, which resolves to `src/api` — a
 //   file that does not exist, so the narration would have failed to bundle.
 //   `voice.ts` and `api.ts` are siblings in `lib/`.
@@ -216,46 +216,122 @@ function playClip(sound: Sound): Promise<void> {
  * never block or throw on that. If it fails, `Tts.speak()` still falls back
  * to whatever the device's default TTS language is, which beats no sound.
  */
-let ttsLanguageReady: Promise<void> | null = null;
-function ensureTtsLanguage(): Promise<void> {
-  if (!ttsLanguageReady) {
-    ttsLanguageReady = Tts.setDefaultLanguage('mr-IN')
-      .then(() => undefined)
-      .catch(() => undefined);
+/**
+ * BCP-47 tags for the three locales the app offers. The engine needs the
+ * region: bare 'hi' picks whatever Hindi voice the device defaults to, and on
+ * many Indian devices that is not an Indian one.
+ */
+const TTS_LANGUAGE: Record<Locale, string> = {
+  mr: 'mr-IN',
+  hi: 'hi-IN',
+  en: 'en-IN',
+};
+
+/** The locale the engine is currently set to, so we only pay for a change. */
+let ttsCurrentLocale: Locale | null = null;
+
+/**
+ * ★ This used to hardcode `'mr-IN'` and cache the promise forever, so the
+ *   engine was set to Marathi once at first use and never changed again. Two
+ *   reported bugs came out of that single line: the verdict spoke Marathi to
+ *   a farmer who had chosen English, and Hindi text read aloud in a Marathi
+ *   voice mispronounced even the product's own name. The engine is now set
+ *   to whichever locale the caller is speaking in, and re-set when it
+ *   changes.
+ */
+async function ensureTtsLanguage(locale: Locale = 'mr'): Promise<void> {
+  if (ttsCurrentLocale === locale) return;
+  try {
+    await Tts.setDefaultLanguage(TTS_LANGUAGE[locale]);
+    ttsCurrentLocale = locale;
+  } catch {
+    // An engine without the language installed keeps whatever it had. Better
+    // a wrong accent than silence.
   }
-  return ttsLanguageReady;
 }
 
 /**
  * Speaks `text` through the device's on-device TTS engine and resolves when
- * it finishes, errors, or is cancelled — never rejects. `Tts.speak()` returns
- * an utterance id synchronously; completion only arrives as an event, so
- * this wraps that in a promise and always cleans its own listeners up
- * afterward, matched on that id (more than one clip can be in flight only if
- * something calls `speak()` concurrently with itself, which this module
- * never does, but matching by id costs nothing and rules it out anyway).
+ * it finishes, errors, or is cancelled — never rejects.
+ *
+ * ★ THE BUG THIS FIXES, because it is subtle and it wedged the UI on every
+ *   screen. The previous version did:
+ *
+ *       let utteranceId: string | number;
+ *       const done = e => { if (e.utteranceId !== utteranceId) return; ... }
+ *       utteranceId = Tts.speak(text);
+ *
+ *   `react-native-tts`'s TypeScript declaration says `speak()` returns
+ *   `string | number`. It does not. The Android native method is
+ *   `speak(String utterance, ReadableMap params, Promise promise)` — a
+ *   `Promise` parameter — so the bridge hands JavaScript back a **Promise**,
+ *   and `utteranceId` was a Promise object. `e.utteranceId !== utteranceId`
+ *   was therefore true for every event ever fired, `done` never resolved,
+ *   and this function returned a promise that never settled.
+ *
+ *   Every caller `await`s it inside a `try/finally` that flips a `speaking`
+ *   flag back off. The `finally` never ran. So the listen button changed to
+ *   the muted-speaker icon when tapped and stayed that way for the life of
+ *   the screen, on every screen, and the narration could not be replayed
+ *   because the button was already showing its "stop" state. The
+ *   `.d.ts` being wrong is why this compiled and why it survived review.
+ *
+ * ★ The id is now awaited before it is compared, completions that arrive
+ *   before the id is known are honoured rather than dropped, and a guard
+ *   timer settles the promise if the engine never reports at all. The UI
+ *   flag can no longer be left stuck on by anything the engine does.
  */
+const TTS_GUARD_MS = 60_000;
+
 function speakViaTts(text: string): Promise<void> {
   return new Promise(resolve => {
-    let utteranceId: string | number;
-    const done = (event: { utteranceId: string | number }) => {
-      if (event.utteranceId !== utteranceId) return;
-      Tts.removeEventListener('tts-finish', done);
-      Tts.removeEventListener('tts-error', done);
-      Tts.removeEventListener('tts-cancel', done);
+    let settled = false;
+    /** Known only once `Tts.speak()`'s promise resolves. */
+    let utteranceId: string | number | null = null;
+    /** A completion that arrived while the id was still unknown. */
+    let finishedEarly = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(guard);
+      Tts.removeEventListener('tts-finish', onDone);
+      Tts.removeEventListener('tts-error', onDone);
+      Tts.removeEventListener('tts-cancel', onDone);
       resolve();
     };
-    Tts.addEventListener('tts-finish', done);
-    Tts.addEventListener('tts-error', done);
-    Tts.addEventListener('tts-cancel', done);
 
+    const onDone = (event?: { utteranceId?: string | number }) => {
+      if (utteranceId === null) {
+        // The engine beat us to it. Remember, and settle once we know the id
+        // — or, if we never learn it, the guard below still ends this.
+        finishedEarly = true;
+        return;
+      }
+      const id = event?.utteranceId;
+      if (id !== undefined && id !== utteranceId) return;
+      finish();
+    };
+
+    const guard = setTimeout(finish, TTS_GUARD_MS);
+
+    Tts.addEventListener('tts-finish', onDone);
+    Tts.addEventListener('tts-error', onDone);
+    Tts.addEventListener('tts-cancel', onDone);
+
+    // Typed as `string | number` by the library and actually a Promise on
+    // Android. `Promise.resolve` accepts either, so this handles both without
+    // depending on which one the platform gives us.
     try {
-      utteranceId = Tts.speak(text);
+      Promise.resolve(Tts.speak(text) as unknown as string | number).then(
+        id => {
+          utteranceId = id ?? '';
+          if (finishedEarly) finish();
+        },
+        () => finish(),
+      );
     } catch {
-      Tts.removeEventListener('tts-finish', done);
-      Tts.removeEventListener('tts-error', done);
-      Tts.removeEventListener('tts-cancel', done);
-      resolve();
+      finish();
     }
   });
 }
@@ -286,7 +362,7 @@ const CLIP_TEXT_BY_ID: Record<string, string> = (() => {
  * functions) is actually skipped.
  */
 export async function speak(clips: string[]): Promise<void> {
-  await ensureTtsLanguage();
+  await ensureTtsLanguage('mr');
   for (const id of clips) {
     const sound = await loadClip(id);
     if (sound) {
@@ -307,9 +383,23 @@ export async function speak(clips: string[]): Promise<void> {
  * spoke). `speak()` above is for the fixed, decomposable vocabulary
  * (rupees, days); this is for everything else voice.ts is asked to say.
  */
-export async function speakText(text: string): Promise<void> {
-  await ensureTtsLanguage();
+export async function speakText(text: string, locale: Locale = 'mr'): Promise<void> {
+  // ★ Stop whatever is in flight before starting. Without this a second tap
+  //   either queued behind the first or was dropped by the engine, which is
+  //   why the speaker "only played once" — tapping again did nothing audible
+  //   and there was no way to replay a sentence a farmer missed.
+  await stopSpeaking();
+  await ensureTtsLanguage(locale);
   await speakViaTts(text);
+}
+
+/** Cancels any utterance in flight. Safe to call when nothing is speaking. */
+export async function stopSpeaking(): Promise<void> {
+  try {
+    await Tts.stop();
+  } catch {
+    // Nothing was speaking.
+  }
 }
 
 /**
@@ -326,12 +416,17 @@ export async function speakText(text: string): Promise<void> {
  * than the clip-sequence `speakVerdict` below, because a farmer deciding
  * whether to hold needs the whole trade in his ear, not isolated word-clips.
  */
-export async function speakSaleWindow(v: WindowRes): Promise<void> {
-  const narration = buildVerdictNarration(v);
+export async function speakSaleWindow(v: WindowRes, locale: Locale = 'mr'): Promise<void> {
+  // ★ Composed and spoken in the farmer's own language. This used to build
+  //   Marathi unconditionally and call `narrate(..., 'mr')`, so choosing
+  //   English on S1 still produced a Marathi verdict — the exact complaint
+  //   from the device.
+  const narration = buildVerdictNarrationFor(v, locale);
+  await stopSpeaking();
   try {
-    await speakSarvamVerdict(narration);
+    await speakSarvamVerdict(narration, locale);
   } catch {
-    await speakText(narration);
+    await speakText(narration, locale);
   }
 }
 
@@ -342,8 +437,8 @@ export async function speakSaleWindow(v: WindowRes): Promise<void> {
  * Throws (does not swallow) on network/fs/playback errors by design — the
  * fallback lives in `speakSaleWindow`, not here.
  */
-async function speakSarvamVerdict(narration: string): Promise<void> {
-  const { audio_base64 } = await narrate(narration, 'mr');
+async function speakSarvamVerdict(narration: string, locale: Locale = 'mr'): Promise<void> {
+  const { audio_base64 } = await narrate(narration, locale);
 
   // Decode the base64 WAV to bytes and park it in a temp cache file the
   // native player can read. CachesDirectory is sandboxed, app-owned, and

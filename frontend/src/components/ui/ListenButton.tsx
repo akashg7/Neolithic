@@ -31,14 +31,30 @@ import { useT } from '../../lib/i18n';
 import { speakText } from '../../lib/voice';
 
 export function ListenButton({ text, label }: { text: string; label?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [speaking, setSpeaking] = useState(false);
 
+  /**
+   * ★ Every tap restarts the narration from the beginning.
+   *
+   *   This used to bail out early while `speaking` was true, so a farmer who
+   *   missed a sentence had no way to hear it again — the button simply did
+   *   nothing until the whole utterance finished, and if the engine's finish
+   *   event never arrived it stayed dead for good.
+   *
+   *   Restarting is the whole behaviour, so there is no `disabled` on the
+   *   button either. `disabled={speaking}` was still on it, which made this
+   *   branch unreachable: the control went inert for the entire utterance —
+   *   precisely the window in which someone who missed a number reaches for
+   *   it. `speakText` stops any current speech before it starts, so a second
+   *   tap simply begins again from the first word.
+   */
   const onPress = async () => {
-    if (speaking || text.trim().length === 0) return;
+    if (text.trim().length === 0) return;
     setSpeaking(true);
     try {
-      await speakText(text);
+      // Spoken in the language the farmer chose, not the app's default.
+      await speakText(text, locale);
     } catch {
       // A farmer who taps listen and hears nothing has lost a nice-to-have,
       // not the screen. An error banner over a TTS glitch would outrank the
@@ -52,11 +68,18 @@ export function ListenButton({ text, label }: { text: string; label?: string }) 
     <TouchableOpacity
       style={[styles.btn, speaking && styles.btnActive]}
       onPress={onPress}
-      disabled={speaking}
       accessibilityRole="button"
       accessibilityLabel={label ?? t('listen_button')}>
-      <Icon name={speaking ? 'volume-off' : 'volume'} size={14} color={colors.primary} />
-      <Text style={styles.label}>{speaking ? t('listening_button') : t('splash_listen')}</Text>
+      {/* ★ Always the speaker, never `volume-off`. A crossed-out speaker means
+          *muted* — it was showing the one icon that says "there is no sound"
+          at precisely the moment there is sound, and tapping it restarts the
+          narration rather than muting anything, so the metaphor was wrong in
+          both directions. The state is carried by the label and the filled
+          background instead. */}
+      <Icon name="volume" size={14} color={speaking ? colors.onPrimary : colors.primary} />
+      <Text style={[styles.label, speaking && styles.labelActive]}>
+        {speaking ? t('listening_button') : t('splash_listen')}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -74,6 +97,7 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant,
     flexShrink: 0,
   },
-  btnActive: { backgroundColor: colors.onPrimaryContainer, borderColor: colors.primaryContainer },
+  btnActive: { backgroundColor: colors.primaryContainer, borderColor: colors.primaryContainer },
   label: { fontFamily: fontFamily.bold, fontSize: 11, color: colors.primary },
+  labelActive: { color: colors.onPrimary },
 });

@@ -30,9 +30,19 @@ import React, {
   useState,
 } from 'react';
 
-import { ApiError, clearToken, getMe, getToken, setToken } from './api';
+import {
+  ApiError,
+  clearToken,
+  getCachedUser,
+  getMe,
+  getToken,
+  setCachedUser,
+  setToken,
+} from './api';
+import { USE_FIXTURES } from '../config';
+import { fxAuthRegistered } from '../fixtures/auth';
 import { getLocale } from './locale';
-import type { AuthRes, User } from '../types/api';
+import type { AuthRes, Role, User } from '../types/api';
 
 /**
  * `loading` is a real state, not a detail. It is the window between app launch and
@@ -71,13 +81,21 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  *   exactly the disclosure I14 exists to prevent — see the TODO this replaces in
  *   `AuthStack.tsx`.
  */
-let pendingAuth: { phone: string; code: string } | null = null;
+/**
+ * ★ `role` rides along with the pending credentials because the role is chosen
+ *   on the very first screen (phone entry) and is not known again until
+ *   registration completes, two screens later. Threading it through the store
+ *   the flow already uses is what lets one phone -> OTP -> profile chain serve
+ *   both sides, instead of a parallel set of buyer screens that would drift
+ *   from the farmer ones the first time either changed.
+ */
+let pendingAuth: { phone: string; code: string; role: Role } | null = null;
 
-export function setPendingAuth(phone: string, code: string): void {
-  pendingAuth = { phone, code };
+export function setPendingAuth(phone: string, code: string, role: Role = 'FARMER'): void {
+  pendingAuth = { phone, code, role };
 }
 
-export function getPendingAuth(): { phone: string; code: string } | null {
+export function getPendingAuth(): { phone: string; code: string; role: Role } | null {
   return pendingAuth;
 }
 
@@ -93,7 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     (async () => {
-      const [token, locale] = await Promise.all([getToken(), getLocale()]);
+      const [token, locale, cachedUser] = await Promise.all([
+        getToken(),
+        getLocale(),
+        getCachedUser(),
+      ]);
       if (!cancelled) setHasLocale(locale !== null);
 
       if (!token) {
@@ -101,19 +123,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // ★ Under fixtures there is no server to ask, and asking anyway is what
+      //   used to sign everyone out: `getMe()` threw on every launch with no
+      //   backend running, the catch below set `signed-out`, and the farmer
+      //   was dropped back at phone -> OTP -> name -> district on every single
+      //   reload. A held token plus a cached user is the whole session here.
+      if (USE_FIXTURES) {
+        if (!cancelled) {
+          setState({ status: 'signed-in', user: cachedUser ?? fxAuthRegistered.user });
+        }
+        return;
+      }
+
       try {
         const { user } = await getMe();
+        await setCachedUser(user);
         if (!cancelled) setState({ status: 'signed-in', user });
       } catch (err) {
-        // A 401 means the 72-hour token expired — normal, not an error worth
-        // showing. Anything else (the API is down, we are on the plane) also lands
-        // here, and signing the farmer out is the wrong answer for that case.
-        // TODO(pranay): P8 adds the offline cache; then a network failure keeps the
-        //   last known user and renders the stale banner instead of the login screen.
+        // A 401 means the 72-hour token really is spent — sign out for real.
         if (err instanceof ApiError && err.status === 401) {
           await clearToken();
+          if (!cancelled) setState({ status: 'signed-out', user: null });
+          return;
         }
-        if (!cancelled) setState({ status: 'signed-out', user: null });
+        // Anything else is the network, not the session: the API is down, or
+        // we are in a mandi with no signal. Signing a farmer out because his
+        // phone lost signal is the wrong answer, so the cached user stands
+        // until a 401 actually says otherwise.
+        if (!cancelled) {
+          setState(
+            cachedUser
+              ? { status: 'signed-in', user: cachedUser }
+              : { status: 'signed-out', user: null },
+          );
+        }
       }
     })();
 
@@ -124,6 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (res: AuthRes) => {
     await setToken(res.token);
+    await setCachedUser(res.user);
     setState({ status: 'signed-in', user: res.user });
   }, []);
 

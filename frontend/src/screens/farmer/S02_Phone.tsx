@@ -33,6 +33,7 @@ import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
 import { ApiError, requestOtp, transcribeAudio } from '../../lib/api';
 import { setPendingAuth } from '../../lib/auth';
+import type { Role } from '../../types/api';
 import { getLocale } from '../../lib/locale';
 import { USE_FIXTURES } from '../../config';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
@@ -63,6 +64,12 @@ async function ensureMicPermission(): Promise<boolean> {
 export default function S02_Phone({ navigation }: Props) {
   const { t, locale } = useT();
   const [phone, setPhone] = useState('');
+  // ★ One login flow for both sides. The role is chosen here, ridden through
+  //   `pendingAuth`, and applied at registration — rather than a second set of
+  //   buyer screens that would drift from these the first time either changed.
+  //   Before this, `S17_BuyerLogin` existed but nothing navigated to it, so
+  //   there was simply no way to sign in as a buyer at all.
+  const [role, setRole] = useState<Role>('FARMER');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [micState, setMicState] = useState<MicState>('idle');
@@ -124,7 +131,7 @@ export default function S02_Phone({ navigation }: Props) {
       if (!USE_FIXTURES) {
         await requestOtp(fullPhone);
       }
-      setPendingAuth(fullPhone, '');
+      setPendingAuth(fullPhone, '', role);
       navigation.navigate('S3_OTP');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('network_error_generic'));
@@ -162,12 +169,55 @@ export default function S02_Phone({ navigation }: Props) {
           <View style={styles.headerTextRow}>
             <Text style={styles.headerTitle}>{t('phone_login_signup')}</Text>
           </View>
+
+          {/* ★ A returning farmer starts here — `AuthStack` sets
+              `initialRouteName` to this screen once a locale is stored, so
+              there is nothing behind it and `canGoBack()` is false. That is
+              correct (nobody wants the splash every launch) but it also meant
+              the language screen became unreachable forever after the first
+              run. This is the way back to it. */}
+          <TouchableOpacity
+            style={styles.langBtn}
+            onPress={() => navigation.navigate('S1_Language')}
+            accessibilityRole="button"
+            accessibilityLabel={t('select_language')}>
+            <Icon name="globe" size={16} color={colors.primary} />
+            <Text style={styles.langBtnText}>{t(`lang_name_${locale}`)}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── Heading ────────────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.heading}>{t('phone_heading')}</Text>
           <Text style={styles.headingSub}>{t('phone_heading_sub')}</Text>
+        </View>
+
+        {/* ── Who is signing in ──────────────────────── */}
+        <View style={styles.roleRow}>
+          {([
+            { id: 'FARMER' as const, label: 'role_farmer', sub: 'role_farmer_sub', icon: 'leaf' as const },
+            { id: 'BUYER' as const, label: 'role_buyer', sub: 'role_buyer_sub', icon: 'building' as const },
+          ]).map(opt => {
+            const active = role === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.roleCard, active && styles.roleCardActive]}
+                onPress={() => setRole(opt.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}>
+                <Icon
+                  name={opt.icon}
+                  size={18}
+                  color={active ? colors.primary : colors.onSurfaceVariant}
+                />
+                <Text style={[styles.roleLabel, active && styles.roleLabelActive]}>
+                  {t(opt.label)}
+                </Text>
+                <Text style={styles.roleSub}>{t(opt.sub)}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* ── Phone input card ───────────────────────── */}
@@ -737,4 +787,43 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
     letterSpacing: 0.3,
   },
+  // ★ `scrollContent` carries no horizontal padding — every sibling on this
+  //   screen insets itself (`section` with paddingHorizontal, `inputCard`
+  //   with marginHorizontal). This row did not, so the two cards ran edge to
+  //   edge past the screen while the number card below sat properly inset.
+  roleRow: {
+    flexDirection: 'row',
+    gap: space.xs,
+    marginHorizontal: space.md,
+    marginBottom: space.md,
+  },
+  roleCard: {
+    flex: 1,
+    // `minWidth: 0` lets a flex child shrink below its content width instead
+    // of forcing the row wider than its container.
+    minWidth: 0,
+    alignItems: 'flex-start',
+    gap: 2,
+    padding: space.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surface,
+  },
+  roleCardActive: { borderColor: colors.primaryContainer, backgroundColor: colors.onPrimaryContainer },
+  roleLabel: { fontFamily: fontFamily.bold, fontSize: 15, color: colors.onSurface, marginTop: 4 },
+  roleLabelActive: { color: colors.primary },
+  roleSub: { fontFamily: fontFamily.regular, fontSize: 11, color: colors.onSurfaceVariant, lineHeight: 15 },
+  langBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
+  langBtnText: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.primary },
 });

@@ -25,6 +25,7 @@ import { useT } from '../../lib/i18n';
 import type { Locale } from '../../types/api';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { demoTodayRange } from '../../lib/demoPrice';
+import { ListenButton } from '../../components/ui/ListenButton';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S0_Splash'>;
 
@@ -59,10 +60,13 @@ export default function S00_Splash({ navigation }: Props) {
             <View style={styles.liveDot} />
             <Text style={styles.liveText}>{t('splash_live_mandi')}</Text>
           </View>
-          <TouchableOpacity style={styles.listenPill} activeOpacity={0.7}>
-            <Icon name="volume" size={14} color={colors.primary} />
-            <Text style={styles.listenText}>{t('splash_listen')}</Text>
-          </TouchableOpacity>
+          {/* ★ This pill had no `onPress` at all — the very first speaker a
+              farmer meets did nothing when tapped. `ListenButton` owns the
+              behaviour so it cannot go dead again by copy-paste, and it reads
+              the screen: the product name, the tagline, and today's price. */}
+          <ListenButton
+            text={`${t('splash_app_name')}. ${t('splash_tagline')}. ${t('splash_today_price')}: ${demoTodayRange(locale)}.`}
+          />
         </View>
 
         {/* ── 2. App emblem ─────────────────────────────────── */}
@@ -75,21 +79,27 @@ export default function S00_Splash({ navigation }: Props) {
               <Text style={styles.emblemSetuText}>SETU</Text>
             </View>
           </View>
-          {/* Verified badge */}
-          <View style={styles.verifiedBadge}>
-            <Icon name="check-circle" size={12} color={colors.onTertiary} />
-            <Text style={styles.verifiedText}>{t('splash_verified')}</Text>
-          </View>
+          {/* ★ A "Verified" badge used to sit here, under the emblem, on the
+              very first screen of the app. Verified by whom? Nothing issues
+              it and nothing checks it — a green tick asserting an approval
+              that does not exist, in the position a certification mark
+              occupies. Removed rather than reworded. */}
         </View>
 
         {/* ── 3. App name ───────────────────────────────────── */}
-        <Text style={styles.appNameDevanagari}>{t('splash_app_name')}</Text>
-        <Text style={styles.appNameLatin}>{t('splash_app_name_latin')}</Text>
+        {/* ★ One name. This rendered `splash_app_name` *and*
+            `splash_app_name_latin` — so an English farmer saw "Krishi Mitra"
+            with "KRISHI MITRA" stacked beneath it, and a Marathi one saw two
+            scripts at once on the app's first screen. */}
+        <Text style={styles.appName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          {t('splash_app_name')}
+        </Text>
 
         {/* ── 4. Tagline ────────────────────────────────────── */}
         <View style={styles.taglineCard}>
+          {/* Same duplication as the name: `splash_tagline` and
+              `splash_tagline_sub` say the same thing twice. */}
           <Text style={styles.taglineDevanagari}>{t('splash_tagline')}</Text>
-          <Text style={styles.taglineEnglish}>{t('splash_tagline_sub')}</Text>
         </View>
 
         {/* ── 5. Live price strip ───────────────────────────── */}
@@ -177,17 +187,13 @@ export default function S00_Splash({ navigation }: Props) {
           <Text style={styles.otpText}>{t('splash_otp_login')}</Text>
         </TouchableOpacity>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <View style={styles.footerLeft}>
-            <View style={styles.footerDot} />
-            <Text style={styles.footerText}>{t('splash_footer_node')}</Text>
-          </View>
-          <View style={styles.footerRight}>
-            <Icon name="shield-check" size={10} color={colors.tertiary} />
-            <Text style={styles.footerText}>{t('splash_footer_encrypt')}</Text>
-          </View>
-        </View>
+        {/* ★ The footer read "लासलगाव • नाशिक नोड v2.4" beside "256-bit bank
+            encryption". There is no Nashik node and there is no bank
+            encryption: `lib/api.ts` says in its own header that Phase 1 keeps
+            a 72-hour JWT in AsyncStorage, and that we say so out loud rather
+            than implying a keystore we did not build. A footer contradicting
+            our own code, on the first screen, is exactly the claim that fails
+            the only follow-up question that matters. */}
       </View>
     </View>
   );
@@ -331,49 +337,29 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: 'rgba(255,255,255,0.9)',
   },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: -8,
-    right: -12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.tertiary,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    borderColor: colors.surface,
-    gap: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  verifiedText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 11,
-    color: colors.onTertiary,
-  },
 
   // App name
-  appNameDevanagari: {
+  /**
+   * ★ The title was clipped under the logo in Marathi and Hindi. Cause:
+   *   `fontSize: 40` with `lineHeight: 48`. Devanagari needs far more
+   *   vertical room than Latin at the same size — the shirorekha and the
+   *   matras above it (कृषी) plus descenders below sit outside what a 1.2×
+   *   line box allows, so the glyph tops were cut. Latin never showed it,
+   *   which is why it read as a logo-overflow bug rather than a type bug.
+   *   1.45× plus explicit padding clears both extremes in all three scripts.
+   */
+  appName: {
     fontFamily: fontFamily.extraBold,
-    fontSize: 40,
-    lineHeight: 48,
+    fontSize: 38,
+    lineHeight: 58,
+    paddingTop: 6,
+    paddingBottom: 2,
     color: colors.primary,
     letterSpacing: -0.5,
     textAlign: 'center',
     marginTop: space.md,
-  },
-  appNameLatin: {
-    fontFamily: fontFamily.bold,
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: 4,
-    color: colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    textAlign: 'center',
+    alignSelf: 'stretch',
+    paddingHorizontal: space.md,
   },
 
   // Tagline
@@ -394,15 +380,6 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: colors.onSurface,
     textAlign: 'center',
-  },
-  taglineEnglish: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: 0.3,
-    color: colors.secondary,
-    textAlign: 'center',
-    marginTop: 2,
   },
 
   // Price strip
@@ -596,36 +573,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
-  // Footer
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: space.md,
-    paddingTop: space.xs,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(225,191,181,0.4)',
-  },
-  footerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  footerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.tertiary,
-  },
-  footerText: {
-    fontFamily: fontFamily.regular,
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 0.2,
-  },
-  footerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
 });

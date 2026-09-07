@@ -1,5 +1,5 @@
 /**
- * The farmer app. Four tabs: Home, Market, My Produce, Deals. Pranay.
+ * The farmer app. Five tabs: Home, Market, My Produce, Talks, Deals. Pranay.
  *
  * ★ Those four names are the Stitch footer, verbatim, and getting there took
  *   two fixes. The fourth slot used to be an "Assistant" tab (the canned
@@ -36,7 +36,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useT } from '../lib/i18n';
 import { tabIcon } from './TabIcon';
-import type { AssayReq, AssayRes } from '../types/api';
+import { TabBarButton } from './TabBarButton';
+import type { AssayReq, AssayRes, TxDto } from '../types/api';
 
 /** The one background colour for every farmer scene. */
 const SCREEN_BG = '#FAF6EE';
@@ -48,13 +49,11 @@ const STACK_SCREEN_OPTIONS = {
 } as const;
 
 import S04_Home from '../screens/farmer/S04_Home';
-import S05_History from '../screens/farmer/S05_History';
-import S06_Nearby from '../screens/farmer/S06_Nearby';
-import S07_Forecast from '../screens/farmer/S07_Forecast';
 import S08_ModelCard from '../screens/farmer/S08_ModelCard';
 import S09_Verdict from '../screens/farmer/S09_Verdict';
 import S10_CostBreakdown from '../screens/farmer/S10_CostBreakdown';
 import S13_CropLoan from '../screens/farmer/S13_CropLoan';
+import S38_Notifications from '../screens/farmer/S38_Notifications';
 import S14_CounterOffer from '../screens/farmer/S14_CounterOffer';
 import S15_MyLots from '../screens/farmer/S15_MyLots';
 import S16_PoolSplit from '../screens/farmer/S16_PoolSplit';
@@ -77,20 +76,20 @@ import S22_PricePublish from '../screens/farmer/S22_PricePublish';
 import S23_PublishedRadar from '../screens/farmer/S23_PublishedRadar';
 import S24_LotDetail from '../screens/farmer/S24_LotDetail';
 import S25_BuyersForLot from '../screens/farmer/S25_BuyersForLot';
-import S26_BuyerProfile from '../screens/farmer/S26_BuyerProfile';
 import S27_Bargaining from '../screens/farmer/S27_Bargaining';
 import S28_CounterOffer from '../screens/farmer/S28_CounterOffer';
-import S29_ConfirmAcceptance from '../screens/farmer/S29_ConfirmAcceptance';
 import S30_DealDone from '../screens/farmer/S30_DealDone';
 import S31_DealsList from '../screens/farmer/S31_DealsList';
 import S32_DealTracking from '../screens/farmer/S32_DealTracking';
 import S33_Settled from '../screens/farmer/S33_Settled';
 import S35_FarmerProfile from '../screens/farmer/S35_FarmerProfile';
+import S37_Talks from '../screens/farmer/S37_Talks';
 
 export type FarmerTabParamList = {
   Home: undefined;
   Prices: undefined;
   MyLots: undefined;
+  Talks: undefined;
   Deals: undefined;
 };
 
@@ -123,6 +122,8 @@ export type HomeStackParamList = {
    * renders when a quote exists at all (I13) — so this route is only ever
    * offered on the branch where there is something to show. */
   S13_CropLoan: undefined;
+  /** Opened from the bell on Home. */
+  S38_Notifications: undefined;
 };
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
@@ -139,26 +140,29 @@ function HomeStackNavigator() {
         options={{ presentation: 'modal' }}
       />
       <HomeStack.Screen name="S13_CropLoan" component={S13_CropLoan} />
+      <HomeStack.Screen name="S38_Notifications" component={S38_Notifications} />
     </HomeStack.Navigator>
   );
 }
 
 /**
- * The Prices tab is also a stack — S5/S6/S7 are three separate P0 screens
- * (one decision per screen), reached from a small landing screen rather than
- * crowded onto one. Same shape as `HomeStackNavigator`.
+ * The Prices tab is a stack of exactly two screens.
  *
- * S8 (the model card) lives here rather than on its own tab, and behind S7 rather
- * than beside it: it answers "should I believe that fan?", which is a question
- * nobody has until they have seen the fan. It is also reachable from the Prices
- * landing screen directly, because the other reader of S8 is a judge who wants it
- * without being walked through a forecast first.
+ * ★ It used to hold five. S5 (history), S6 (nearby) and S7 (forecast) were
+ *   pre-Stitch screens, each rendering one query on its own page, reached
+ *   from a landing menu. `PricesIndex` — the Stitch market screen — renders
+ *   all three of those queries itself, so those screens had become second,
+ *   unstyled copies of sections a farmer had already scrolled past. They are
+ *   deleted rather than left unreachable, because an unreachable screen is
+ *   the kind that quietly drifts out of sync with the one people see.
+ *
+ * ★ S8 (the model card) stays. Nothing on the market screen duplicates it —
+ *   it answers "should I believe that fan?", and it is reached from under the
+ *   accuracy figures on the forecast card, and from the menu drawer for a
+ *   judge who wants it without being walked through a forecast first.
  */
 export type PricesStackParamList = {
   PricesIndex: undefined;
-  S5_History: undefined;
-  S6_Nearby: undefined;
-  S7_Forecast: undefined;
   S8_ModelCard: undefined;
 };
 
@@ -168,9 +172,6 @@ function PricesStackNavigator() {
   return (
     <PricesStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
       <PricesStack.Screen name="PricesIndex" component={PricesIndex} />
-      <PricesStack.Screen name="S5_History" component={S05_History} />
-      <PricesStack.Screen name="S6_Nearby" component={S06_Nearby} />
-      <PricesStack.Screen name="S7_Forecast" component={S07_Forecast} />
       <PricesStack.Screen name="S8_ModelCard" component={S08_ModelCard} />
     </PricesStack.Navigator>
   );
@@ -222,15 +223,40 @@ export type MyLotsStackParamList = {
   S22_PricePublish: { lot_id?: string } | undefined;
   S23_PublishedRadar: { lot_id?: string; asking_paise?: number } | undefined;
   S24_LotDetail: { lot_id?: string; asking_paise?: number } | undefined;
-  S25_BuyersForLot: undefined;
-  S26_BuyerProfile: undefined;
-  S27_Bargaining: undefined;
-  S28_CounterOffer: undefined;
-  S29_ConfirmAcceptance: undefined;
-  S30_DealDone: undefined;
+  /* ★ These took no params at all, which is how they ended up rendering
+     hardcoded buyers and prices: a screen that is never told *which* offer
+     it is about has nothing to render but literals. The id is what lets
+     them read real data.
+
+     ★ Three that used to sit here are gone — S26 (buyer profile), S27
+     (bargaining) and S28 (counter offer). S27 and S28 were a second and
+     third copy of a negotiation screen this app already has: S14 is the
+     real one, wired to `getOfferThread`, `acceptOffer`, `rejectOffer` and
+     `counterOffer`, with the counter button disabled on round 3 from the
+     offer itself rather than by catching the server's 409.
+
+     ★ S27 and S28 are back, and the earlier deletion was the wrong call.
+     Their hardcoded buyers and module-level `const BUYER_BID = 1850` were
+     the problem; their Stitch design was not, and what replaced them
+     matched nothing in the design system. They are rebuilt to the mockups
+     and driven by `GET /offers/{id}/thread` plus the real accept, reject
+     and counter endpoints.
+
+     ★ S26 (buyer profile) stays gone, for a different reason: there is no
+     `GET /buyers/{id}` at all (blocker filed), so the only versions of that
+     screen that can exist are an empty page or an invented firm. */
+  S25_BuyersForLot: { lot_id?: string } | undefined;
+  S27_Bargaining: { offer_id?: string } | undefined;
+  S28_CounterOffer: { offer_id?: string } | undefined;
+  /** ★ The transaction rides in on the route rather than being fetched.
+   *  `POST /offers/{id}/accept` returns the `TxDto` and that is the only
+   *  place its id is ever visible — §7.7 has `GET /tx/{id}` but no `GET /tx`
+   *  and no `tx_id` on `OfferDto` (blocker filed). Passing the object keeps
+   *  the deal reachable from the moment it exists. */
+  S30_DealDone: { tx: TxDto };
   S31_DealsList: undefined;
-  S32_DealTracking: undefined;
-  S33_Settled: undefined;
+  S32_DealTracking: { tx_id?: string } | undefined;
+  S33_Settled: { tx_id?: string } | undefined;
   S35_FarmerProfile: undefined;
 };
 
@@ -268,6 +294,42 @@ function DealsStackNavigator() {
   );
 }
 
+/**
+ * Talks is its own tab and its own stack: the inbox, and the counter-offer
+ * screen it opens into. `S14_CounterOffer` is registered here as well as on
+ * MyLots — same component, two stack instances, each keeping the history that
+ * makes sense for how it was reached. Answering an offer from the inbox
+ * should return to the inbox, not into the middle of the selling flow.
+ */
+export type TalksStackParamList = {
+  S37_Talks: undefined;
+  S14_CounterOffer: { offer_id?: string } | undefined;
+  /** The Stitch negotiation pair, registered here too — tapping a talk opens
+   *  the bargaining screen, and its counter button opens the sheet, without
+   *  either one leaving the Talks tab. */
+  S27_Bargaining: { offer_id?: string } | undefined;
+  S28_CounterOffer: { offer_id?: string } | undefined;
+  S30_DealDone: { tx: TxDto };
+};
+
+const TalksStack = createNativeStackNavigator<TalksStackParamList>();
+
+function TalksStackNavigator() {
+  return (
+    <TalksStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
+      <TalksStack.Screen name="S37_Talks" component={S37_Talks} />
+      <TalksStack.Screen name="S14_CounterOffer" component={S14_CounterOffer} />
+      <TalksStack.Screen name="S27_Bargaining" component={S27_Bargaining} />
+      <TalksStack.Screen
+        name="S28_CounterOffer"
+        component={S28_CounterOffer}
+        options={{ presentation: 'modal' }}
+      />
+      <TalksStack.Screen name="S30_DealDone" component={S30_DealDone} />
+    </TalksStack.Navigator>
+  );
+}
+
 const MyLotsStack = createNativeStackNavigator<MyLotsStackParamList>();
 
 function MyLotsStackNavigator() {
@@ -285,14 +347,13 @@ function MyLotsStackNavigator() {
       <MyLotsStack.Screen name="S23_PublishedRadar" component={S23_PublishedRadar} />
       <MyLotsStack.Screen name="S24_LotDetail" component={S24_LotDetail} />
       <MyLotsStack.Screen name="S25_BuyersForLot" component={S25_BuyersForLot} />
-      <MyLotsStack.Screen name="S26_BuyerProfile" component={S26_BuyerProfile} />
       <MyLotsStack.Screen name="S27_Bargaining" component={S27_Bargaining} />
+      {/* Stitch 28 is a bottom sheet over the bargaining screen, not a page. */}
       <MyLotsStack.Screen
         name="S28_CounterOffer"
         component={S28_CounterOffer}
         options={{ presentation: 'modal' }}
       />
-      <MyLotsStack.Screen name="S29_ConfirmAcceptance" component={S29_ConfirmAcceptance} />
       <MyLotsStack.Screen name="S30_DealDone" component={S30_DealDone} />
       <MyLotsStack.Screen name="S31_DealsList" component={S31_DealsList} />
       <MyLotsStack.Screen name="S32_DealTracking" component={S32_DealTracking} />
@@ -317,6 +378,9 @@ export function FarmerTabs() {
         tabBarActiveTintColor: '#C2410C',
         tabBarInactiveTintColor: '#8D7168',
         tabBarLabelStyle: { fontSize: 12, fontFamily: 'PlusJakartaSans-SemiBold' },
+        // Without this, Android draws a borderless ripple that paints outside
+        // the 64px bar. See `TabBarButton`.
+        tabBarButton: props => <TabBarButton {...props} />,
         tabBarStyle: {
           height: 64,
           paddingBottom: 8,
@@ -340,6 +404,11 @@ export function FarmerTabs() {
         name="MyLots"
         component={MyLotsStackNavigator}
         options={{ title: t('tab_my_produce'), tabBarIcon: tabIcon('lots') }}
+      />
+      <Tab.Screen
+        name="Talks"
+        component={TalksStackNavigator}
+        options={{ title: t('tab_chat'), tabBarIcon: tabIcon('chat') }}
       />
       <Tab.Screen
         name="Deals"

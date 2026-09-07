@@ -27,16 +27,19 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { acceptOffer, counterOffer, getForecast, getOffers, rejectOffer } from '../../lib/api';
 import { getLocale } from '../../lib/locale';
 import { translate } from '../../lib/i18n';
-import { formatNumber, formatPaise, toQuintal } from '../../lib/money';
+import { noteText } from '../../lib/offerNote';
+import { formatNumber, formatPaise, formatQuintal, quintalValuePaise, toQuintal } from '../../lib/money';
 import { DEFAULT_COMMODITY_ID, DEFAULT_HORIZON_DAYS, DEFAULT_MARKET_ID, USE_FIXTURES } from '../../config';
 import { fxForecast } from '../../fixtures/forecast';
-import { fxIncomingOffer } from '../../fixtures/offers';
+import { fxTx } from '../../fixtures/escrow';
+import { fxIncomingOffer, fxLotOffers } from '../../fixtures/offers';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { ListenButton } from '../../components/ui/ListenButton';
 import { ForecastFan } from '../../components/charts/ForecastFan';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
 import type { MyLotsStackParamList } from '../../navigation/FarmerTabs';
-import type { ForecastRes, Locale, OfferDto } from '../../types/api';
+import type { ForecastRes, Locale, OfferDto, TxDto } from '../../types/api';
 
 type Props = NativeStackScreenProps<MyLotsStackParamList, 'S14_CounterOffer'>;
 
@@ -58,7 +61,10 @@ interface OfferAndForecast {
 async function fetchOfferAndForecast(offerId: string): Promise<OfferAndForecast | null> {
   const [offer, forecast] = await Promise.all([
     USE_FIXTURES
-      ? Promise.resolve(offerId === fxIncomingOffer.id ? fxIncomingOffer : null)
+      /* ★ Was `offerId === fxIncomingOffer.id ? fxIncomingOffer : null`, so
+         every offer but one resolved to "offer not found" in fixture mode —
+         including the two the buyers list now links here with. */
+      ? Promise.resolve(fxLotOffers.find(o => o.id === offerId) ?? null)
       : getOffers().then(offers => offers.find(o => o.id === offerId) ?? null),
     USE_FIXTURES
       ? Promise.resolve(fxForecast)
@@ -68,9 +74,17 @@ async function fetchOfferAndForecast(offerId: string): Promise<OfferAndForecast 
   return { offer, forecast };
 }
 
-type ActionResult = { kind: 'accepted' } | { kind: 'rejected' } | { kind: 'countered'; offer: OfferDto };
+/** `acceptOffer` returns the created `TxDto`, and this is the *only* moment
+ *  the transaction id is reachable: CANON §7.7 has `GET /tx/{id}` but no
+ *  `GET /tx` and no `tx_id` on `OfferDto` (blocker filed), so an id dropped
+ *  here is an id a farmer can never get back to. It is carried straight to
+ *  the deal-done screen instead. */
+type ActionResult =
+  | { kind: 'accepted'; tx: TxDto }
+  | { kind: 'rejected' }
+  | { kind: 'countered'; offer: OfferDto };
 
-export default function S14_CounterOffer({ route }: Props) {
+export default function S14_CounterOffer({ navigation, route }: Props) {
   const offerId = route.params?.offer_id ?? fxIncomingOffer.id;
 
   const [locale, setLocale] = useState<Locale>('mr');
@@ -96,8 +110,10 @@ export default function S14_CounterOffer({ route }: Props) {
     mutationFn: async (action: 'accept' | 'reject' | 'counter'): Promise<ActionResult> => {
       if (!data) throw new Error('no offer loaded');
       if (action === 'accept') {
-        if (!USE_FIXTURES) await acceptOffer(data.offer.id);
-        return { kind: 'accepted' };
+        const tx = USE_FIXTURES
+          ? { ...fxTx, offer_id: data.offer.id, qty_kg: data.offer.qty_kg }
+          : await acceptOffer(data.offer.id);
+        return { kind: 'accepted', tx };
       }
       if (action === 'reject') {
         if (!USE_FIXTURES) await rejectOffer(data.offer.id);
@@ -150,10 +166,26 @@ export default function S14_CounterOffer({ route }: Props) {
   }
 
   if (acted && actionResult) {
+    /* ★ Accepting is the one action that produces something to go and look
+       at — a transaction, with escrow, a timeline and a settlement. It used
+       to end at a one-line card here, which meant the `TxDto` the server
+       had just returned was read once and dropped. It now opens the deal. */
+    if (actionResult.kind === 'accepted') {
+      const tx = actionResult.tx;
+      return (
+        <View style={styles.root}>
+          <Card style={styles.resultCard}>
+            <Text style={styles.resultText}>{translate('offer_accepted_message', locale)}</Text>
+            <Button
+              title={translate('offer_accepted_open_deal', locale)}
+              onPress={() => navigation.navigate('S30_DealDone', { tx })}
+            />
+          </Card>
+        </View>
+      );
+    }
     const message =
-      actionResult.kind === 'accepted'
-        ? translate('offer_accepted_message', locale)
-        : actionResult.kind === 'rejected'
+      actionResult.kind === 'rejected'
           ? translate('offer_rejected_message', locale)
           : translate('offer_countered_message', locale, {
               price: formatPaise(actionResult.offer.price_paise_per_qtl, locale),
@@ -174,11 +206,47 @@ export default function S14_CounterOffer({ route }: Props) {
   const canSubmitCounter =
     !atLastRound && counterPrice.trim().length > 0 && Number.isFinite(parsedCounter) && parsedCounter > 0;
 
+  /* ★ This is the screen where the money is decided, and it had no speaker
+     at all. It reads the offer, what the whole lot comes to at that rate,
+     and — the part that matters — the forecast's floor beside its ceiling,
+     so a farmer deciding whether to counter hears the downside in the same
+     breath as the upside (I16, aloud). */
+  const narration = [
+    translate('offer_narr_round', locale, {
+      round: formatNumber(offer.round, locale),
+      max: formatNumber(MAX_ROUND, locale),
+    }),
+    translate('offer_narr_price', locale, {
+      rate: formatPaise(offer.price_paise_per_qtl, locale),
+      qty: formatQuintal(offer.qty_kg, locale),
+      total: formatPaise(quintalValuePaise(offer.price_paise_per_qtl, offer.qty_kg), locale),
+    }),
+    ...(forecast.points.length > 0
+      ? [
+          translate('offer_narr_forecast', locale, {
+            n: formatNumber(forecast.points.length, locale),
+            floor: formatPaise(
+              Math.min(...forecast.points.map(pt => pt.p10_paise_per_qtl)),
+              locale,
+            ),
+            ceiling: formatPaise(
+              Math.max(...forecast.points.map(pt => pt.p90_paise_per_qtl)),
+              locale,
+            ),
+          }),
+        ]
+      : []),
+    ...(atLastRound ? [translate('offer_narr_last_round', locale)] : []),
+  ].join(' ');
+
   return (
     <ScrollView contentContainerStyle={styles.root}>
-      <Text style={styles.header}>
-        {translate('offer_round_header', locale, { round: formatNumber(offer.round, locale) })}
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>
+          {translate('offer_round_header', locale, { round: formatNumber(offer.round, locale) })}
+        </Text>
+        <ListenButton text={narration} />
+      </View>
       <Card style={styles.offerCard}>
         <Text style={styles.offerPrice}>
           {formatPaise(offer.price_paise_per_qtl, locale)} {translate('per_quintal_label', locale)}
@@ -190,7 +258,10 @@ export default function S14_CounterOffer({ route }: Props) {
         <Text style={styles.offerQty}>
           {translate('qty_label_value', locale, { qty: formatNumber(toQuintal(offer.qty_kg), locale) })}
         </Text>
-        {offer.note ? <Text style={styles.offerNote}>{offer.note}</Text> : null}
+        {(() => {
+          const n = noteText(offer.note, (k, v) => translate(k, locale, v));
+          return n ? <Text style={styles.offerNote}>{n}</Text> : null;
+        })()}
       </Card>
 
       {/* The forecast, directly above the counter-price input — PRANAY.md
@@ -240,7 +311,14 @@ export default function S14_CounterOffer({ route }: Props) {
 
 const styles = StyleSheet.create({
   root: { padding: space.md, paddingBottom: space.xxl, backgroundColor: colors.background },
-  header: { ...typography.headlineSm, color: colors.onSurface, fontFamily: fontFamily.extraBold, marginBottom: space.sm },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    marginBottom: space.sm,
+  },
+  header: { ...typography.headlineSm, color: colors.onSurface, fontFamily: fontFamily.extraBold, flex: 1, minWidth: 0 },
   offerCard: { padding: 16, marginBottom: 20 },
   offerPrice: { ...typography.headlineMd, color: colors.tertiary, fontFamily: fontFamily.extraBold },
   offerQty: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 4 },
