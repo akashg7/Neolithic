@@ -25,6 +25,7 @@
 
 import type { WindowRes, PledgeQuote, RefusalReason } from '../types/api';
 import { spokenDays, spokenNumber, spokenRupees } from './mrNumberWords';
+import { translate } from './i18n';
 
 /**
  * Locked Marathi refusal statements. Transcribed from the decision-engine
@@ -68,12 +69,33 @@ function sellNowSentence(v: WindowRes): string {
   return 'आजच विका. थांबण्याचा फायदा नाही.';
 }
 
+/**
+ * ★ Corrected against the live contract. This read `alt.net_paise_per_qtl`
+ *   and `alt.name_mr`, neither of which exists on the wire: `AltMarket` is
+ *   `{market_id, distance_km, gross_price_paise, net_price_paise}` (backend
+ *   `app/schemas/ai.py`). Against the real API both were `undefined`, so the
+ *   one sentence in this agent that names another mandi would have spoken
+ *   nonsense to the farmer it was meant to redirect.
+ *
+ *   There is no name on the response at all, so the market is resolved
+ *   through the dictionary by `market_id` — the same map the Market screen
+ *   uses — and the sentence simply omits the name for a market this app has
+ *   no Marathi name for, rather than reading an id aloud.
+ */
+const MARKET_NAME_KEY_MR: Record<string, string> = {
+  mkt_lasalgaon: 'market_lasalgaon',
+  mkt_pune: 'market_pune',
+  mkt_nagpur: 'market_nagpur',
+};
+
 function sellElsewhereSentence(v: WindowRes): string {
   const alt = v.alt_market;
   if (!alt) return 'जवळच्या दुसऱ्या बाजारात विका, तिथे जास्त भाव मिळेल.';
-  const net = spokenRupees(alt.net_paise_per_qtl);
+  const net = spokenRupees(alt.net_price_paise);
   const distance = spokenNumber(alt.distance_km);
-  return `जवळच्या दुसऱ्या बाजारात विका — ${alt.name_mr}. तिथे खर्च वजा जाता प्रति क्विंटल ${net} जास्त मिळतील. अंतर ${distance} किलोमीटर आहे.`;
+  const nameKey = MARKET_NAME_KEY_MR[alt.market_id];
+  const named = nameKey ? ` — ${translate(nameKey, 'mr')}` : '';
+  return `जवळच्या दुसऱ्या बाजारात विका${named}. तिथे खर्च वजा जाता प्रति क्विंटल ${net} मिळतील. अंतर ${distance} किलोमीटर आहे.`;
 }
 
 function splitSentence(v: WindowRes): string {

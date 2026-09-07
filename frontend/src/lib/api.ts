@@ -23,7 +23,6 @@ import type {
   AssayRecord,
   AssayRes,
   AuthRes,
-  ChatMessage,
   DemandDto,
   DisputeDto,
   DisputeReasonCode,
@@ -337,17 +336,6 @@ export const getDispute = (id: string) => get<DisputeRes>(`/disputes/${id}`);
 export const getDataProvenance = () => get<ProvenanceRes>('/meta/data-provenance');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S26 chat — PROPOSED, no CANON section defines this (see types/api.ts's
-// ChatMessage header). Paths are this frontend's own guess at what a real
-// endpoint would look like, not a transcription of a documented one.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getChatMessages = (txId: string) => get<ChatMessage[]>(`/tx/${txId}/messages`);
-
-export const sendChatMessage = (txId: string, text: string) =>
-  post<ChatMessage>(`/tx/${txId}/messages`, { text });
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Voice — PROPOSED, same status as the chat section above: no CANON section
 // defines these, and neither route exists on the server yet (`voice.py`'s
 // router is an empty `APIRouter()`, `voice_engine.py` raises
@@ -400,14 +388,27 @@ export async function transcribeAudio(audioUri: string, locale: Locale): Promise
 }
 
 /**
- * Live TTS — Sarvam-synthesized Marathi speech. The sale-window voice agent
- * (S9) prefers this prosthetic, human-grade audio over the device's own TTS;
- * the backend proxies to Sarvam `text-to-speech` (bulbul:v3) and returns the
- * audio as base64 WAV.
+ * Live TTS — Sarvam `bulbul:v3`, via the backend's `/voice/narrate`.
  *
- * Returns `{ audio_base64, audio_format }`. The caller (`lib/voice.ts`) falls
- * back to on-device `speakText()` when this is unreachable, so a network or
- * server problem never silences the verdict, only downgrades its voice.
+ * The sale-window voice agent (S9) prefers this human-grade Marathi audio
+ * over the device's own TTS: the verdict sentence carries a lot, dates and
+ * amounts, so it cannot be a pre-recorded clip and has to be synthesized on
+ * demand. `lib/voice.ts`'s `speakSaleWindow()` falls back to on-device
+ * `speakText()` whenever this is unreachable, so a network or server problem
+ * never silences the verdict — it only downgrades the voice.
+ *
+ * ★ This was typed `{ audio_url: string }` here and would have failed the
+ *   moment anything called it; the route returns base64. Corrected against
+ *   the live contract, and against the backend team's own `NarrateRes`.
+ *
+ * ★ The route is deliberately unauthenticated on the server — it runs before
+ *   a JWT exists during voice registration.
+ */
+/**
+ * ★ Shape adopted from the backend team's own `NarrateRes` (Nikhil's
+ *   `feat(voice)` commit) rather than the inline type this file had — theirs
+ *   also carries `request_id`, which Sarvam returns and which is the only
+ *   handle for chasing a bad synthesis upstream.
  */
 export interface NarrateRes {
   audio_base64: string;

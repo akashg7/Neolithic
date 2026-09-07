@@ -23,18 +23,65 @@
 
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../lib/auth';
 import { useT } from '../lib/i18n';
 import { AuthStack } from './AuthStack';
 import { BuyerTabs } from './BuyerTabs';
 import { FarmerTabs } from './FarmerTabs';
+import S34_MenuDrawer from '../screens/farmer/S34_MenuDrawer';
+import S28_Assistant from '../screens/farmer/S28_Assistant';
+import S36_LanguageSwitcher from '../screens/farmer/S36_LanguageSwitcher';
 
 function Splash() {
   return (
     <View style={styles.splash}>
       <ActivityIndicator size="large" color="#1B5E20" />
     </View>
+  );
+}
+
+// ★ The hamburger menu on Home (☰) needs somewhere above the tab navigator
+//   to push to — a screen inside `HomeStackNavigator` would only be reachable
+//   from Home, but the menu has to open from any tab. This one-screen stack
+//   wraps the whole tab bar so `S4_Home` can reach "Menu" with two
+//   `getParent()` hops (out of its own stack, out of the tab navigator) and
+//   land on a sibling of the tabs, not a child of one.
+export type FarmerRootStackParamList = {
+  FarmerTabs: undefined;
+  Menu: undefined;
+  Assistant: undefined;
+  LanguageSwitcher: undefined;
+};
+const FarmerRootStack = createNativeStackNavigator<FarmerRootStackParamList>();
+
+function FarmerRoot() {
+  return (
+    <FarmerRootStack.Navigator screenOptions={{ headerShown: false }}>
+      <FarmerRootStack.Screen name="FarmerTabs" component={FarmerTabs} />
+      <FarmerRootStack.Screen
+        name="Menu"
+        component={S34_MenuDrawer}
+        options={{ animation: 'slide_from_left' }}
+      />
+      {/* ★ Was the 4th tab; Deals took that slot (see FarmerTabs.tsx header).
+          Still reachable, one tap from the menu instead. Needs its own
+          header — this screen has no back affordance of its own (it never
+          needed one as a tab root, where the tab bar is the way back), and
+          the stack's own `headerShown: false` above would otherwise strand
+          a farmer here with no way out. */}
+      <FarmerRootStack.Screen
+        name="Assistant"
+        component={S28_Assistant}
+        options={{ headerShown: true, title: '' }}
+      />
+      {/* Stitch 36. Built, fully translated, and reachable from nothing until
+          now — the menu's three inline chips were the only way to change
+          language, and they carry none of this screen's per-language voice
+          and preview detail. */}
+      <FarmerRootStack.Screen name="LanguageSwitcher" component={S36_LanguageSwitcher} />
+    </FarmerRootStack.Navigator>
   );
 }
 
@@ -48,6 +95,22 @@ export function RootNavigator() {
 
   const isFarmer = user.role === 'FARMER';
 
+  // ★ The farmer side no longer renders this global chrome bar at all — it
+  //   was a second "Krishi Mitra" brand header stacked on top of each
+  //   screen's own header (S4_Home already shows who's signed in), and its
+  //   Sign Out button was the app's most destructive action rendered as
+  //   permanently-visible top-bar chrome. Sign out now lives at the bottom
+  //   of the hamburger menu (`S34_MenuDrawer`), one deliberate tap away
+  //   instead of one careless one. The buyer console keeps this bar for now
+  //   — its screens have not been through the same menu redesign yet.
+  if (isFarmer) {
+    return (
+      <View style={styles.container}>
+        <FarmerRoot />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.topBar}>
@@ -55,9 +118,9 @@ export function RootNavigator() {
           <Text style={styles.appName} numberOfLines={1}>
             {t('app_name')}
           </Text>
-          <View style={[styles.rolePill, isFarmer ? styles.rolePillFarmer : styles.rolePillBuyer]}>
-            <Text style={[styles.rolePillText, isFarmer ? styles.roleTextFarmer : styles.roleTextBuyer]}>
-              {isFarmer ? t('root_farmer_app_title') : t('root_buyer_console_title')}
+          <View style={[styles.rolePill, styles.rolePillBuyer]}>
+            <Text style={[styles.rolePillText, styles.roleTextBuyer]}>
+              {t('root_buyer_console_title')}
             </Text>
           </View>
         </View>
@@ -80,7 +143,7 @@ export function RootNavigator() {
       </View>
 
       <View style={styles.navContainer}>
-        {isFarmer ? <FarmerTabs /> : <BuyerTabs />}
+        <BuyerTabs />
       </View>
     </View>
   );

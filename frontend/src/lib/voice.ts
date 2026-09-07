@@ -27,7 +27,10 @@ import Tts from 'react-native-tts';
 import type { WindowRes } from '../types/api';
 import type { TFn } from './i18n';
 import { buildVerdictNarration } from './verdictVoice';
-import { narrate } from '../api';
+// ★ Upstream wrote this as `from '../api'`, which resolves to `src/api` — a
+//   file that does not exist, so the narration would have failed to bundle.
+//   `voice.ts` and `api.ts` are siblings in `lib/`.
+import { narrate } from './api';
 
 /**
  * Every ASCII, Android-resource-safe (`[a-z0-9_]+`, no Devanagari) clip id

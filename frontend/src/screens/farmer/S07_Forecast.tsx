@@ -6,9 +6,12 @@
  *   lands.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+
+import { colors, fontFamily, space, type as typography } from '../../theme/tokens';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { getForecast } from '../../lib/api';
@@ -33,9 +36,11 @@ async function fetchForecast() {
 
 export default function S07_Forecast({ navigation }: Props) {
   const [locale, setLocale] = useState<Locale>('mr');
-  useEffect(() => {
-    getLocale().then(l => l && setLocale(l));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      getLocale().then(l => l && setLocale(l));
+    }, []),
+  );
 
   const { data, dataUpdatedAt, isLoading, error, refetch } = useQuery({
     queryKey: ['ai', 'forecast', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, DEFAULT_HORIZON_DAYS],
@@ -108,8 +113,13 @@ export default function S07_Forecast({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { padding: 24 },
-  title: { fontSize: 18, fontWeight: '700', color: '#212121', marginBottom: 16 },
-  modelNote: { fontSize: 13, color: '#888', marginTop: 16 },
-  modelNoteCta: { fontSize: 13, color: '#1B5E20', fontWeight: '700', marginTop: 6 },
+  root: { padding: space.md, paddingBottom: space.xxl, backgroundColor: colors.background },
+  title: {
+    ...typography.headlineSm,
+    color: colors.onSurface,
+    fontFamily: fontFamily.extraBold,
+    marginBottom: space.md,
+  },
+  modelNote: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: space.md },
+  modelNoteCta: { ...typography.labelMd, color: colors.primary, marginTop: 6 },
 });

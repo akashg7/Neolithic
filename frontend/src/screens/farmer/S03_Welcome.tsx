@@ -10,13 +10,15 @@ import { colors, fontFamily, space, radius, touch } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
+import { demoTodayPrice } from '../../lib/demoPrice';
+import { ListenButton } from '../../components/ui/ListenButton';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S3_Welcome'>;
 const farmerPortrait = require('../../assets/images/farmer_rambhau.jpg');
 const mandiWarehouse = require('../../assets/images/mandi_warehouse.jpg');
 
 export default function S03_Welcome({ navigation }: Props) {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   const FEATURES = [
     { iconName: 'trending-up', titleKey: 'welcome_feat1_title', subKey: 'welcome_feat1_sub', highlightKey: 'welcome_feat1_hl', color: colors.primary },
@@ -36,14 +38,11 @@ export default function S03_Welcome({ navigation }: Props) {
               <Text style={styles.logoLetter}>म</Text>
             </View>
             <View>
-              <Text style={styles.topBrand}>मंडी-सेतू</Text>
+              <Text style={styles.topBrand}>कृषी मित्र</Text>
               <Text style={styles.topSub}>LASALGAON APMC NETWORK</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.listenBtn}>
-            <Icon name="volume" size={13} color={colors.primary} />
-            <Text style={styles.listenText}>{t('splash_listen')}</Text>
-          </TouchableOpacity>
+          <ListenButton text={t('welcome_ticker_label')} />
         </View>
 
         {/* Verification card */}
@@ -134,7 +133,7 @@ export default function S03_Welcome({ navigation }: Props) {
             <View style={styles.tickerDot} />
             <Text style={styles.tickerLabel}>{t('welcome_ticker_label')}</Text>
           </View>
-          <Text style={styles.tickerPrice}>₹3,100</Text>
+          <Text style={styles.tickerPrice}>{demoTodayPrice(locale)}</Text>
           <Text style={styles.tickerUnit}>{t('welcome_ticker_unit')}</Text>
         </View>
 

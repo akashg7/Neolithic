@@ -6,9 +6,12 @@
  *   the one line that changes when it lands.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+
+import { colors, fontFamily, space, type as typography } from '../../theme/tokens';
 
 import { getPriceSeries } from '../../lib/api';
 import { getLocale } from '../../lib/locale';
@@ -27,9 +30,11 @@ async function fetchHistory() {
 
 export default function S05_History() {
   const [locale, setLocale] = useState<Locale>('mr');
-  useEffect(() => {
-    getLocale().then(l => l && setLocale(l));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      getLocale().then(l => l && setLocale(l));
+    }, []),
+  );
 
   const { data, dataUpdatedAt, isLoading, error, refetch } = useQuery({
     queryKey: ['prices', 'series', '180', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID],
@@ -73,6 +78,11 @@ export default function S05_History() {
 }
 
 const styles = StyleSheet.create({
-  root: { padding: 24 },
-  title: { fontSize: 18, fontWeight: '700', color: '#212121', marginBottom: 16 },
+  root: { padding: space.md, paddingBottom: space.xxl, backgroundColor: colors.background },
+  title: {
+    ...typography.headlineSm,
+    color: colors.onSurface,
+    fontFamily: fontFamily.extraBold,
+    marginBottom: space.md,
+  },
 });
