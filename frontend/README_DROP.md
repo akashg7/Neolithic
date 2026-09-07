@@ -1,7 +1,7 @@
 # Mandi-Setu frontend — drop from the app repository
 
 This directory is a **copy** of the React Native app, extracted from the
-frontend repository at commit `5b8adb4` (branch `pranay`). It is here so
+frontend repository at commit `7b98867` (branch `pranay`). It is here so
 the API can be wired against the real screens instead of against a guess.
 
 **Do not edit files here expecting the change to survive.** The next drop
