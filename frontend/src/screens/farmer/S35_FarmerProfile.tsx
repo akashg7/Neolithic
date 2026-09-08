@@ -25,6 +25,7 @@ import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 
 import { colors, fontFamily, radius, space } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
+import { ListenButton } from '../../components/ui/ListenButton';
 import { useAuth } from '../../lib/auth';
 import { getDistricts } from '../../lib/api';
 import { USE_FIXTURES } from '../../config';
@@ -32,8 +33,22 @@ import { fxDistricts } from '../../fixtures/auth';
 import type { District } from '../../types/api';
 
 export default function S35_FarmerProfile({ navigation }: any) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { user } = useAuth();
+
+  /**
+   * The screen, spoken: who this is, then the four facts on it. Built from the
+   * same `user` object the cards render, so the voice cannot describe a detail
+   * that is not on screen.
+   */
+  const narration = [
+    t('nar_scr_profile'),
+    user?.name ? `${t('profile_name_label')}: ${user.name}` : null,
+    user?.phone ? `${t('profile_phone_label')}: ${user.phone}` : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
+
   const [districtName, setDistrictName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,7 +75,10 @@ export default function S35_FarmerProfile({ navigation }: any) {
           <Icon name="arrow-left" size={20} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('profile_title')}</Text>
-        <View style={styles.backBtn} />
+        {/* ★ Was an empty spacer holding the title centred. It is now the
+            screen's speaker — same width, so the title stays centred, and the
+            screen gains the affordance it was missing entirely. */}
+        <ListenButton text={narration} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -90,14 +108,14 @@ export default function S35_FarmerProfile({ navigation }: any) {
             <View style={styles.comingSoonIconBg}>
               <Icon name="building" size={16} color={colors.onSurfaceVariant} />
             </View>
-            <Text style={styles.comingSoonText}>Bank details for direct payouts</Text>
+            <Text style={styles.comingSoonText}>{t('profile_soon_bank')}</Text>
           </View>
           <View style={styles.comingSoonDivider} />
           <View style={styles.comingSoonRow}>
             <View style={styles.comingSoonIconBg}>
               <Icon name="leaf" size={16} color={colors.onSurfaceVariant} />
             </View>
-            <Text style={styles.comingSoonText}>Land records</Text>
+            <Text style={styles.comingSoonText}>{t('profile_soon_land')}</Text>
           </View>
         </View>
       </ScrollView>
