@@ -30,8 +30,11 @@ import AudioRecorderPlayer, {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, fontFamily, space, radius, touch } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
+import { SpeakingFace } from '../../components/ui/SpeakingFace';
 import { useT } from '../../lib/i18n';
+import { ListenButton } from '../../components/ui/ListenButton';
 import { ApiError, requestOtp, transcribeAudio } from '../../lib/api';
+import { digitsFromSpeech } from '../../lib/spokenDigits';
 import { setPendingAuth } from '../../lib/auth';
 import type { Role } from '../../types/api';
 import { getLocale } from '../../lib/locale';
@@ -63,6 +66,8 @@ async function ensureMicPermission(): Promise<boolean> {
 
 export default function S02_Phone({ navigation }: Props) {
   const { t, locale } = useT();
+
+  const narration = t('nar_scr_phone');
   const [phone, setPhone] = useState('');
   // ★ One login flow for both sides. The role is chosen here, ridden through
   //   `pendingAuth`, and applied at registration — rather than a second set of
@@ -107,7 +112,11 @@ export default function S02_Phone({ navigation }: Props) {
       recorder.removeRecordBackListener();
       const locale = (await getLocale()) ?? 'mr';
       const { transcript } = await transcribeAudio(uri, locale);
-      const digits = transcript.replace(/\D/g, '').slice(0, 10);
+      /* ★ Was `transcript.replace(/\D/g, '')`, which keeps only ASCII — so
+         a farmer who said "नऊ आठ सात..." or whose transcript came back as
+         Devanagari numerals got an empty string and a blank field. He had
+         spoken his number correctly and the app had not listened. */
+      const digits = digitsFromSpeech(transcript, 10);
       if (digits) setPhone(digits);
     } catch {
       // Network/backend unreachable — the keypad below is the fallback.
@@ -184,6 +193,8 @@ export default function S02_Phone({ navigation }: Props) {
             <Icon name="globe" size={16} color={colors.primary} />
             <Text style={styles.langBtnText}>{t(`lang_name_${locale}`)}</Text>
           </TouchableOpacity>
+          {/* ★ This screen had no speaker at all. */}
+          <ListenButton text={narration} />
         </View>
 
         {/* ── Heading ────────────────────────────────── */}
@@ -258,11 +269,11 @@ export default function S02_Phone({ navigation }: Props) {
                     ? 'voice_mic_transcribing'
                     : 'voice_mic_idle',
               )}>
-              <Icon
-                name="mic"
-                size={20}
-                color={micState === 'recording' ? colors.onCritical : colors.primary}
-              />
+              {/* ★ A face speaking into a phone, not a mic glyph. A microphone
+                  icon depicts a studio object most farmers have never held; a
+                  person talking into a phone is the action itself. The waves
+                  move while it records, which is how he knows to keep going. */}
+              <SpeakingFace listening={micState === 'recording'} size={34} />
             </TouchableOpacity>
           </View>
 
@@ -290,18 +301,11 @@ export default function S02_Phone({ navigation }: Props) {
             necessary on the phone-entry screen, per explicit product
             direction. */}
 
-        {/* ── Today's price strip ────────────────────── */}
-        <View style={styles.priceStrip}>
-          <Image source={mandiWarehouse} style={styles.pricePhoto} />
-          <View style={styles.priceInfo}>
-            <View style={styles.priceLiveRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.priceLiveText}>{t('phone_auction_live')}</Text>
-            </View>
-            <Text style={styles.priceTitle}>{t('phone_today_price')}</Text>
-            <Text style={styles.priceValue}>{demoTodayRange(locale)}<Text style={styles.priceUnit}>/qtl</Text></Text>
-          </View>
-        </View>
+        {/* ★ A "today's onion price" strip sat here, on the screen where a
+            farmer types his phone number. He has not told us his crop or his
+            mandi yet, so the number was for somebody else's onion at somebody
+            else's yard — decoration wearing the clothes of data. Removed;
+            prices belong on the screens that know what he grows. */}
 
         {/* ★ "Get instant OTP via WhatsApp" row removed — there is no
             WhatsApp delivery channel wired anywhere in this product; SMS

@@ -11,7 +11,6 @@ import React, { useState } from 'react';
 import {
   Dimensions,
   Image,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -24,8 +23,9 @@ import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
 import type { Locale } from '../../types/api';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
-import { demoTodayRange } from '../../lib/demoPrice';
 import { ListenButton } from '../../components/ui/ListenButton';
+import { Logo } from '../../components/ui/Logo';
+import { SpeakingFace } from '../../components/ui/SpeakingFace';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S0_Splash'>;
 
@@ -45,38 +45,56 @@ export default function S00_Splash({ navigation }: Props) {
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Ambient glow effects */}
-      <View style={styles.glowTopLeft} />
-      <View style={styles.glowMidRight} />
+      {/* ★ Two large tinted circles floated behind this screen as "ambient
+          glow". They carried no meaning, cost two extra views on the first
+          frame, and are the visual signature of a generated layout rather
+          than a designed one. The parchment ground is the background. */}
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+      {/* ★ Deliberately not a ScrollView. Everything here has to fit one
+          screen: a farmer meeting the app for the first time should see the
+          whole offer at once, not discover half of it by scrolling. If
+          something new has to go on this screen, something else comes off. */}
+      <View style={styles.body}>
 
         {/* ── 1. Top ribbon ─────────────────────────────────── */}
+        {/* ★ A pulsing green dot beside "LASALGAON DIRECT MANDI ONLINE" sat
+            here. It was the first thing on the first screen and it was pure
+            chrome — nothing is live, nothing connects to Lasalgaon in real
+            time, and a status light that reports no status is decoration
+            pretending to be information. It also reads as marketing rather
+            than as something written for a farmer. Removed; the speaker now
+            has the ribbon to itself. */}
         <View style={styles.topRibbon}>
-          <View style={styles.liveChip}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>{t('splash_live_mandi')}</Text>
-          </View>
           {/* ★ This pill had no `onPress` at all — the very first speaker a
               farmer meets did nothing when tapped. `ListenButton` owns the
               behaviour so it cannot go dead again by copy-paste, and it reads
               the screen: the product name, the tagline, and today's price. */}
-          <ListenButton
-            text={`${t('splash_app_name')}. ${t('splash_tagline')}. ${t('splash_today_price')}: ${demoTodayRange(locale)}.`}
-          />
+          {/* ★ It was reading the app name, the tagline and *today's onion
+              price* — a line left pointing at the price strip after that strip
+              was deleted, so the first thing a farmer heard was a number no
+              longer on the screen.
+
+              It now speaks a written summary of what this screen offers
+              rather than reading its labels back: what the app decides, that
+              he can talk to it in his own language, that he need not read, and
+              which button to press. `large` because this is the first control
+              a farmer meets and it has to be findable without being looked
+              for. */}
+          <ListenButton text={t('splash_narration')} large />
         </View>
 
         {/* ── 2. App emblem ─────────────────────────────────── */}
         <View style={styles.emblemContainer}>
           <View style={styles.emblemGlow} />
+          {/* ★ This drew a leaf, a white bar, and the literal text "SETU" —
+              the project's old name, on the first screen of an app called
+              Krishi Mitra. It is now the real mark: the same bridge shape the
+              bar was gesturing at, with the sprout growing through it, drawn
+              once in `components/ui/Logo` so the splash, the header and the
+              tab bar cannot drift apart. */}
           <View style={styles.emblemOuter}>
             <View style={styles.emblemInner}>
-              <Icon name="leaf" size={40} color="#FFFFFF" />
-              <View style={styles.emblemBridge} />
-              <Text style={styles.emblemSetuText}>SETU</Text>
+              <Logo size={80} bare background="transparent" foreground={colors.onPrimary} />
             </View>
           </View>
           {/* ★ A "Verified" badge used to sit here, under the emblem, on the
@@ -102,54 +120,71 @@ export default function S00_Splash({ navigation }: Props) {
           <Text style={styles.taglineDevanagari}>{t('splash_tagline')}</Text>
         </View>
 
-        {/* ── 5. Live price strip ───────────────────────────── */}
-        <View style={styles.priceStrip}>
-          <View style={styles.priceStripInner}>
-            <Image source={mandiWarehouse} style={styles.pricePhoto} />
-            <View style={styles.priceInfo}>
-              <View style={styles.priceHeader}>
-                <View style={styles.priceLabelRow}>
-                  <Icon name="trending-up" size={12} color={colors.tertiary} />
-                  <Text style={styles.priceLabel}>{t('splash_today_price')}</Text>
-                </View>
-                <Text style={styles.priceMarket}>{t('splash_market_name')}</Text>
-              </View>
-              <Text style={styles.priceCommodity}>{t('splash_commodity')}</Text>
-              <Text style={styles.priceRange}>
-                {demoTodayRange(locale)}
-                <Text style={styles.priceUnit}> {t('splash_per_quintal')}</Text>
-              </Text>
+        {/* ── 5. How it works ───────────────────────────────
+            ★ A "today's onion price at Lasalgaon" card sat here, on the very
+              first screen. A farmer arriving here has told us nothing — not
+              his crop, not his mandi — so that number belonged to somebody
+              else's onion at somebody else's yard. It looked like data and
+              was decoration.
+
+            ★ What belongs on a first screen is the answer to "what is this,
+              and can I use it?". For a farmer who may not read, that answer
+              is: you talk to it, and it talks back. Three steps, each with a
+              picture of the action rather than an abstract glyph. */}
+        <View style={styles.howCard}>
+          <Text style={styles.howTitle}>{t('splash_how_title')}</Text>
+
+          <View style={styles.howRow}>
+            <View style={styles.howStep}>
+              {/* The same face used on every mic in the app, animating, so
+                  the control he will meet later is already familiar here. */}
+              <SpeakingFace listening size={54} />
+              <Text style={styles.howLabel}>{t('splash_how_1')}</Text>
+              <Text style={styles.howSub}>{t('splash_how_1_sub')}</Text>
             </View>
+
+            <View style={styles.howArrow}>
+              <Icon name="arrow-right" size={16} color={colors.outline} />
+            </View>
+
+            <View style={styles.howStep}>
+              <View style={styles.howIconBg}>
+                <Icon name="globe" size={26} color={colors.primary} />
+              </View>
+              <Text style={styles.howLabel}>{t('splash_how_2')}</Text>
+              <Text style={styles.howSub}>{t('splash_how_2_sub')}</Text>
+            </View>
+
+            <View style={styles.howArrow}>
+              <Icon name="arrow-right" size={16} color={colors.outline} />
+            </View>
+
+            <View style={styles.howStep}>
+              <View style={styles.howIconBg}>
+                <Icon name="volume" size={26} color={colors.primary} />
+              </View>
+              <Text style={styles.howLabel}>{t('splash_how_3')}</Text>
+              <Text style={styles.howSub}>{t('splash_how_3_sub')}</Text>
+            </View>
+          </View>
+
+          {/* ★ The one claim on this screen we have actually tested: with the
+              server stopped the app still speaks, through the phone's own
+              engine. Verified on device, not asserted. */}
+          <View style={styles.howOffline}>
+            <Icon name="check-circle" size={13} color={colors.tertiary} />
+            <Text style={styles.howOfflineText}>{t('splash_no_net')}</Text>
           </View>
         </View>
 
         {/* ── 6. Trust badges ───────────────────────────────── */}
-        <View style={styles.trustGrid}>
-          <View style={styles.trustCard}>
-            <View style={[styles.trustIconBg, { backgroundColor: 'rgba(155,47,0,0.08)' }]}>
-              <Icon name="building" size={16} color={colors.primary} />
-            </View>
-            <Text style={styles.trustTitle}>{t('splash_apmc_enam')}</Text>
-            <Text style={styles.trustSub}>{t('splash_apmc_sub')}</Text>
-          </View>
-          <View style={styles.trustCard}>
-            <View style={[styles.trustIconBg, { backgroundColor: 'rgba(0,97,70,0.08)' }]}>
-              <Icon name="lock" size={16} color={colors.tertiary} />
-            </View>
-            <Text style={styles.trustTitle}>{t('splash_secured')}</Text>
-            <Text style={[styles.trustSub, { color: colors.tertiary, fontFamily: fontFamily.bold }]}>
-              {t('splash_secured_sub')}
-            </Text>
-          </View>
-          <View style={styles.trustCard}>
-            <View style={[styles.trustIconBg, { backgroundColor: 'rgba(194,65,12,0.08)' }]}>
-              <Icon name="handshake" size={16} color={colors.secondaryContainer} />
-            </View>
-            <Text style={styles.trustTitle}>{t('splash_direct')}</Text>
-            <Text style={styles.trustSub}>{t('splash_direct_sub')}</Text>
-          </View>
-        </View>
-      </ScrollView>
+        {/* ★ Three "trust" cards sat here — both numbers always, it says when
+            it does not know, buyers direct. They are the right three points
+            and they are already made, at length and better, on the very next
+            screen ("Why Krishi Mitra"). Saying them twice was what pushed this
+            screen past one screenful and made it scroll. A splash that scrolls
+            is a splash that has not decided what it is for. */}
+      </View>
 
       {/* ── 7. Bottom action pad (fixed) ────────────────── */}
       <View style={styles.bottomDock}>
@@ -172,7 +207,21 @@ export default function S00_Splash({ navigation }: Props) {
           })}
         </View>
 
-        {/* CTA button */}
+        {/* CTA button
+            ★ "Get started" always runs the whole journey: language, then why
+              this app exists, then the phone number.
+
+              It used to skip to the phone screen whenever a language was
+              already saved — which is true of any device the app has been
+              opened on once, so the two onboarding screens became unreachable
+              in practice. That is wrong twice over: they are where a farmer
+              learns what the product is, and they are the part of the flow we
+              most need to be able to show.
+
+              A returning farmer is not made to sit through it: the "log in
+              with a one-time code" link below goes straight to the phone
+              screen. Starting fresh and coming back are different intents and
+              now have different buttons, instead of one button guessing. */}
         <TouchableOpacity
           style={styles.ctaBtn}
           activeOpacity={0.85}
@@ -181,8 +230,17 @@ export default function S00_Splash({ navigation }: Props) {
           <Icon name="arrow-right" size={20} color={colors.onPrimary} />
         </TouchableOpacity>
 
-        {/* OTP login link */}
-        <TouchableOpacity style={styles.otpRow} activeOpacity={0.7}>
+        {/* OTP login link
+            ★ This had no `onPress` — it read "already registered? log in with
+              OTP" and did nothing at all. It is the shortcut for a returning
+              farmer, so it goes where that farmer wants to be: the phone
+              number, which is where the OTP is sent from. */}
+        <TouchableOpacity
+          style={styles.otpRow}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('splash_otp_login')}
+          onPress={() => navigation.navigate('S2_Phone')}>
           <Icon name="zap" size={12} color={colors.tertiary} />
           <Text style={styles.otpText}>{t('splash_otp_login')}</Text>
         </TouchableOpacity>
@@ -207,64 +265,28 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: space.sm,
+  },
   scrollContent: {
     alignItems: 'center',
     paddingBottom: space.xxl,
   },
 
   // Ambient glow
-  glowTopLeft: {
-    position: 'absolute',
-    top: -96,
-    left: -80,
-    width: 384,
-    height: 384,
-    borderRadius: 192,
-    backgroundColor: 'rgba(194,65,12,0.06)',
-  },
-  glowMidRight: {
-    position: 'absolute',
-    top: 250,
-    right: -96,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(155,47,0,0.04)',
-  },
-
   // Top ribbon
   topRibbon: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    // Only the speaker lives here now that the "live mandi" chip is gone;
+    // `space-between` would strand it on the left.
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: space.md,
     paddingTop: space.xl + 20,
     paddingBottom: space.xs,
     width: '100%',
-  },
-  liveChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.tertiary,
-    marginRight: 6,
-  },
-  liveText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: colors.tertiary,
-    textTransform: 'uppercase',
   },
   listenPill: {
     flexDirection: 'row',
@@ -322,20 +344,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  emblemBridge: {
-    width: 40,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 2,
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  emblemSetuText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 10,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.9)',
   },
 
   // App name
@@ -448,6 +456,80 @@ const styles = StyleSheet.create({
   },
 
   // Trust grid
+  howCard: {
+    // ★ Narrower side margins and more inner padding than the default card.
+    //   Devanagari sets wider than Latin at the same point size — "मराठी,
+    //   हिंदी, इंग्रजी" needs noticeably more room than "Marathi, Hindi,
+    //   English" — so the three columns were cramped against the card edges in
+    //   exactly the two languages most farmers will use. The card takes the
+    //   width back from its own margins.
+    marginHorizontal: space.sm,
+    marginTop: space.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderCard,
+  },
+  howTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.onSurface,
+    textAlign: 'center',
+    marginBottom: space.md,
+  },
+  // ★ The arrows sit between three columns of unequal text height. Centring
+  //   the row on the icons (not the text) keeps the arrows level with the
+  //   circles, and the fixed label/sub heights stop a two-line label — Marathi
+  //   "ॲप समजते" wraps where English "It understands" does not — from pushing
+  //   its own subtitle down onto the divider below.
+  howRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  howStep: { flex: 1, alignItems: 'center', gap: 3, paddingHorizontal: 2 },
+  // Half the 54px icon height, so the arrow lands on the circles' centre line.
+  // Narrow, so the arrows take as little of the row's width as possible —
+  // every pixel here belongs to the three labels.
+  howArrow: { height: 54, justifyContent: 'center', paddingHorizontal: 2 },
+  howIconBg: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.onPrimaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  howLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.onSurface,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  howSub: {
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
+    lineHeight: 15,
+    // Devanagari conjuncts get clipped by tight tracking at this size.
+    letterSpacing: 0.1,
+    // Two lines' worth, reserved, so all three columns end level regardless of
+    // how the translation happens to wrap.
+    minHeight: 30,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
+  howOffline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: space.md,
+    paddingTop: space.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderCard,
+  },
+  howOfflineText: { fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.tertiary },
   trustGrid: {
     flexDirection: 'row',
     paddingHorizontal: space.md,

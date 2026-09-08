@@ -50,7 +50,11 @@ import type {
 } from '../types/api';
 
 const TOKEN_KEY = 'auth.token';
-const USER_KEY = 'auth.user';
+// ★ Versioned. The cached user survives reinstalls of the JS bundle, so a
+//   farmer who signed in before a fixture or shape change keeps the *old*
+//   record forever — which is why the app kept greeting "Fixture Farmer" long
+//   after that name was changed. Bumping the suffix retires the stale copy.
+const USER_KEY = 'auth.user.v2';
 
 /**
  * Phase 1 stores the JWT in AsyncStorage, and we say so out loud rather than
@@ -467,5 +471,12 @@ export interface NarrateRes {
   request_id?: string | null;
 }
 
-export const narrate = (text: string, locale: Locale) =>
-  post<NarrateRes>('/voice/narrate', { text, locale });
+/**
+ * ★ `speaker` and `pace` are per-request and honoured by the route: the server
+ *   falls back to its configured `SARVAM_TTS_SPEAKER` when `speaker` is absent,
+ *   so older callers keep their voice. Speaker ids must come from the roster of
+ *   whichever `bulbul` model the server is on — v3 rejects v2's names outright.
+ *   See `SARVAM_SPEAKER` in `lib/voiceSettings.ts`.
+ */
+export const narrate = (text: string, locale: Locale, speaker?: string, pace?: number) =>
+  post<NarrateRes>('/voice/narrate', { text, locale, ...(speaker ? { speaker } : {}), ...(pace ? { pace } : {}) });

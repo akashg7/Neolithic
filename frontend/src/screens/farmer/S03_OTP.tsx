@@ -18,13 +18,15 @@ import { USE_FIXTURES } from '../../config';
 import { fxAuthRegisteredBuyer } from '../../fixtures/auth';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { ListenButton } from '../../components/ui/ListenButton';
+import { VoiceMic } from '../../components/ui/VoiceMic';
+import { digitsFromSpeech } from '../../lib/spokenDigits';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S3_OTP'>;
 
 const RESEND_SECONDS = 30;
 
 export default function S03_OTP({ navigation }: Props) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { signIn } = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(RESEND_SECONDS);
@@ -49,6 +51,25 @@ export default function S03_OTP({ navigation }: Props) {
     return () => clearTimeout(id);
   }, [countdown]);
 
+  /**
+   * ★ Voice entry for the code. A farmer who has just dictated his phone
+   *   number then had to stop, find the keypad and type six digits — the one
+   *   step in registration that still assumed reading. `VoiceMic` records and
+   *   sends the clip to the same `POST /voice/transcribe` the phone screen
+   *   uses; `digitsFromSpeech` reads the answer whether it comes back as
+   *   words, Devanagari numerals or ASCII.
+   */
+  const onVoiceCode = (transcript: string) => {
+    const digits = digitsFromSpeech(transcript, 6);
+    if (!digits) return;
+    const next = Array.from({ length: 6 }, (_, i) => digits[i] ?? '');
+    setOtp(next);
+    // Land the cursor after the last digit heard, so a partial reading is
+    // finished by hand rather than restarting.
+    const at = Math.min(digits.length, 5);
+    inputs.current[at]?.focus();
+  };
+
   const handleDigit = (val: string, idx: number) => {
     const digit = val.replace(/\D/g, '').slice(-1);
     const next = [...otp];
@@ -65,6 +86,23 @@ export default function S03_OTP({ navigation }: Props) {
   //   unknown phone" — any failure is treated as "never registered" and
   //   carries the same {phone, code} to S3_Profile, which verifies it for
   //   real via `register()`.
+  /**
+   * ★ Both back affordances on this screen used to call `navigation.goBack()`
+   *   bare. When the OTP screen is the bottom of the stack — a returning
+   *   farmer starts at S2_Phone, which `AuthStack` makes the initial route
+   *   once a locale is stored, and a `replace()` on the way in leaves no
+   *   history — React Navigation has nothing to pop and throws "The action
+   *   GO_BACK was not handled by any navigator" over the screen.
+   *
+   *   Going back from here means one thing: change the number. So it pops
+   *   when it can and navigates to the phone screen when it cannot, which is
+   *   the same destination either way and never errors.
+   */
+  const goBackToPhone = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('S2_Phone');
+  };
+
   const handleVerify = async () => {
     if (!phone) return;
     const code = otp.join('');
@@ -118,7 +156,7 @@ export default function S03_OTP({ navigation }: Props) {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backBtn} onPress={goBackToPhone}>
             <Icon name="arrow-left" size={20} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
@@ -150,7 +188,7 @@ export default function S03_OTP({ navigation }: Props) {
               own number. The key now carries the placeholder in all three and
               is given the value. */}
           <Text style={styles.phoneNum}>{t('otp_sent_to', { phone: phone ?? '' })}</Text>
-          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.editBtn} onPress={goBackToPhone}>
             <Icon name="edit" size={12} color={colors.primaryContainer} />
             <Text style={styles.editText}>{t('otp_edit')}</Text>
           </TouchableOpacity>
@@ -173,6 +211,11 @@ export default function S03_OTP({ navigation }: Props) {
               selectTextOnFocus
             />
           ))}
+        </View>
+
+        {/* ── Say the code instead of typing it ────────────────────── */}
+        <View style={styles.voiceRow}>
+          <VoiceMic locale={locale} onTranscript={onVoiceCode} />
         </View>
 
         {/* Auto-detect banner */}
@@ -296,6 +339,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', marginTop: space.lg, marginBottom: space.sm,
   },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, paddingHorizontal: space.md },
+  voiceRow: { alignItems: 'center', marginTop: space.sm },
   otpBox: {
     width: 48, height: 60, borderRadius: radius.md, borderWidth: 1.5,
     borderColor: colors.outlineVariant, backgroundColor: colors.surface,
