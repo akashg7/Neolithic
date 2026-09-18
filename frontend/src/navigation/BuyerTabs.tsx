@@ -25,11 +25,22 @@ import { S24_DataProvenance } from '../screens/buyer/S24_DataProvenance';
 import { S25_Dispute } from '../screens/buyer/S25_Dispute';
 import { S27_BuyerChat } from '../screens/buyer/S27_BuyerChat';
 import { useT } from '../lib/i18n';
+import { useAuth } from '../lib/auth';
+import { colors, fontFamily } from '../theme/tokens';
 import { tabIcon } from './TabIcon';
 import { TabBarButton } from './TabBarButton';
 
-/** The one background colour for every buyer scene. Matches `FarmerTabs`. */
-const SCREEN_BG = '#FFFFFF';
+/**
+ * ★ The buyer console was still wearing the pre-Stitch palette — white scenes,
+ *   a blue active tab, slate labels — while the farmer app had moved to the
+ *   approved Mandi Tactile Modern system. Two products under one name, and the
+ *   buyer half looked like a different, older app.
+ *
+ *   Every colour here now comes from `theme/tokens`, which is the same file
+ *   the farmer screens read and the same palette the Stitch design system
+ *   defines. A hex literal in this file is drift, not a local choice.
+ */
+const SCREEN_BG = colors.background;
 
 export type BuyerTabParamList = {
   PostDemand: undefined;
@@ -61,13 +72,25 @@ export type MatchesStackParamList = {
 const MatchesStack = createNativeStackNavigator<MatchesStackParamList>();
 
 function MatchesStackNavigator() {
+  // ★ The Stitch design opens with who the trader is and which yard is live.
+  //   Both come from state this navigator already holds — the signed-in user
+  //   and the demo market — rather than from anything the screen invents. When
+  //   either is missing, S19 omits that row instead of showing a placeholder.
+  const { user } = useAuth();
+  const { t } = useT();
+
   return (
     <MatchesStack.Navigator
       initialRouteName="S19_Matches"
       screenOptions={{ headerShown: false, contentStyle: { backgroundColor: SCREEN_BG } }}>
       <MatchesStack.Screen name="S19_Matches">
         {({ navigation }: NativeStackScreenProps<MatchesStackParamList, 'S19_Matches'>) => (
-          <S19_Matches onViewLot={lotId => navigation.navigate('S20_LotDetail', { lot_id: lotId })} />
+          <S19_Matches
+            onViewLot={lotId => navigation.navigate('S20_LotDetail', { lot_id: lotId })}
+            // `exactOptionalPropertyTypes` — spread rather than pass undefined.
+            {...(user?.name ? { traderName: user.name } : {})}
+            marketName={t('home_market_name')}
+          />
         )}
       </MatchesStack.Screen>
       <MatchesStack.Screen name="S20_LotDetail">
@@ -85,18 +108,36 @@ export function BuyerTabs() {
   const { t } = useT();
   return (
     <Tab.Navigator
+      // ★ The console opens on the matched lots, not on a blank demand form.
+      //   A trader's home is what is for sale right now; posting a new demand
+      //   is something he does occasionally. The approved Stitch design draws
+      //   जुळणी as the active tab for the same reason — and opening on मागणी
+      //   hid every bit of the redesign behind a tab nobody was told to press.
+      initialRouteName="Matches"
       screenOptions={{
         headerShown: false,
         // `sceneStyle`, not the v6 `sceneContainerStyle` prop — bottom-tabs v7
         // moved it into `screenOptions` and dropped the old name entirely.
         sceneStyle: { backgroundColor: SCREEN_BG },
-        tabBarActiveTintColor: '#1565C0',
-        tabBarInactiveTintColor: '#64748B',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.onSurfaceVariant,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: fontFamily.semiBold,
+          // Devanagari tab labels clip their matras at the stock line height.
+          lineHeight: 15,
+        },
         // Same reason as the farmer bar: Android's default borderless ripple
         // paints outside the tab. See `TabBarButton`.
         tabBarButton: props => <TabBarButton {...props} />,
-        tabBarStyle: { height: 60, paddingBottom: 4, paddingTop: 4 },
+        tabBarStyle: {
+          height: 64,
+          paddingBottom: 6,
+          paddingTop: 6,
+          backgroundColor: colors.surface,
+          borderTopWidth: 1.5,
+          borderTopColor: colors.borderInput,
+        },
       }}>
       <Tab.Screen
         name="PostDemand"
@@ -110,9 +151,12 @@ export function BuyerTabs() {
       />
       <Tab.Screen
         name="Offers"
-        component={S21_OfferThread}
-        options={{ title: t('buyer_tab_offers'), tabBarIcon: tabIcon('offers') }}
-      />
+        options={{ title: t('buyer_tab_offers'), tabBarIcon: tabIcon('offers') }}>
+        {/* The yard name comes from here rather than from inside the screen:
+            S21 omits the mandi-rate half of its price strip when it is not
+            told which market it is negotiating in, instead of guessing. */}
+        {() => <S21_OfferThread marketName={t('home_market_name')} />}
+      </Tab.Screen>
       <Tab.Screen
         name="Deals"
         component={S22_EscrowTimeline}
