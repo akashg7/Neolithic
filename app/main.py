@@ -100,6 +100,7 @@ app.include_router(fpo.router, prefix="/api/v1/pools", tags=["FPO"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["Voice"])
 app.include_router(ref.router, prefix="/api/v1/ref", tags=["Reference"])
+
 app.include_router(prices.router, prefix="/api/v1/prices", tags=["Prices"])
 app.include_router(meta.router, prefix="/api/v1/meta", tags=["Meta"])
 app.include_router(buyers.router, prefix="/api/v1/buyers", tags=["Buyers"])

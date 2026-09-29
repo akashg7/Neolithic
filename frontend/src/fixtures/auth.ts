@@ -34,8 +34,30 @@ export const fxAuthRegistered: AuthRes = {
   user: {
     id: 'usr_fixture_1',
     phone: '9876543210',
-    name: 'Fixture Farmer',
+    // ★ A real Marathi name, not "Fixture Farmer". Every screen that greets
+    //   the signed-in user renders this, so the placeholder was visible on the
+    //   menu, the profile and the narration — in English, on a Marathi app.
+    name: 'रामभाऊ पाटील',
     role: 'FARMER',
+    locale: 'mr',
+    district_id: 'dist_nashik',
+  },
+};
+
+/**
+ * The same success path for a buyer. Buyers register with the identical
+ * phone + OTP flow — the only difference is the role, which decides which
+ * navigator the root renders. `district_id` is carried because `User`
+ * requires it; a buyer's district is where he collects from, not where he
+ * farms.
+ */
+export const fxAuthRegisteredBuyer: AuthRes = {
+  token: 'fixture-token-buyer',
+  user: {
+    id: 'usr_fixture_buyer_1',
+    phone: '9876543211',
+    name: 'सुनील ट्रेडर्स',
+    role: 'BUYER',
     locale: 'mr',
     district_id: 'dist_nashik',
   },

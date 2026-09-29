@@ -20,15 +20,21 @@ import { API_BASE_URL } from '../config';
 import type {
   ApiErrorBody,
   AssayReq,
+  AssayRecord,
   AssayRes,
   AuthRes,
-  ChatMessage,
+  Commodity,
   DemandDto,
+  DisputeDto,
+  DisputeReasonCode,
+  DisputeRes,
   District,
   EscrowEvent,
   ForecastRes,
   Locale,
   LotDto,
+  Market,
+  MatchesRes,
   ModelCard,
   NearbyRes,
   OfferDto,
@@ -44,6 +50,11 @@ import type {
 } from '../types/api';
 
 const TOKEN_KEY = 'auth.token';
+// ★ Versioned. The cached user survives reinstalls of the JS bundle, so a
+//   farmer who signed in before a fixture or shape change keeps the *old*
+//   record forever — which is why the app kept greeting "Fixture Farmer" long
+//   after that name was changed. Bumping the suffix retires the stale copy.
+const USER_KEY = 'auth.user.v2';
 
 /**
  * Phase 1 stores the JWT in AsyncStorage, and we say so out loud rather than
@@ -64,6 +75,32 @@ export async function setToken(token: string): Promise<void> {
 
 export async function clearToken(): Promise<void> {
   await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.removeItem(USER_KEY);
+}
+
+/**
+ * The last signed-in user, cached beside the token.
+ *
+ * ★ Why cache the user at all when `GET /auth/me` exists: because that call
+ *   needs a network, and a cold start without one used to drop the farmer at
+ *   the language picker — re-entering phone, OTP, name and district every
+ *   time. A 72-hour token that the device already holds is enough to know who
+ *   he is; the server still re-derives the actor on every read (I4), so this
+ *   cache is a convenience for rendering, never an authorization claim.
+ */
+export async function getCachedUser(): Promise<User | null> {
+  const raw = await AsyncStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as User;
+  } catch {
+    // A corrupt cache is not worth a crash on launch — treat it as absent.
+    return null;
+  }
+}
+
+export async function setCachedUser(user: User): Promise<void> {
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 /**
@@ -169,6 +206,13 @@ export const getMe = () => get<{ user: User }>('/auth/me');
 
 export const getDistricts = () => get<District[]>('/ref/districts');
 
+/** CANON §7.2. The market picker needs these: a district on its own does not
+ * identify a price series — `/prices/series` is keyed by mandi. */
+export const getMarkets = (districtId: string) =>
+  get<Market[]>(`/ref/markets?district_id=${districtId}`);
+
+export const getCommodities = () => get<Commodity[]>('/ref/commodities');
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Prices — §7.3
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,6 +277,18 @@ export const getLot = (id: string) => get<LotDto>(`/lots/${id}`);
 export const submitAssay = (lotId: string, body: AssayReq) =>
   post<AssayRes>(`/lots/${lotId}/assay`, body);
 
+/**
+ * The six stored answers behind a grade, for S20.
+ *
+ * TODO(akash): this route does **not** exist in CANON §7.5 — `POST .../assay`
+ *   returns only the score/grade/tip and discards the answers, and no endpoint
+ *   reads the `grade_assays` row back. The columns are already in the DDL
+ *   (CANON §6.4), so this is an exposure, not a new feature. Fold it into
+ *   `GET /lots/{id}` instead and I will delete this. Raised in docs/BLOCKERS.md.
+ */
+export const getLotAssay = (lotId: string) =>
+  get<AssayRecord>(`/lots/${lotId}/assay`);
+
 export const getPool = (id: string) => get<PoolDto>(`/pools/${id}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,6 +296,10 @@ export const getPool = (id: string) => get<PoolDto>(`/pools/${id}`);
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getDemands = () => get<DemandDto[]>('/demands');
+
+/** ★ CANON §7.6 — ranked, and includes multi-lot combinations. S19 reads this. */
+export const getMatches = (demandId: string) =>
+  get<MatchesRes>(`/demands/${demandId}/matches`);
 
 export const getOffers = () => get<OfferDto[]>('/offers');
 
@@ -260,6 +320,20 @@ export const rejectOffer = (offerId: string) => post<OfferDto>(`/offers/${offerI
  * third round from `OfferDto.round` rather than waiting to be told by the
  * 409; the status code is the backstop, not the primary path.
  */
+/**
+ * The full back-and-forth on one negotiation, oldest round first.
+ *
+ * ★ The backend has had `GET /offers/{id}/thread` all along and the frontend
+ *   never called it. That omission is why "chat" looked missing: the
+ *   negotiation channel in this product is the offer thread — each round
+ *   carries a price and an optional `note`, which is the message — and
+ *   without this call there was no way to render a conversation, only the
+ *   single latest offer. A separate free-text messenger would have needed an
+ *   endpoint that does not exist; this one does.
+ */
+export const getOfferThread = (offerId: string) =>
+  get<OfferDto[]>(`/offers/${offerId}/thread`);
+
 export const counterOffer = (offerId: string, body: { price_paise_per_qtl: number; note?: string }) =>
   post<OfferDto>(`/offers/${offerId}/counter`, body);
 
@@ -283,22 +357,37 @@ export const transitionTx = (id: string, toStatus: TxStatus, idempotencyKey: str
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 
+/**
+ * CANON §7.7 documents the request body but not the response. We assume the
+ * created row, because every other `POST` in the contract returns the row it
+ * created, and because a screen that raises a dispute and then cannot show it
+ * has to guess at a stage.
+ *
+ * TODO(akash): confirm this returns `DisputeDto`. Raised in docs/BLOCKERS.md.
+ */
+export const createDispute = (body: {
+  tx_id: string;
+  reason_code: DisputeReasonCode;
+  description: string;
+  photo_path?: string;
+}) => post<DisputeDto>('/disputes', body);
+
+/**
+ * ★ CONTRACT GAP. This takes a `dispute_id`, and nothing in CANON hands one
+ * out: `TxDto` has no `dispute_id`, and there is no `GET /disputes?tx_id=`.
+ * So a buyer arriving at S25 on an already-disputed transaction cannot look
+ * up his own complaint — the screen says so rather than inventing a route.
+ *
+ * TODO(akash): either `dispute_id` on `TxDto` or `GET /disputes?tx_id=`.
+ * Raised in docs/BLOCKERS.md.
+ */
+export const getDispute = (id: string) => get<DisputeRes>(`/disputes/${id}`);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Meta and provenance — §7.8. Unblocks S24_DataProvenance.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getDataProvenance = () => get<ProvenanceRes>('/meta/data-provenance');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// S26 chat — PROPOSED, no CANON section defines this (see types/api.ts's
-// ChatMessage header). Paths are this frontend's own guess at what a real
-// endpoint would look like, not a transcription of a documented one.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getChatMessages = (txId: string) => get<ChatMessage[]>(`/tx/${txId}/messages`);
-
-export const sendChatMessage = (txId: string, text: string) =>
-  post<ChatMessage>(`/tx/${txId}/messages`, { text });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Voice — PROPOSED, same status as the chat section above: no CANON section
@@ -353,10 +442,41 @@ export async function transcribeAudio(audioUri: string, locale: Locale): Promise
 }
 
 /**
- * Live TTS — kept for when the backend route exists, but nothing in this
- * app calls it yet. `lib/voice.ts`'s `speakText()` speaks the agent's
- * dynamic prompts through the device's own on-device TTS instead, which
- * works offline today (I7) and needs no server round trip at all.
+ * Live TTS — Sarvam `bulbul:v3`, via the backend's `/voice/narrate`.
+ *
+ * The sale-window voice agent (S9) prefers this human-grade Marathi audio
+ * over the device's own TTS: the verdict sentence carries a lot, dates and
+ * amounts, so it cannot be a pre-recorded clip and has to be synthesized on
+ * demand. `lib/voice.ts`'s `speakSaleWindow()` falls back to on-device
+ * `speakText()` whenever this is unreachable, so a network or server problem
+ * never silences the verdict — it only downgrades the voice.
+ *
+ * ★ This was typed `{ audio_url: string }` here and would have failed the
+ *   moment anything called it; the route returns base64. Corrected against
+ *   the live contract, and against the backend team's own `NarrateRes`.
+ *
+ * ★ The route is deliberately unauthenticated on the server — it runs before
+ *   a JWT exists during voice registration.
  */
-export const narrate = (text: string, locale: Locale) =>
-  post<{ audio_url: string }>('/voice/narrate', { text, locale });
+/**
+ * ★ Shape adopted from the backend team's own `NarrateRes` (Nikhil's
+ *   `feat(voice)` commit) rather than the inline type this file had — theirs
+ *   also carries `request_id`, which Sarvam returns and which is the only
+ *   handle for chasing a bad synthesis upstream.
+ */
+export interface NarrateRes {
+  audio_base64: string;
+  audio_format: string;
+  language_code: string;
+  request_id?: string | null;
+}
+
+/**
+ * ★ `speaker` and `pace` are per-request and honoured by the route: the server
+ *   falls back to its configured `SARVAM_TTS_SPEAKER` when `speaker` is absent,
+ *   so older callers keep their voice. Speaker ids must come from the roster of
+ *   whichever `bulbul` model the server is on — v3 rejects v2's names outright.
+ *   See `SARVAM_SPEAKER` in `lib/voiceSettings.ts`.
+ */
+export const narrate = (text: string, locale: Locale, speaker?: string, pace?: number) =>
+  post<NarrateRes>('/voice/narrate', { text, locale, ...(speaker ? { speaker } : {}), ...(pace ? { pace } : {}) });

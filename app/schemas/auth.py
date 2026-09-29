@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, AliasChoices
 from typing import Optional
 
 
@@ -23,9 +23,10 @@ class RegisterRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=6)
     role: str = Field(..., pattern=r"^(FARMER|BUYER|FPO_ADMIN)$")
     locale: str = "mr"
-    district_id: Optional[str] = None
+    district_id: Optional[int | str] = None
     lat: Optional[float] = None
-    lon: Optional[float] = Field(None, validation_alias="lng")
+    lng: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
+    village: Optional[str] = Field(None, max_length=200)   # farmer's village
     company_name: Optional[str] = None   # required only for role=BUYER
 
 
@@ -82,7 +83,7 @@ class UserDetailResponse(BaseModel):
     district_id: Optional[str] = None
     village: Optional[str] = None
     lat: Optional[float] = None
-    lon: Optional[float] = Field(None, validation_alias="lng")
+    lon: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
     verified: bool
     created_at: Optional[str] = None
     farmer_profile: Optional[FarmerProfileOut] = None
@@ -103,6 +104,16 @@ class UserDetailResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     token: str
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
+
+    def __init__(self, **data):
+        if "token" in data and "access_token" not in data:
+            data["access_token"] = data["token"]
+        elif "access_token" in data and "token" not in data:
+            data["token"] = data["access_token"]
+        super().__init__(**data)
+
 
 
 class MeResponse(BaseModel):

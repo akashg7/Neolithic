@@ -4,8 +4,7 @@
  *
  * ★ Tap once to start recording, tap again to stop — not press-and-hold.
  *   A farmer holding a phone one-handed in a mandi is the exact case a
- *   press-and-hold gesture (which demands a second free hand or an
- *   uninterrupted thumb-down for the whole sentence) works against.
+ *   press-and-hold gesture works against.
  *
  * ★ `POST /voice/transcribe` does not exist on the server yet (see
  *   `lib/api.ts`'s voice section) — this component calls it anyway, per the
@@ -16,7 +15,10 @@
  *   ships.
  *
  * ★ Records to `.m4a` (AAC) — matches `transcribeAudio()`'s
- *   `type: 'audio/mp4'} multipart part.
+ *   `type: 'audio/mp4'` multipart part.
+ *
+ * ★ No emoji glyphs — the mic and send affordances are drawn `Icon`s
+ *   (`react-native-svg`), not a font gamble on a cheap device.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -25,6 +27,9 @@ import AudioRecorderPlayer, { AudioEncoderAndroidType, AudioSourceAndroidType, O
 
 import { transcribeAudio } from '../../lib/api';
 import { translate } from '../../lib/i18n';
+import { Icon } from './Icon';
+import { SpeakingFace } from './SpeakingFace';
+import { colors, fontFamily, radius, space } from '../../theme/tokens';
 import type { Locale } from '../../types/api';
 
 type MicState = 'idle' | 'recording' | 'transcribing';
@@ -53,10 +58,14 @@ export function VoiceMic({
   locale,
   onTranscript,
   disabled = false,
+  showManualEntry = false,
 }: {
   locale: Locale;
   onTranscript: (text: string) => void;
   disabled?: boolean;
+  /** Render the "or type here" fallback. Off by default — most screens
+   *  already have their own input, and a second one competes with it. */
+  showManualEntry?: boolean;
 }) {
   const [state, setState] = useState<MicState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +97,10 @@ export function VoiceMic({
       await recorder.startRecorder(undefined, AUDIO_SET);
       recorder.addRecordBackListener(() => undefined);
       setState('recording');
-    } catch {
+    } catch (err) {
+      // ★ Say why in dev. This was a bare catch, which is how "the mic does
+      //   not work" went undiagnosed through two separate root causes.
+      if (__DEV__) console.warn('[mic] startRecorder failed:', (err as Error)?.message ?? String(err));
       setError(translate('voice_mic_error', locale));
     }
   };
@@ -99,11 +111,10 @@ export function VoiceMic({
       const uri = await recorder.stopRecorder();
       recorder.removeRecordBackListener();
       const { transcript } = await transcribeAudio(uri, locale);
+      if (__DEV__) console.warn('[mic] transcript:', transcript);
       onTranscript(transcript);
-    } catch {
-      // Expected today — `/voice/transcribe` is not live yet (see this
-      // file's header). The manual fallback below is what actually carries
-      // the farmer through registration until it is.
+    } catch (err) {
+      if (__DEV__) console.warn('[mic] stop/transcribe failed:', (err as Error)?.message ?? String(err));
       setError(translate('voice_mic_error', locale));
     } finally {
       setState('idle');
@@ -140,13 +151,29 @@ export function VoiceMic({
           state === 'recording' && styles.micButtonRecording,
           (disabled || state === 'transcribing') && styles.micButtonDisabled,
         ]}
+        activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel={label}>
+        {/* ★ A face speaking into a phone, not a microphone glyph. A mic icon
+
+            depicts a studio object most farmers have never held; a person
+
+            talking into a phone is the action itself. The waves move while
+
+            it is listening, which is how he knows to keep talking. */}
+
+        <SpeakingFace listening={state === 'recording'} size={56} />
         <Text style={styles.micLabel}>{label}</Text>
       </TouchableOpacity>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
+      {/* ★ Off by default. On the OTP screen the six code boxes are already
+          typeable, so a second "or type here" box asked the same question
+          twice and doubled the screen's controls — on the screen a farmer is
+          most likely to be stuck on. Screens that have no other input can
+          still opt in with `showManualEntry`. */}
+      {showManualEntry ? (
       <View style={styles.manualRow}>
         <Text style={styles.manualLabel}>{translate('voice_or_type_label', locale)}</Text>
         <View style={styles.manualInputRow}>
@@ -155,6 +182,7 @@ export function VoiceMic({
             value={manualText}
             onChangeText={setManualText}
             placeholder={translate('voice_manual_placeholder', locale)}
+            placeholderTextColor={colors.outline}
             editable={!disabled}
             onSubmitEditing={submitManual}
           />
@@ -166,42 +194,47 @@ export function VoiceMic({
           </TouchableOpacity>
         </View>
       </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { marginVertical: 8 },
+  root: { marginVertical: space.xs },
   micButton: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radius.full,
+    paddingVertical: 14,
+    paddingHorizontal: space.md,
   },
-  micButtonRecording: { backgroundColor: '#FFEBEE' },
+  micButtonRecording: { backgroundColor: colors.criticalContainer },
   micButtonDisabled: { opacity: 0.5 },
-  micLabel: { fontSize: 15, fontWeight: '700', color: '#1B5E20' },
-  errorText: { color: '#C62828', fontSize: 13, marginTop: 8, textAlign: 'center' },
-  manualRow: { marginTop: 12 },
-  manualLabel: { fontSize: 13, color: '#64748B', marginBottom: 6 },
-  manualInputRow: { flexDirection: 'row', gap: 8 },
+  micLabel: { fontFamily: fontFamily.bold, fontSize: 15, color: colors.onSurface },
+  errorText: { color: colors.critical, fontSize: 13, marginTop: space.xs, textAlign: 'center' },
+  manualRow: { marginTop: space.sm },
+  manualLabel: { fontFamily: fontFamily.regular, fontSize: 13, color: colors.onSurfaceVariant, marginBottom: 6 },
+  manualInputRow: { flexDirection: 'row', gap: space.xs },
   manualInput: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.md,
+    paddingHorizontal: space.sm,
     paddingVertical: 10,
+    fontFamily: fontFamily.regular,
     fontSize: 15,
-    color: '#1E293B',
-    backgroundColor: '#FFFFFF',
+    color: colors.onSurface,
+    backgroundColor: colors.surface,
   },
   sendBtn: {
-    backgroundColor: '#1B5E20',
-    borderRadius: 10,
-    paddingHorizontal: 16,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
     justifyContent: 'center',
   },
-  sendBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  sendBtnText: { fontFamily: fontFamily.bold, color: colors.onPrimary, fontSize: 14 },
 });

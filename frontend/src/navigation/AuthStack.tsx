@@ -1,56 +1,64 @@
 /**
- * The signed-out stack: language → phone/OTP → profile.
- *
- * Pranay. `07_FRONTEND_ARCHITECTURE.md` §1.
+ * The signed-out stack: Splash → Language → Phone → OTP → Profile → Welcome.
  */
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { useAuth } from '../lib/auth';
+import S00_Splash from '../screens/farmer/S00_Splash';
 import S01_Language from '../screens/farmer/S01_Language';
+import S01b_ValueCarousel from '../screens/farmer/S01b_ValueCarousel';
 import S02_Phone from '../screens/farmer/S02_Phone';
+import S03_OTP from '../screens/farmer/S03_OTP';
 import S03_Profile from '../screens/farmer/S03_Profile';
-import { S17_BuyerLogin } from '../screens/buyer/S17_BuyerLogin';
+import S03_Welcome from '../screens/farmer/S03_Welcome';
 
-/**
- * ★ Every farmer route here is `undefined` — no params — and that is deliberate,
- *   not laziness.
- *
- *   The natural design passes the phone and the OTP code from S2 to S3 as route
- *   params, because S3 needs both to call `register`. Route params live in React
- *   Navigation's state tree, which is serialized, shown in the dev-menu state
- *   inspector, and survives into anything that persists navigation state. That puts
- *   a phone number and a live OTP somewhere I14 says they must never be.
- *
- *   P1 carries them instead in `setPendingAuth`/`getPendingAuth`/`clearPendingAuth`
- *   — a module-level holder next to `AuthProvider` in `lib/auth.tsx`. Set on S2,
- *   read once by S3, cleared on success. Never in navigation state, never in
- *   AsyncStorage.
- */
 export type AuthStackParamList = {
+  S0_Splash: undefined;
   S1_Language: undefined;
+  /** Stitch 03 — "why Krishi Mitra", between the language choice and the
+   * phone number. `S1b` because three screens already carry the `S03_`
+   * prefix from the pre-Stitch numbering. */
+  S1b_ValueCarousel: undefined;
   S2_Phone: undefined;
+  S3_OTP: undefined;
   S3_Profile: undefined;
-  S17_BuyerLogin: undefined;
+  S3_Welcome: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export function AuthStack() {
-  // `hasLocale` is resolved in the same boot effect as the token check, before
-  // `AuthStack` ever mounts — so this is a stable value on first render, not a
-  // race. A returning farmer who already picked मराठी skips straight to S2.
-  const { hasLocale } = useAuth();
-
   return (
     <Stack.Navigator
-      initialRouteName={hasLocale ? 'S2_Phone' : 'S1_Language'}
-      screenOptions={{ headerShown: false }}>
+      // ★ Always the splash, even for a returning farmer who has already
+      //   picked a language.
+      //
+      //   This used to be `hasLocale ? 'S2_Phone' : 'S0_Splash'`, which broke
+      //   two things at once and neither of them looked like a routing bug:
+      //
+      //   - **Back did nothing on the phone screen.** `initialRouteName` does
+      //     not push the screens before it; it *starts* the stack there. So
+      //     S2_Phone was the bottom of the stack, `goBack()` had no frame to
+      //     pop, and React Navigation logged "GO_BACK was not handled".
+      //   - **Splash became unreachable forever.** Once a locale was saved,
+      //     nothing could route back to a screen the stack never contained —
+      //     including us, when we wanted to demo it.
+      //
+      //   The branch it was making still has to happen; it just belongs on the
+      //   splash's own button, where it is a navigation choice rather than a
+      //   stack root. `S00_Splash` reads `hasLocale` and sends a returning
+      //   farmer straight to the phone screen — one extra tap for him, a real
+      //   back stack for everyone.
+      initialRouteName="S0_Splash"
+      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+      <Stack.Screen name="S0_Splash" component={S00_Splash} />
       <Stack.Screen name="S1_Language" component={S01_Language} />
+      <Stack.Screen name="S1b_ValueCarousel" component={S01b_ValueCarousel} />
       <Stack.Screen name="S2_Phone" component={S02_Phone} />
+      <Stack.Screen name="S3_OTP" component={S03_OTP} />
       <Stack.Screen name="S3_Profile" component={S03_Profile} />
-      <Stack.Screen name="S17_BuyerLogin" component={S17_BuyerLogin} />
+      <Stack.Screen name="S3_Welcome" component={S03_Welcome} />
     </Stack.Navigator>
   );
 }

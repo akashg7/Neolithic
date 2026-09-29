@@ -27,7 +27,12 @@ SPOILAGE_RATE_PER_DAY = 0.002  # 0.2%
 LOADING_UNLOADING_PAISE_PER_QTL = 2000  # Rs 20 per quintal
 
 
+def _qty_qtl(quantity_kg: int) -> int:
+    return max(1, quantity_kg // 100)
+
+
 def compute_sale_window(
+
     crop: str,
     mandi: str,
     quantity_kg: int,

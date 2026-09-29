@@ -89,3 +89,70 @@ export function formatDateShort(
   if (monthKey === undefined) return fallback;
   return `${devNum(parsed.day, locale)} ${translate(monthKey, locale)}`;
 }
+
+/**
+ * The clock time off an ISO timestamp — `2026-09-03T10:14:00+05:30` → `१०:१४`.
+ *
+ * ★ 24-hour, deliberately. The Stitch mockup writes "10:14 AM", but "AM" is
+ *   an English token and this app renders one language at a time; a Marathi
+ *   negotiation history reading "१०:१४ AM" is the same mixed-script defect
+ *   the rest of the dictionary was cleaned of. A mandi runs on a 24-hour
+ *   clock anyway.
+ *
+ * ★ Parsed off the string rather than through `Date`, for the same reason
+ *   `parseIsoDate` is: `new Date(iso)` shifts a `+05:30` timestamp into the
+ *   device's timezone, so a round struck at 10:14 in Lasalgaon would render
+ *   as a different time on a phone set to another zone. The offset in the
+ *   string is the mandi's own clock and is what the farmer means.
+ */
+export function formatTimeShort(
+  iso: string | null | undefined,
+  locale: Locale = 'mr',
+  fallback = '',
+): string {
+  if (!iso) return fallback;
+  const m = /T(\d{2}):(\d{2})/.exec(iso);
+  if (!m) return fallback;
+  const hh = m[1]!;
+  const mm = m[2]!;
+  return locale === 'en' ? `${hh}:${mm}` : `${devNum(Number(hh), locale)}:${devNum(Number(mm), locale)}`;
+}
+
+/**
+ * How long is left before `iso`, as "५ तास २४ मिनिटे" / "5h 24m".
+ *
+ * ★ Returns `null` once the moment has passed, rather than a negative or a
+ *   cheerful "0 minutes left". An expired offer is a different state from an
+ *   expiring one, and the caller has to say so in its own words.
+ *
+ * ★ Unlike the date helpers above this one *does* go through `Date`, and has
+ *   to: a remaining duration is the difference between two instants, so the
+ *   device clock is the right reference and the timezone in the string is
+ *   handled correctly by the parser.
+ */
+export function formatTimeRemaining(
+  iso: string | null | undefined,
+  locale: Locale = 'mr',
+  t?: (key: string, vars?: Record<string, string | number>) => string,
+): string | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  // Without a translator the caller gets a compact machine form; screens pass
+  // `t` so the units read in the farmer's own language.
+  if (!t) return `${days > 0 ? `${days}d ` : ''}${hours}h ${minutes}m`;
+
+  if (days > 0) {
+    return t('time_left_days', { days: devNum(days, locale), hours: devNum(hours, locale) });
+  }
+  if (hours > 0) {
+    return t('time_left_hours', { hours: devNum(hours, locale), minutes: devNum(minutes, locale) });
+  }
+  return t('time_left_minutes', { minutes: devNum(minutes, locale) });
+}

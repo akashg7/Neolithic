@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator, Field, AliasChoices
 
 class DistrictOut(BaseModel):
     id: str
@@ -41,7 +41,7 @@ class MandiOut(BaseModel):
     name_mr: str
     district_id: str
     lat: float
-    lon: float = Field(validation_alias="lng")
+    lon: float = Field(validation_alias=AliasChoices("lng", "lon"))
     
     @field_validator("id", "district_id", mode="before")
     def id_to_str(cls, v): return str(v)

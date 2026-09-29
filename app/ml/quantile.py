@@ -122,9 +122,19 @@ def predict_quantiles(
         commodity_key = "Soyabean"
     market_key = market.strip()
 
+    # ── SOTA mode: real trained Maharashtra LightGBM models ────────────
+    try:
+        from app.engines.price_engine import price_engine
+        sota_res = price_engine._try_sota_predict(market_key, commodity_key, days=horizon)
+        if sota_res and len(sota_res) >= horizon:
+            return [(d["p10_paise"], d["p50_paise"], d["p90_paise"]) for d in sota_res[:horizon]]
+    except Exception:
+        pass
+
     # ── STUB mode: no pickles loaded at all ────────────────────────────
     if not _models:
         return _stub_predict(commodity_key, horizon)
+
 
     # ── Models loaded but commodity not found ──────────────────────────
     if commodity_key not in _models:
