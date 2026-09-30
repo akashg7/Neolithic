@@ -27,12 +27,13 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, fontFamily, radius, space, type as typography } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
+import { WebFooter } from '../../components/web/WebFooter';
 import { ListenButton } from '../../components/ui/ListenButton';
 import { useT } from '../../lib/i18n';
 import { formatNumber, formatPaise, formatQuintal, quintalValuePaise } from '../../lib/money';
@@ -149,6 +150,7 @@ export default function S31_DealsList({ navigation }: Props) {
       {filters}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.scrollMain}>
         {rows.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIcon}>
@@ -163,6 +165,7 @@ export default function S31_DealsList({ navigation }: Props) {
           </View>
         ) : null}
 
+        <View style={styles.grid}>
         {rows.map(o => {
           const total = quintalValuePaise(o.price_paise_per_qtl, o.qty_kg);
           const isAgreed = o.status === 'ACCEPTED';
@@ -248,6 +251,10 @@ export default function S31_DealsList({ navigation }: Props) {
             </TouchableOpacity>
           );
         })}
+        </View>
+        </View>
+
+        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
   );
@@ -297,7 +304,54 @@ const styles = StyleSheet.create({
   filterText: { ...typography.labelMd, color: colors.onSurfaceVariant },
   filterTextActive: { color: colors.onPrimary, fontFamily: fontFamily.extraBold },
 
-  scroll: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
+  scroll: Platform.select({
+    web: {
+      paddingHorizontal: space.md,
+      paddingTop: space.md,
+      paddingBottom: 0,
+      flexGrow: 1,
+    },
+    default: {
+      padding: space.md,
+      paddingBottom: space.xxl,
+      gap: space.sm,
+    },
+  }) as any,
+  scrollMain: {
+    flex: 1,
+    gap: space.sm,
+    paddingBottom: space.xxl,
+  },
+
+  grid: Platform.select({
+    web: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: space.md,
+    },
+    default: {
+      gap: space.sm,
+    }
+  }) as any,
+  card: Platform.select({
+    web: {
+      width: 'calc(50% - 8px)',
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: colors.outlineVariant,
+      padding: space.md,
+      gap: space.xs,
+    },
+    default: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: colors.outlineVariant,
+      padding: space.md,
+      gap: space.xs,
+    }
+  }) as any,
 
   emptyCard: {
     alignItems: 'center',
@@ -324,14 +378,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  card: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderCard,
-    gap: space.xs,
-  },
+
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   avatar: {
     width: 36,
