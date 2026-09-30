@@ -114,8 +114,16 @@ module.exports = {
   ],
   performance: { hints: false },
   devServer: {
+    host: '0.0.0.0',
     port: 8080,
     historyApiFallback: true,
     hot: true,
+    allowedHosts: 'all',
+    client: {
+      overlay: {
+        errors: true,
+        warnings: false,
+      },
+    },
   },
 };
