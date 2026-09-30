@@ -29,6 +29,7 @@ import {
   STATIC_DISTRICTS,
   STATIC_MANDIS,
   StaticCrop,
+  getCropHistory,
 } from '../../lib/staticMarketData';
 import { CommoditySelector } from '../../components/farmer/CommoditySelector';
 import { FarmerVoiceCard } from '../../components/farmer/FarmerVoiceCard';
@@ -159,13 +160,15 @@ export default function S04_Home({ navigation }: Props) {
 
   const fmtNum = (n: number) => (isEn ? n.toLocaleString() : devNum(n));
 
+  const crop = selectedCrop || STATIC_CROPS[0];
+
   // Language titles
-  const cropTitle = isMr ? selectedCrop.name_mr : isHi ? selectedCrop.name_hi : selectedCrop.name;
+  const cropTitle = isMr ? crop.name_mr : isHi ? crop.name_hi : crop.name;
   const farmerName = isEn ? 'Namaste, Rambhau' : isHi ? 'नमस्ते, रामभाऊ' : 'रामराम, रामभाऊ';
   const verifiedText = isEn ? 'Verified Farmer' : isHi ? 'सत्यापित किसान' : 'प्रमाणित शेतकरी';
 
-  // Get historical dataset for the selected timeframe
-  const historyData = selectedCrop.history(timeframe);
+  // Get historical dataset for the selected timeframe safely
+  const historyData = getCropHistory(crop, timeframe);
 
   // Advisory titles & text
   const advisoryTitle = selectedCrop.isHold
@@ -469,7 +472,12 @@ export default function S04_Home({ navigation }: Props) {
 
                 {/* ForecastFan SVG */}
                 <View style={styles.forecastFanWrap}>
-                  <ForecastFan series={selectedCrop.forecastFan} locale={locale} />
+                  <ForecastFan
+                    p10={crop.forecastP10}
+                    p50={crop.forecastP50}
+                    p90={crop.forecastP90}
+                    locale={locale}
+                  />
                 </View>
 
                 {/* Milestone Indicators: Today vs Day 7 vs Day 14 */}

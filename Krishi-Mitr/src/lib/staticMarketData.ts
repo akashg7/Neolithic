@@ -40,6 +40,10 @@ export interface StaticCrop {
   forecastP10: number[];
   forecastP50: number[];
   forecastP90: number[];
+  variety?: string;
+  grade?: string;
+  forecastFan?: { p10: number[]; p50: number[]; p90: number[] };
+  history?: (timeframe?: 7 | 14 | 30) => Array<{ label: string; price: number; min: number; max: number; arrivals: number; obs_date: string }>;
   nearbyMandis: Array<{
     id: string;
     name: string;
@@ -50,6 +54,23 @@ export interface StaticCrop {
     transport_paise_per_qtl: number;
     net_paise_per_qtl: number;
   }>;
+}
+
+export function getCropHistory(
+  crop?: StaticCrop | null,
+  timeframe: 7 | 14 | 30 = 14
+): Array<{ label: string; price: number; min: number; max: number; arrivals: number; obs_date: string }> {
+  if (!crop) return [];
+  if (typeof crop.history === 'function') {
+    try {
+      return crop.history(timeframe);
+    } catch (e) {
+      // fallback
+    }
+  }
+  if (timeframe === 7) return crop.history7D || [];
+  if (timeframe === 30) return crop.history30D || [];
+  return crop.history14D || crop.history7D || [];
 }
 
 /**
@@ -206,6 +227,14 @@ function createCrop(
     forecastP10: fan.p10,
     forecastP50: fan.p50,
     forecastP90: fan.p90,
+    forecastFan: fan,
+    variety: 'Modal Grade A',
+    grade: 'FAQ',
+    history(tf: 7 | 14 | 30 = 14) {
+      if (tf === 7) return this.history7D;
+      if (tf === 30) return this.history30D;
+      return this.history14D;
+    },
     nearbyMandis,
   };
 }
