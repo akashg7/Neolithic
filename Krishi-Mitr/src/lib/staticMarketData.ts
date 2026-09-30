@@ -53,6 +53,10 @@ export interface StaticCrop {
     gross_paise_per_qtl: number;
     transport_paise_per_qtl: number;
     net_paise_per_qtl: number;
+    modal_price_per_qtl?: number;
+    net_price_per_qtl?: number;
+    transport_paise?: number;
+    isBest?: boolean;
   }>;
 }
 
@@ -170,11 +174,13 @@ function createCrop(
   const projectedDay14 = Math.round(fan.p50[13] / 100);
   const projectedShift = projectedDay14 - heroPrice;
 
-  const nearbyMandis = nearby.map(m => {
+  const mappedMandis = nearby.map(m => {
     const grossPaise = (basePrice + m.bonus) * 100;
     const transportPaise = m.dist * 350;
     const cess = Math.round(grossPaise * 0.0105);
     const netPaise = grossPaise - transportPaise - cess;
+    const grossPrice = Math.round(grossPaise / 100);
+    const netPrice = Math.round(netPaise / 100);
     return {
       id: m.id,
       name: m.name,
@@ -184,8 +190,26 @@ function createCrop(
       gross_paise_per_qtl: grossPaise,
       transport_paise_per_qtl: transportPaise,
       net_paise_per_qtl: netPaise,
+      modal_price_per_qtl: grossPrice,
+      net_price_per_qtl: netPrice,
+      transport_paise: transportPaise,
+      isBest: false,
     };
   });
+
+  // Mark the highest net as best
+  let bestIdx = 0;
+  let maxNet = -Infinity;
+  mappedMandis.forEach((item, idx) => {
+    if (item.net_paise_per_qtl > maxNet) {
+      maxNet = item.net_paise_per_qtl;
+      bestIdx = idx;
+    }
+  });
+  if (mappedMandis[bestIdx]) {
+    mappedMandis[bestIdx].isBest = true;
+  }
+  const nearbyMandis = mappedMandis;
 
   return {
     id,

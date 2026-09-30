@@ -158,7 +158,10 @@ export default function S04_Home({ navigation }: Props) {
   const isHi = locale === 'hi';
   const isEn = locale === 'en';
 
-  const fmtNum = (n: number) => (isEn ? n.toLocaleString() : devNum(n));
+  const fmtNum = (n: number | null | undefined) => {
+    if (n === null || n === undefined || isNaN(n as number)) return '0';
+    return isEn ? n.toLocaleString() : devNum(n);
+  };
 
   const crop = selectedCrop || STATIC_CROPS[0];
 
@@ -607,18 +610,20 @@ export default function S04_Home({ navigation }: Props) {
             </View>
 
             <View style={styles.mandisTable}>
-              {selectedCrop.nearbyMandis.map(mandi => {
-                const isBest = mandi.isBest;
-                const gross = mandi.modal_price_per_qtl;
-                const net = mandi.net_price_per_qtl;
+              {(crop.nearbyMandis || []).map((mandi, idx) => {
+                const isBest = mandi.isBest ?? (idx === 0);
+                const gross = mandi.modal_price_per_qtl ?? (mandi.gross_paise_per_qtl ? Math.round(mandi.gross_paise_per_qtl / 100) : 0);
+                const net = mandi.net_price_per_qtl ?? (mandi.net_paise_per_qtl ? Math.round(mandi.net_paise_per_qtl / 100) : 0);
+                const transportRs = mandi.transport_paise ? Math.round(mandi.transport_paise / 100) : (mandi.transport_paise_per_qtl ? Math.round(mandi.transport_paise_per_qtl / 100) : Math.round(mandi.distance_km * 3.5));
+                const mandiTitle = isMr ? (mandi.name_mr || mandi.name) : isHi ? (mandi.name_hi || mandi.name) : mandi.name;
 
                 return (
                   <View
-                    key={mandi.name}
+                    key={mandi.id || mandi.name}
                     style={[styles.mandiRow, isBest && styles.mandiRowBest]}>
                     <View style={styles.mandiInfo}>
                       <View style={styles.mandiNameRow}>
-                        <Text style={styles.mandiName}>{mandi.name}</Text>
+                        <Text style={styles.mandiName}>{mandiTitle}</Text>
                         {isBest && (
                           <View style={styles.bestBadge}>
                             <Text style={styles.bestBadgeText}>
@@ -628,7 +633,7 @@ export default function S04_Home({ navigation }: Props) {
                         )}
                       </View>
                       <Text style={styles.mandiDistance}>
-                        {mandi.distance_km} km {isEn ? 'away' : 'अंतरावर'} · 🚛 ₹{Math.round(mandi.transport_paise / 100)} {isEn ? 'freight/qtl' : 'वाहतूक/क्विंटल'}
+                        {mandi.distance_km} km {isEn ? 'away' : 'अंतरावर'} · 🚛 ₹{transportRs} {isEn ? 'freight/qtl' : 'वाहतूक/क्विंटल'}
                       </Text>
                     </View>
 

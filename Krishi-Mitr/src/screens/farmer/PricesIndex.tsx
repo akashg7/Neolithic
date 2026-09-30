@@ -26,6 +26,7 @@ import { useT } from '../../lib/i18n';
 import { STATIC_CROPS, StaticCrop } from '../../lib/staticMarketData';
 import { CommoditySelector } from '../../components/farmer/CommoditySelector';
 import { WebFooter } from '../../components/web/WebFooter';
+import { useStaticMarket } from '../../lib/staticMarketStore';
 import type { PricesStackParamList } from '../../navigation/FarmerTabs';
 
 type Props = NativeStackScreenProps<PricesStackParamList, 'PricesIndex'>;
@@ -33,19 +34,26 @@ type Props = NativeStackScreenProps<PricesStackParamList, 'PricesIndex'>;
 export default function PricesIndex({ navigation }: Props) {
   const { t, locale, setLocale } = useT();
 
-  const [selectedCrop, setSelectedCrop] = useState<StaticCrop>(STATIC_CROPS[0]);
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('Nashik');
-  const [selectedMandi, setSelectedMandi] = useState<string>('Lasalgaon APMC');
+  const {
+    selectedCrop,
+    selectedDistrict,
+    selectedMandi,
+    setSelectedCrop,
+    setSelectedDistrict,
+    setSelectedMandi,
+  } = useStaticMarket();
+
   const [activeFilter, setActiveFilter] = useState<'all' | 'nearby' | 'highest'>('all');
 
   const isMr = locale === 'mr';
   const isHi = locale === 'hi';
   const isEn = locale === 'en';
 
-  const cropTitle = isMr ? selectedCrop.name_mr : isHi ? selectedCrop.name_hi : selectedCrop.name;
+  const crop = selectedCrop || STATIC_CROPS[0];
+  const cropTitle = isMr ? crop.name_mr : isHi ? crop.name_hi : crop.name;
 
   // Filter mandis based on active filter
-  let displayRows = [...selectedCrop.nearbyMandis];
+  let displayRows = [...(crop.nearbyMandis || [])];
   if (activeFilter === 'nearby') {
     displayRows = displayRows.filter(r => r.distance_km <= 50);
   } else if (activeFilter === 'highest') {
@@ -148,8 +156,8 @@ export default function PricesIndex({ navigation }: Props) {
                   </Text>
                   <Text style={styles.mandiBannerDesc}>
                     {isEn
-                      ? `Today's Arrivals: ${selectedCrop.arrivalsTonnes.toLocaleString()} Tonnes • Modal Rate: ₹${selectedCrop.heroPrice.toLocaleString()}/qtl`
-                      : `आजची आवक: ${selectedCrop.arrivalsTonnes.toLocaleString()} टन • सरासरी दर: ₹${selectedCrop.heroPrice.toLocaleString()}/क्विंटल`}
+                      ? `Today's Arrivals: ${(crop.arrivalsTonnes || 0).toLocaleString()} Tonnes • Modal Rate: ₹${(crop.heroPrice || 0).toLocaleString()}/qtl`
+                      : `आजची आवक: ${(crop.arrivalsTonnes || 0).toLocaleString()} टन • सरासरी दर: ₹${(crop.heroPrice || 0).toLocaleString()}/क्विंटल`}
                   </Text>
                 </View>
               </View>
@@ -159,7 +167,7 @@ export default function PricesIndex({ navigation }: Props) {
                 <View style={styles.comparisonHeader}>
                   <Text style={styles.cardTitle}>
                     {isEn
-                      ? `${selectedCrop.name}: APMC Mandis Rate Comparison`
+                      ? `${crop.name}: APMC Mandis Rate Comparison`
                       : `${cropTitle}: प्रमुख बाजार समित्या दर तुलना`}
                   </Text>
                   <Text style={styles.comparisonSub}>
@@ -268,7 +276,7 @@ export default function PricesIndex({ navigation }: Props) {
                     <Icon name="truck" size={20} color={colors.primary} />
                     <Text style={styles.pulseBoxLabel}>{isEn ? 'Arrivals' : 'एकूण आवक'}</Text>
                     <Text style={styles.pulseBoxVal}>
-                      {selectedCrop.arrivalsTonnes.toLocaleString()} {isEn ? 'T' : 'टन'}
+                      {(crop.arrivalsTonnes || 0).toLocaleString()} {isEn ? 'T' : 'टन'}
                     </Text>
                   </View>
 
@@ -288,7 +296,7 @@ export default function PricesIndex({ navigation }: Props) {
                     <Icon name="trending-up" size={20} color={colors.primary} />
                     <Text style={styles.pulseBoxLabel}>{isEn ? 'Trend' : 'बदल'}</Text>
                     <Text style={[styles.pulseBoxVal, { color: colors.primary }]}>
-                      +{selectedCrop.trendPct}%
+                      +{crop.trendPct || 0}%
                     </Text>
                   </View>
                 </View>
