@@ -28,31 +28,36 @@ style.appendChild(
     flex-direction: column;
     flex: 1;
   }
-  /* Clean, responsive web layout.
-     On mobile: full-bleed native feel.
-     On tablet / desktop: polished responsive framing with rich tactile parchment ground,
-     subtle borders, refined elevation, and smooth scrolling without disruptive CSS zoom hacks. */
-  @media (min-width: 900px) {
-    body {
-      background: radial-gradient(1400px 800px at 50% 0%, #FFFDF7 0%, #FAF6EE 55%, #EFE8DC 100%);
-    }
-    #root {
-      align-items: center;
-      padding: 16px 20px;
-    }
-    #root > div {
-      max-width: 1180px;
-      border-radius: 24px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(28, 28, 23, 0.05), 0 20px 50px -20px rgba(28, 28, 23, 0.18), 0 0 0 1px #DCC9A8;
-      background-color: #FAF6EE;
-    }
+
+  /* ★ Full-bleed web layout — no more phone container.
+     The app fills the viewport. The navbar and footer provide framing. */
+
+  /* Smooth scrolling for the whole page */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
   }
 
-  @media (min-width: 1400px) {
-    #root > div {
-      max-width: 1260px;
-    }
+  /* Interactive element enhancements for web */
+  [role="button"], [data-focusable="true"], button, a {
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+  }
+  [role="button"]:hover, [data-focusable="true"]:hover {
+    opacity: 0.92;
+  }
+  [role="button"]:active {
+    transform: scale(0.985);
+  }
+
+  /* Focus outlines for keyboard navigation (accessibility) */
+  :focus-visible {
+    outline: 2px solid #C2410C;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   /* Custom tactile scrollbar */
@@ -69,6 +74,12 @@ style.appendChild(
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #C2410C;
+  }
+
+  /* Selection color matching the brand */
+  ::selection {
+    background: rgba(194, 65, 12, 0.15);
+    color: #1C1C17;
   }
 `),
 );

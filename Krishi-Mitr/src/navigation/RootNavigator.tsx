@@ -22,7 +22,7 @@
  */
 
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../lib/auth';
@@ -33,6 +33,7 @@ import { FarmerTabs } from './FarmerTabs';
 import S34_MenuDrawer from '../screens/farmer/S34_MenuDrawer';
 import S28_Assistant from '../screens/farmer/S28_Assistant';
 import S36_LanguageSwitcher from '../screens/farmer/S36_LanguageSwitcher';
+import { WebNavbar } from '../components/web/WebNavbar';
 
 function Splash() {
   return (
@@ -103,10 +104,17 @@ export function RootNavigator() {
   //   of the hamburger menu (`S34_MenuDrawer`), one deliberate tap away
   //   instead of one careless one. The buyer console keeps this bar for now
   //   — its screens have not been through the same menu redesign yet.
+  //
+  // ★ On web, the layout is: WebNavbar (sticky top) → content → WebFooter.
+  //   The navbar replaces the mobile bottom tab bar for tab navigation.
+  //   On mobile, nothing changes.
   if (isFarmer) {
     return (
       <View style={styles.container}>
-        <FarmerRoot />
+        {Platform.OS === 'web' && <WebNavbar />}
+        <View style={styles.contentArea}>
+          <FarmerRoot />
+        </View>
       </View>
     );
   }
@@ -151,7 +159,17 @@ export function RootNavigator() {
 
 const styles = StyleSheet.create({
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  container: { flex: 1, width: '100%', height: '100%', backgroundColor: '#FFFFFF' },
+  container: { flex: 1, width: '100%', height: '100%', backgroundColor: '#FAF6EE' },
+  contentArea: Platform.select({
+    web: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 1440,
+      // @ts-ignore
+      marginHorizontal: 'auto',
+    },
+    default: { flex: 1 },
+  }),
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',

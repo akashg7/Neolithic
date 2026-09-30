@@ -31,6 +31,7 @@
  */
 
 import React from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -391,14 +392,20 @@ export function FarmerTabs() {
         // Without this, Android draws a borderless ripple that paints outside
         // the 64px bar. See `TabBarButton`.
         tabBarButton: props => <TabBarButton {...props} />,
-        tabBarStyle: {
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#EADEC7',
-        },
+        // ★ On web, the bottom tab bar is hidden — the WebNavbar (rendered in
+        //   RootNavigator) handles tab navigation instead. The tab navigator
+        //   still manages routing; only the visual bar is removed.
+        tabBarStyle: Platform.select({
+          web: { display: 'none' as const, height: 0 },
+          default: {
+            height: 64,
+            paddingBottom: 8,
+            paddingTop: 8,
+            backgroundColor: '#FFFFFF',
+            borderTopWidth: 1,
+            borderTopColor: '#EADEC7',
+          },
+        }),
       }}>
       <Tab.Screen
         name="Home"

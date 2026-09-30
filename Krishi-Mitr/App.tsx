@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { StatusBar } from 'react-native';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Sound from 'react-native-sound';
@@ -23,6 +23,7 @@ import { SelectionProvider } from './src/lib/selection';
 import { hydrateQueryClient, persistQueryClient } from './src/lib/offline';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { webLinking } from './src/navigation/webLinking';
+import { navigationRef } from './src/navigation/navigationRef';
 import { CACHE_STALE_MS } from './src/config';
 
 const queryClient = new QueryClient({
@@ -84,7 +85,9 @@ hydrateQueryClient(queryClient).then(() => persistQueryClient(queryClient));
 Sound.setCategory('Playback');
 
 export default function App() {
-  const navigationRef = useNavigationContainerRef();
+  // ★ Uses the module-level `navigationRef` from `./src/navigation/navigationRef`
+  //   so that web-only components (WebNavbar, WebFooter) can navigate and read
+  //   state from outside the navigator tree.
 
   return (
     <SafeAreaProvider>

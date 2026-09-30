@@ -19,12 +19,13 @@
  */
 
 import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, fontFamily, radius, space, touch, type as typography } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
+import { WebFooter } from '../../components/web/WebFooter';
 import { useT } from '../../lib/i18n';
 import { getLots } from '../../lib/api';
 import { translate } from '../../lib/i18n';
@@ -388,7 +389,8 @@ export default function S15_MyLots({ navigation }: Props) {
             ))}
           </>
         ) : null}
-
+        
+        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
   );

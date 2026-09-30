@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import {
   Image,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -26,6 +27,7 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { colors, fontFamily, space, radius, cardShadow } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
+import { WebFooter } from '../../components/web/WebFooter';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { useSelection } from '../../lib/selection';
@@ -348,7 +350,8 @@ export default function S04_Home({ navigation }: Props) {
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ── 1. Top Navbar ── */}
+        {/* ── 1. Top Navbar (mobile only — WebNavbar handles this on web) ── */}
+        {Platform.OS !== 'web' && (
         <View style={[styles.topBar, { paddingTop: insets.top + space.xs }]}>
           <TouchableOpacity
             style={styles.menuBtn}
@@ -394,6 +397,7 @@ export default function S04_Home({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         </View>
+        )}
 
         {/* ── 2. Farmer Welcome & Location Ribbon ── */}
         <View style={styles.welcomeRibbon}>
@@ -819,6 +823,8 @@ export default function S04_Home({ navigation }: Props) {
             </View>
           </View>
         )}
+        
+        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
   );
