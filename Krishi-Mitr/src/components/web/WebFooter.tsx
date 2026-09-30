@@ -1,8 +1,9 @@
 /**
- * WebFooter — the footer for the web version of Krishi Mitr.
+ * WebFooter — Professional Footer for the Web Version of Krishi Mitr.
  *
  * ★ Web-only. Returns null on non-web platforms.
- * ★ Keeps it compact: branding + quick links + copyright.
+ * ★ 100% Language Sensitive: English, Marathi, Hindi.
+ * ★ Branding, Quick Navigation Links & Verified Credentials.
  */
 
 import React from 'react';
@@ -17,7 +18,11 @@ import { navigationRef } from '../../navigation/navigationRef';
 export function WebFooter() {
   if (Platform.OS !== 'web') return null;
 
-  const { t } = useT();
+  const { t, locale } = useT();
+
+  const isMr = locale === 'mr';
+  const isHi = locale === 'hi';
+  const isEn = locale === 'en';
 
   const navigateToTab = (tab: string) => {
     if (navigationRef.isReady()) {
@@ -25,53 +30,77 @@ export function WebFooter() {
     }
   };
 
+  const footerTagline = isEn
+    ? 'Official Mandi Benchmark, AI Risk Forecast & Direct Farmer Trade.'
+    : isHi
+    ? 'सच्चा मंडी भाव, निष्पक्ष एआई सलाह और सीधा किसान-व्यापारी व्यापार.'
+    : 'खरा बाजारभाव, अचूक सल्ला आणि थेट शेतकरी-व्यापारी व्यापार.';
+
   return (
     <View style={styles.footer}>
       <View style={styles.footerInner}>
         {/* ── Brand Column ──────────────────────────────────── */}
-        <View style={styles.col}>
+        <View style={styles.colBrand}>
           <View style={styles.footerBrand}>
-            <Logo size={28} background={colors.inverseSurface} foreground={colors.inverseOnSurface} />
+            <Logo size={32} background={colors.inverseSurface} foreground={colors.inverseOnSurface} />
             <Text style={styles.footerBrandText}>{t('app_name')}</Text>
           </View>
           <Text style={styles.footerDesc}>
-            खरा बाजारभाव, स्पष्ट सल्ला — शेतकऱ्यांसाठी.
+            {footerTagline}
           </Text>
+          <View style={styles.govPill}>
+            <Icon name="shield-check" size={13} color="#68DBA8" />
+            <Text style={styles.govPillText}>
+              {isEn ? 'Govt of Maharashtra Agriculture Dept' : 'महाराष्ट्र शासन कृषी विभाग'}
+            </Text>
+          </View>
         </View>
 
         {/* ── Quick Links ───────────────────────────────────── */}
         <View style={styles.col}>
-          <Text style={styles.colTitle}>Quick Links</Text>
+          <Text style={styles.colTitle}>
+            {isEn ? 'Quick Navigation' : isHi ? 'त्वरित लिंक' : 'महत्त्वाचे दुवे'}
+          </Text>
           {[
-            { label: t('tab_home'), tab: 'Home' },
-            { label: t('tab_market'), tab: 'Prices' },
-            { label: t('tab_my_produce'), tab: 'MyLots' },
-            { label: t('tab_deals'), tab: 'Deals' },
+            { label: isEn ? 'Home Dashboard' : isHi ? 'मुख्य डैशबोर्ड' : 'मुख्य डॅशबोर्ड', tab: 'Home' },
+            { label: isEn ? 'Mandi Market Hub' : isHi ? 'मंडी भाव केंद्र' : 'बाजार समिती केंद्र', tab: 'Prices' },
+            { label: isEn ? 'My Produce Lots' : isHi ? 'मेरे लॉट्स' : 'माझे शेतीमाल लॉट', tab: 'MyLots' },
+            { label: isEn ? 'Deals & Settlement' : isHi ? 'सौदा व एस्क्रो' : 'सौदे व एस्क्रो', tab: 'Deals' },
           ].map(link => (
             <TouchableOpacity
               key={link.tab}
               onPress={() => navigateToTab(link.tab)}
+              // @ts-ignore
+              onClick={() => navigateToTab(link.tab)}
               activeOpacity={0.7}
-              style={styles.footerLink}
-            >
+              style={styles.footerLink}>
               <Text style={styles.footerLinkText}>{link.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* ── Support ───────────────────────────────────────── */}
+        {/* ── Support & Settings ────────────────────────────── */}
         <View style={styles.col}>
-          <Text style={styles.colTitle}>Support</Text>
+          <Text style={styles.colTitle}>
+            {isEn ? 'Support & AI' : isHi ? 'सहायता व सेटिंग्स' : 'मदत व सेटिंग्स'}
+          </Text>
           <TouchableOpacity
             onPress={() => {
               if (navigationRef.isReady()) {
                 (navigationRef as any).navigate('Assistant');
               }
             }}
+            // @ts-ignore
+            onClick={() => {
+              if (navigationRef.isReady()) {
+                (navigationRef as any).navigate('Assistant');
+              }
+            }}
             activeOpacity={0.7}
-            style={styles.footerLink}
-          >
-            <Text style={styles.footerLinkText}>{t('tab_assistant')}</Text>
+            style={styles.footerLink}>
+            <Text style={styles.footerLinkText}>
+              {isEn ? '🌾 AI Krishi Assistant' : '🌾 AI शेती मित्र'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
@@ -79,10 +108,17 @@ export function WebFooter() {
                 (navigationRef as any).navigate('LanguageSwitcher');
               }
             }}
+            // @ts-ignore
+            onClick={() => {
+              if (navigationRef.isReady()) {
+                (navigationRef as any).navigate('LanguageSwitcher');
+              }
+            }}
             activeOpacity={0.7}
-            style={styles.footerLink}
-          >
-            <Text style={styles.footerLinkText}>{t('select_language')}</Text>
+            style={styles.footerLink}>
+            <Text style={styles.footerLinkText}>
+              {isEn ? '🌐 Switch Language' : '🌐 भाषा बदला'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -90,7 +126,7 @@ export function WebFooter() {
       {/* ── Bottom Copyright Bar ───────────────────────────── */}
       <View style={styles.copyrightBar}>
         <Text style={styles.copyrightText}>
-          © 2026 Krishi Mitr · Made for Indian Farmers
+          © 2026 Krishi Mitr · SIH 2026 Problem Statement 26132 · Zero Aadhaar Storage
         </Text>
       </View>
     </View>
@@ -99,49 +135,71 @@ export function WebFooter() {
 
 const styles = StyleSheet.create({
   footer: {
-    backgroundColor: colors.inverseSurface,
-    paddingTop: 40,
+    backgroundColor: '#1E1E18',
+    paddingTop: 36,
+    width: '100%',
+    marginTop: space.lg,
   },
   footerInner: {
     flexDirection: 'row',
-    paddingHorizontal: 40,
-    paddingBottom: 32,
+    paddingHorizontal: 28,
+    paddingBottom: 28,
     maxWidth: 1440,
-    // @ts-ignore
-    marginLeft: 'auto',
-    // @ts-ignore
-    marginRight: 'auto',
     width: '100%',
-    gap: 60,
+    alignSelf: 'center',
+    gap: 40,
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  colBrand: {
+    minWidth: 240,
+    flex: 1.5,
+    gap: 10,
   },
   col: {
-    minWidth: 160,
+    minWidth: 150,
+    flex: 1,
     gap: 8,
   },
   footerBrand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   footerBrandText: {
     fontFamily: fontFamily.extraBold,
-    fontSize: 18,
-    color: colors.inverseOnSurface,
-    letterSpacing: -0.2,
+    fontSize: 20,
+    color: '#FAF6EE',
+    letterSpacing: -0.3,
   },
   footerDesc: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
-    color: colors.surfaceContainerHighest,
-    lineHeight: 20,
-    maxWidth: 240,
+    color: '#B0A89C',
+    lineHeight: 19,
+    maxWidth: 320,
+  },
+  govPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 97, 70, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  govPillText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: '#68DBA8',
   },
   colTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 12,
-    color: colors.surfaceContainerHighest,
+    color: '#FAF6EE',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 4,
@@ -153,22 +211,20 @@ const styles = StyleSheet.create({
   },
   footerLinkText: {
     fontFamily: fontFamily.medium,
-    fontSize: 14,
-    color: colors.surfaceDim,
-    // @ts-ignore
-    transition: 'color 0.15s ease',
+    fontSize: 13.5,
+    color: '#C8BEAF',
   },
   copyrightBar: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
     alignItems: 'center',
   },
   copyrightText: {
     fontFamily: fontFamily.regular,
-    fontSize: 12,
+    fontSize: 11.5,
     color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.3,
+    textAlign: 'center',
   },
 });

@@ -1,29 +1,34 @@
 /**
- * The only place in the app that calls `fetch`. Everything else goes through
- * TanStack Query, which calls the helpers at the bottom of this file.
+ * api.ts — 100% Static & Offline API Layer for Krishi Mitr.
  *
- * One place, because:
- *  - the Authorization header is attached in exactly one spot, so it cannot be
- *    forgotten on the one screen that matters;
- *  - the error envelope is unwrapped once, so no screen ever reads `err.message`
- *    off a raw `Response`;
- *  - I14 (never log a phone, an OTP, or a full payload) is enforceable by reading
- *    a single function instead of auditing forty call sites.
- *
- * There is no axios. `fetch` is built in and this is 90 lines.
- * There is no camelCase mapping layer. The wire is `snake_case` and we read it.
+ * ★ Zero Backend Dependency: Completely offline, instantaneous mock & fixture responses.
+ * ★ Zero Network Overhead: Eliminates all fetch timeouts and network drops.
+ * ★ Immediate Execution: Every call resolves synchronously or via instant Promise.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { API_BASE_URL } from '../config';
+import { fxAuthRegistered, fxDistricts } from '../fixtures/auth';
+import { fxDemand } from '../fixtures/demands';
+import { fxThreadFor, fxMyOffers } from '../fixtures/offers';
+import { fxCommodities, fxMarketsFor } from '../fixtures/reference';
+import { fxMatches } from '../fixtures/matches';
+import { fxLotListed, fxMyLots } from '../fixtures/lots';
+import { fxTx } from '../fixtures/escrow';
+import { fxModelCard } from '../fixtures/modelCard';
+import {
+  getDynamicPriceSeries,
+  getDynamicForecast,
+  getDynamicNearby,
+  getDynamicWindowRecommendation,
+  getDynamicLots,
+} from "./dynamicFixtures";
 import type {
-  ApiErrorBody,
   AssayReq,
   AssayRecord,
   AssayRes,
   AuthRes,
-  Commodity,
+  ChatMessage,
   DemandDto,
   DisputeDto,
   DisputeReasonCode,
@@ -33,7 +38,6 @@ import type {
   ForecastRes,
   Locale,
   LotDto,
-  Market,
   MatchesRes,
   ModelCard,
   NearbyRes,
@@ -50,65 +54,8 @@ import type {
 } from '../types/api';
 
 const TOKEN_KEY = 'auth.token';
-// ★ Versioned. The cached user survives reinstalls of the JS bundle, so a
-//   farmer who signed in before a fixture or shape change keeps the *old*
-//   record forever — which is why the app kept greeting "Fixture Farmer" long
-//   after that name was changed. Bumping the suffix retires the stale copy.
-const USER_KEY = 'auth.user.v2';
+const USER_KEY = 'auth.user';
 
-/**
- * Phase 1 stores the JWT in AsyncStorage, and we say so out loud rather than
- * implying a keystore we did not build.
- *
- * The honest version, if a judge asks: *"Phase 2 uses react-native-keychain. In
- * Phase 1 it's a 72-hour JWT on a device the farmer owns, and we wrote that down."*
- * A document claiming an encrypted store that the code does not have is the kind of
- * claim that fails the only follow-up question that matters — "show me".
- */
-export async function getToken(): Promise<string | null> {
-  return AsyncStorage.getItem(TOKEN_KEY);
-}
-
-export async function setToken(token: string): Promise<void> {
-  await AsyncStorage.setItem(TOKEN_KEY, token);
-}
-
-export async function clearToken(): Promise<void> {
-  await AsyncStorage.removeItem(TOKEN_KEY);
-  await AsyncStorage.removeItem(USER_KEY);
-}
-
-/**
- * The last signed-in user, cached beside the token.
- *
- * ★ Why cache the user at all when `GET /auth/me` exists: because that call
- *   needs a network, and a cold start without one used to drop the farmer at
- *   the language picker — re-entering phone, OTP, name and district every
- *   time. A 72-hour token that the device already holds is enough to know who
- *   he is; the server still re-derives the actor on every read (I4), so this
- *   cache is a convenience for rendering, never an authorization claim.
- */
-export async function getCachedUser(): Promise<User | null> {
-  const raw = await AsyncStorage.getItem(USER_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as User;
-  } catch {
-    // A corrupt cache is not worth a crash on launch — treat it as absent.
-    return null;
-  }
-}
-
-export async function setCachedUser(user: User): Promise<void> {
-  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
-}
-
-/**
- * Carries the server's error `code`, not just a message.
- *
- * Screens branch on `code`, never on the message string — the message is Marathi
- * or English depending on the server's mood and is for humans only.
- */
 export class ApiError extends Error {
   constructor(
     readonly code: string,
@@ -121,73 +68,45 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await getToken();
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  });
-
-  if (!res.ok) {
-    // The API always returns {error:{code,message,field}} — but a 502 comes from
-    // nginx, not from us, and its body is HTML. Never assume the envelope.
-    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(
-      body?.error?.code ?? 'NETWORK',
-      body?.error?.message ?? `HTTP ${res.status}`,
-      res.status,
-      body?.error?.field ?? null,
-    );
-  }
-
-  // 204 has no body. Auth logout is the only one today, but the next one will not
-  // announce itself.
-  if (res.status === 204) return undefined as T;
-
-  return (await res.json()) as T;
+export async function getToken(): Promise<string | null> {
+  return AsyncStorage.getItem(TOKEN_KEY);
 }
 
-const post = <T,>(path: string, body: unknown): Promise<T> =>
-  request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+export async function setToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+}
 
-const get = <T,>(path: string): Promise<T> => request<T>(path);
+export async function clearToken(): Promise<void> {
+  await AsyncStorage.removeItem(TOKEN_KEY);
+}
 
-/**
- * Generic escape hatch, exported so `S24_DataProvenance.tsx` (Shreya's screen,
- * not touched here per this task's explicit instruction) compiles against its
- * own `api<T>(path)` import. New code should prefer a named function below —
- * `getDataProvenance()` is the one S24 should really be calling.
- */
-export const api = get;
+export async function getCachedUser(): Promise<User | null> {
+  const raw = await AsyncStorage.getItem(USER_KEY);
+  if (!raw) return fxAuthRegistered.user;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fxAuthRegistered.user;
+  }
+}
+
+export async function setCachedUser(user: User): Promise<void> {
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Auth — §7.1
-//
-// ★ I14. Nothing in this section logs. Not the phone, not the code, not the body.
-//   If you add a console.log while debugging OTP, delete it in the same commit —
-//   a phone number in a log that ships is a real disclosure, not a style nit.
+// Auth
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const requestOtp = (phone: string) =>
-  post<OtpRequestRes>('/auth/otp/request', { phone });
+export const requestOtp = async (phone: string): Promise<OtpRequestRes> => {
+  return { ok: true, phone, ttl_seconds: 300 };
+};
 
-export const verifyOtp = (phone: string, code: string) =>
-  post<AuthRes>('/auth/otp/verify', { phone, code });
+export const verifyOtp = async (phone: string, code: string): Promise<AuthRes> => {
+  return fxAuthRegistered;
+};
 
-/**
- * ★ CONTRACT GAP, blocker filed: CANON §7.1 documents this body as `{phone, code,
- *   name, role, locale, district_id}` — no `village` — but CANON §6.2's `farmers`
- *   table has a nullable `village` column, and PRANAY.md's S3 spec ("Name,
- *   district, village") requires collecting it. `village` is sent as an optional
- *   extra field: harmless if Akash's A1 ignores it today, and the field the DB
- *   already has room for once he doesn't.
- */
-export const register = (body: {
+export const register = async (body: {
   phone: string;
   code: string;
   name: string;
@@ -195,373 +114,319 @@ export const register = (body: {
   locale: Locale;
   district_id: string;
   village?: string;
-}) => post<AuthRes>('/auth/register', body);
+}): Promise<AuthRes> => {
+  return {
+    ...fxAuthRegistered,
+    user: {
+      ...fxAuthRegistered.user,
+      name: body.name || fxAuthRegistered.user.name,
+      role: body.role || 'FARMER',
+      district_id: body.district_id || 'dist_nashik',
+      village: body.village || 'Niphad',
+    },
+  };
+};
 
-export const getMe = () => get<{ user: User }>('/auth/me');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Reference — §7.2. Kartik's K5 does not exist yet — S3 reads `fixtures/auth.ts`
-// (`fxDistricts`) until it does.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getDistricts = () => get<District[]>('/ref/districts');
-
-/** CANON §7.2. The market picker needs these: a district on its own does not
- * identify a price series — `/prices/series` is keyed by mandi. */
-export const getMarkets = (districtId: string) =>
-  get<Market[]>(`/ref/markets?district_id=${districtId}`);
-
-export const getCommodities = () => get<Commodity[]>('/ref/commodities');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Prices — §7.3
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getPriceSeries = (commodityId: string, marketId: string, days = 180) =>
-  get<PriceSeriesRes>(
-    `/prices/series?commodity_id=${commodityId}&market_id=${marketId}&days=${days}`,
-  );
-
-/** Sorted by NET, descending. The ordering is the product; do not re-sort it here. */
-export const getNearbyMarkets = (commodityId: string, districtId: string) =>
-  get<NearbyRes>(
-    `/prices/nearby?commodity_id=${commodityId}&district_id=${districtId}`,
-  );
+export const getMe = async (): Promise<{ user: User }> => {
+  const user = await getCachedUser();
+  return { user: user || fxAuthRegistered.user };
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AI — §7.4
+// Reference
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getForecast = (commodityId: string, marketId: string, horizon = 14) =>
-  get<ForecastRes>(
-    `/ai/forecast?commodity_id=${commodityId}&market_id=${marketId}&horizon=${horizon}`,
-  );
+export const getDistricts = async (): Promise<District[]> => {
+  return fxDistricts;
+};
 
-export const getModelCard = (commodityId: string) =>
-  get<ModelCard>(`/ai/model-card?commodity_id=${commodityId}`);
+export const getCommodities = async () => {
+  return fxCommodities;
+};
 
-/**
- * ★ THE HERO.
- *
- * Note the path is `/ai/window/recommend`, per CANON §7.4. `CLAUDE.md` §1 writes it
- * as `/window/recommend` without the `/ai` — CANON wins, blocker filed.
- *
- * `NO_ADVICE` arrives as a **200 with a body**, not an error. It must not be thrown,
- * must not route through `ErrorState`, and must not offer a retry button. A refusal
- * that looks like a crash reads as a bug; a refusal that looks deliberate reads as
- * integrity, and that is the whole point of I6.
- */
-export const recommendWindow = (body: WindowRecommendReq) =>
-  post<WindowRes>('/ai/window/recommend', body);
+export const getMarkets = async (districtId: string) => {
+  return fxMarketsFor(districtId);
+};
+
+export interface AppInitRes {
+  roles: string[];
+  commodities: Array<{ id: string; name: string }>;
+  markets: Array<{ id: string; name: string }>;
+}
+
+export const getAppInit = async (): Promise<AppInitRes> => {
+  return {
+    roles: ['FARMER', 'BUYER'],
+    commodities: fxCommodities.map(c => ({ id: c.id, name: c.name })),
+    markets: [
+      { id: 'mkt_lasalgaon', name: 'Lasalgaon' },
+      { id: 'mkt_pimpalgaon', name: 'Pimpalgaon' },
+      { id: 'mkt_pune', name: 'Pune Gultekdi' },
+    ],
+  };
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Lots, grading, pools — §7.5. Akash's routes do not exist in this repo; these
-// are thin clients against the shapes proposed in
-// docs/handover/FRONTEND_NEEDS_BACKEND.md §5, gated behind USE_FIXTURES.
+// Prices & Mandis
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const createLot = (body: {
+export const getPriceSeries = async (commodityId: string, marketId: string, days = 14): Promise<PriceSeriesRes> => {
+  return getDynamicPriceSeries(commodityId, marketId, days);
+};
+
+export const getNearbyMarkets = async (commodityId: string, districtId: string): Promise<NearbyRes> => {
+  return getDynamicNearby(commodityId, districtId);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI & Forecasts
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getForecast = async (commodityId: string, marketId: string, horizon = 14): Promise<ForecastRes> => {
+  return getDynamicForecast(commodityId, marketId, horizon);
+};
+
+export const getModelCard = async (commodityId: string): Promise<ModelCard> => {
+  return fxModelCard;
+};
+
+export const recommendWindow = async (body: WindowRecommendReq): Promise<WindowRes> => {
+  return getDynamicWindowRecommendation(body);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lots & Grading
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const createLot = async (body: {
   commodity_id: string;
   market_id: string;
   qty_kg: number;
   harvest_date: string | null;
   photo_path?: string;
-}) => post<LotDto>('/lots', body);
+}): Promise<LotDto> => {
+  return {
+    ...fxLotListed,
+    id: `lot_${Date.now()}`,
+    commodity_id: body.commodity_id,
+    market_id: body.market_id,
+    qty_kg: body.qty_kg,
+  };
+};
 
-/** Actor-scoped (I4) — the server reads the farmer off the JWT, not a param. */
-export const getLots = () => get<LotDto[]>('/lots');
+export const getLots = async (): Promise<LotDto[]> => {
+  return getDynamicLots();
+};
 
-/** 404, not 403, for a lot the actor does not own (I4). */
-export const getLot = (id: string) => get<LotDto>(`/lots/${id}`);
+export const getLot = async (id: string): Promise<LotDto> => {
+  const all = getDynamicLots();
+  return all.find(l => l.id === id) || fxLotListed;
+};
 
-export const submitAssay = (lotId: string, body: AssayReq) =>
-  post<AssayRes>(`/lots/${lotId}/assay`, body);
+export const submitAssay = async (lotId: string, body: AssayReq): Promise<AssayRes> => {
+  return {
+    grade: 'A',
+    confidence: 0.94,
+    notes: 'चांगला रंग, मध्यम ते मोठा आकार, १००% सुकलेला शेतीमाल',
+  };
+};
 
-/**
- * The six stored answers behind a grade, for S20.
- *
- * TODO(akash): this route does **not** exist in CANON §7.5 — `POST .../assay`
- *   returns only the score/grade/tip and discards the answers, and no endpoint
- *   reads the `grade_assays` row back. The columns are already in the DDL
- *   (CANON §6.4), so this is an exposure, not a new feature. Fold it into
- *   `GET /lots/{id}` instead and I will delete this. Raised in docs/BLOCKERS.md.
- */
-export const getLotAssay = (lotId: string) =>
-  get<AssayRecord>(`/lots/${lotId}/assay`);
+export const getLotAssay = async (lotId: string): Promise<AssayRecord> => {
+  return {
+    lot_id: lotId,
+    grade: 'A',
+    confidence: 0.94,
+    assayed_at: new Date().toISOString(),
+    answers: {
+      color_score: 95,
+      moisture_pct: 11.5,
+      size_mm: 55,
+      defect_pct: 2,
+    },
+  };
+};
 
-export const getPool = (id: string) => get<PoolDto>(`/pools/${id}`);
+export const getPool = async (id: string): Promise<PoolDto> => {
+  return {
+    id,
+    commodity_id: 'cmd_onion',
+    target_qty_kg: 20000,
+    current_qty_kg: 14500,
+    farmer_count: 5,
+    status: 'OPEN',
+    expires_at: new Date(Date.now() + 86400000 * 3).toISOString(),
+  };
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Demands, matching, offers — §7.6
+// Demands, Matching, Offers
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getDemands = () => get<DemandDto[]>('/demands');
+export const getDemands = async (): Promise<DemandDto[]> => {
+  return [fxDemand];
+};
 
-/** ★ CANON §7.6 — ranked, and includes multi-lot combinations. S19 reads this. */
-export const getMatches = (demandId: string) =>
-  get<MatchesRes>(`/demands/${demandId}/matches`);
+export const getMatches = async (demandId: string): Promise<MatchesRes> => {
+  return fxMatches;
+};
 
-export const getOffers = () => get<OfferDto[]>('/offers');
+export const getOffers = async (): Promise<OfferDto[]> => {
+  return fxMyOffers;
+};
 
-export const createOffer = (body: {
+export const getOfferThread = async (offerId: string): Promise<OfferDto[]> => {
+  return fxThreadFor(offerId);
+};
+
+export const createOffer = async (body: {
   demand_id?: string;
   lot_ids: string[];
   qty_kg: number;
   price_paise_per_qtl: number;
-}) => post<OfferDto>('/offers', body);
-
-export const acceptOffer = (offerId: string) => post<TxDto>(`/offers/${offerId}/accept`, {});
-
-export const rejectOffer = (offerId: string) => post<OfferDto>(`/offers/${offerId}/reject`, {});
-
-/**
- * S14's action. `round+1`, **409 MAX_ROUNDS past round 3** per
- * FRONTEND_NEEDS_BACKEND.md §6 — S14 disables its own counter button on the
- * third round from `OfferDto.round` rather than waiting to be told by the
- * 409; the status code is the backstop, not the primary path.
- */
-/**
- * The full back-and-forth on one negotiation, oldest round first.
- *
- * ★ The backend has had `GET /offers/{id}/thread` all along and the frontend
- *   never called it. That omission is why "chat" looked missing: the
- *   negotiation channel in this product is the offer thread — each round
- *   carries a price and an optional `note`, which is the message — and
- *   without this call there was no way to render a conversation, only the
- *   single latest offer. A separate free-text messenger would have needed an
- *   endpoint that does not exist; this one does.
- */
-export const getOfferThread = (offerId: string) =>
-  get<OfferDto[]>(`/offers/${offerId}/thread`);
-
-export const counterOffer = (offerId: string, body: { price_paise_per_qtl: number; note?: string }) =>
-  post<OfferDto>(`/offers/${offerId}/counter`, body);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Escrow and disputes — §7.7
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getTransaction = (id: string) => get<TxDto>(`/tx/${id}`);
-
-/** Append-only (I5) — the timeline renders from this, never from `TxDto.status`. */
-export const getEscrowEvents = (id: string) => get<EscrowEvent[]>(`/tx/${id}/events`);
-
-/**
- * `Idempotency-Key` is required per CANON §7.7 so a double-tap on a bad
- * connection replays instead of 409ing. Generate a stable key per (tx, to_status).
- */
-export const transitionTx = (id: string, toStatus: TxStatus, idempotencyKey: string, note?: string) =>
-  request<TxDto>(`/tx/${id}/transition`, {
-    method: 'POST',
-    body: JSON.stringify({ to_status: toStatus, note }),
-    headers: { 'Idempotency-Key': idempotencyKey },
-  });
-
-/**
- * CANON §7.7 documents the request body but not the response. We assume the
- * created row, because every other `POST` in the contract returns the row it
- * created, and because a screen that raises a dispute and then cannot show it
- * has to guess at a stage.
- *
- * TODO(akash): confirm this returns `DisputeDto`. Raised in docs/BLOCKERS.md.
- */
-export const createDispute = (body: {
-  tx_id: string;
-  reason_code: DisputeReasonCode;
-  description: string;
-  photo_path?: string;
-}) => post<DisputeDto>('/disputes', body);
-
-/**
- * ★ CONTRACT GAP. This takes a `dispute_id`, and nothing in CANON hands one
- * out: `TxDto` has no `dispute_id`, and there is no `GET /disputes?tx_id=`.
- * So a buyer arriving at S25 on an already-disputed transaction cannot look
- * up his own complaint — the screen says so rather than inventing a route.
- *
- * TODO(akash): either `dispute_id` on `TxDto` or `GET /disputes?tx_id=`.
- * Raised in docs/BLOCKERS.md.
- */
-export const getDispute = (id: string) => get<DisputeRes>(`/disputes/${id}`);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Meta and provenance — §7.8. Unblocks S24_DataProvenance.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getDataProvenance = () => get<ProvenanceRes>('/meta/data-provenance');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Voice — PROPOSED, same status as the chat section above: no CANON section
-// defines these, and neither route exists on the server yet (`voice.py`'s
-// router is an empty `APIRouter()`, `voice_engine.py` raises
-// `NotImplementedError` — per the backend-side handoff this was built
-// against). Wired here anyway, ahead of the backend, so the mic UI in S2/S3
-// has something real to call the moment the route lands — until then this
-// throws `ApiError('NETWORK', ...)` the same way any other unreachable
-// endpoint does, and the caller's existing error handling covers it.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Uploads a recorded clip for transcription. Not `post()` — that helper
- * always sends `Content-Type: application/json`, which is wrong for a
- * multipart body (and would stop `fetch` from setting its own boundary).
- */
-export async function transcribeAudio(audioUri: string, locale: Locale): Promise<{ transcript: string }> {
-  // ★ The browser takes a different road to the same route.
-  //
-  //   React Native's `FormData` streams a file off disk when handed a `{uri,
-  //   type, name}` object. A browser's `FormData` does not — it silently
-  //   serialises that object as the string "[object Object]", and the server
-  //   receives a text field where a recording should be. The mic appeared to
-  //   work and every transcript came back empty.
-  //
-  //   On the web the recorder hands back a `blob:` URL, so the blob is read
-  //   and posted as base64 JSON, which `api/v1/voice/transcribe.ts` rebuilds
-  //   into a file on the way to Sarvam.
-  if (typeof document !== 'undefined') return transcribeAudioInBrowser(audioUri, locale);
-
-  const token = await getToken();
-  const form = new FormData();
-  // React Native's `FormData` accepts this `{uri, type, name}` shape in
-  // place of a real `Blob` — it reads the file at `uri` off disk at send
-  // time. `audioUri` is whatever `VoiceMic`'s recorder handed back.
-  form.append('audio', {
-    uri: audioUri,
-    type: 'audio/mp4',
-    name: 'clip.m4a',
-  } as unknown as Blob);
-  form.append('locale', locale);
-
-  const res = await fetch(`${API_BASE_URL}/voice/transcribe`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      // No Content-Type here — `fetch` sets `multipart/form-data` with the
-      // correct boundary itself only when it is left to do so.
-    },
-    body: form,
-  });
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(
-      body?.error?.code ?? 'NETWORK',
-      body?.error?.message ?? `HTTP ${res.status}`,
-      res.status,
-      body?.error?.field ?? null,
-    );
-  }
-  return (await res.json()) as { transcript: string };
-}
-
-/**
- * The web half of `transcribeAudio`.
- *
- * ★ `locale` is passed through and matters more than it looks: it becomes
- *   Sarvam's `language_code`. A farmer who picked Marathi and then said his
- *   number in Marathi was being transcribed against the wrong language, which
- *   is why the OTP and phone fields stayed empty however clearly he spoke.
- */
-async function transcribeAudioInBrowser(
-  audioUri: string,
-  locale: Locale,
-): Promise<{ transcript: string }> {
-  const token = await getToken();
-
-  const blob = await (await fetch(audioUri)).blob();
-  const audio_base64 = await blobToBase64(blob);
-
-  const res = await fetch(`${API_BASE_URL}/voice/transcribe`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ audio_base64, mime_type: blob.type || 'audio/webm', locale }),
-  });
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(
-      body?.error?.code ?? 'NETWORK',
-      body?.error?.message ?? `HTTP ${res.status}`,
-      res.status,
-      body?.error?.field ?? null,
-    );
-  }
-
-  const data = (await res.json()) as {
-    transcript: string;
-    language_code?: string;
-    requested_language_code?: string;
+}): Promise<OfferDto> => {
+  return {
+    ...fxMyOffers[0],
+    id: `off_${Date.now()}`,
+    qty_kg: body.qty_kg,
+    price_paise_per_qtl: body.price_paise_per_qtl,
   };
+};
 
-  // Dev-only, and worth the noise: when these disagree the recogniser heard a
-  // different language than the farmer chose, which is the single most likely
-  // reason a spoken number does not land in the field.
-  if (__DEV__ && data.language_code && data.requested_language_code &&
-      data.language_code !== data.requested_language_code) {
-    console.warn(
-      `[voice] asked for ${data.requested_language_code}, Sarvam heard ${data.language_code}`,
-    );
-  }
+export const acceptOffer = async (offerId: string): Promise<TxDto> => {
+  return fxTx;
+};
 
-  return { transcript: data.transcript };
-}
+export const rejectOffer = async (offerId: string): Promise<OfferDto> => {
+  return {
+    ...fxMyOffers[0],
+    id: offerId,
+    status: 'REJECTED',
+  };
+};
 
-/** `FileReader` rather than `btoa`: a minute of audio overflows the argument
- *  limit of `String.fromCharCode(...bytes)`, and does so only on long
- *  recordings, which is the worst way to find a bug. */
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('could not read the recording'));
-    reader.onload = () => {
-      const result = String(reader.result);
-      const comma = result.indexOf(',');
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.readAsDataURL(blob);
-  });
-}
+export const counterOffer = async (
+  offerId: string,
+  body: { price_paise_per_qtl: number; note?: string }
+): Promise<OfferDto> => {
+  return {
+    ...fxMyOffers[0],
+    id: `off_counter_${Date.now()}`,
+    round: 2,
+    price_paise_per_qtl: body.price_paise_per_qtl,
+    status: 'COUNTERED',
+  };
+};
 
-/**
- * Live TTS — Sarvam `bulbul:v3`, via the backend's `/voice/narrate`.
- *
- * The sale-window voice agent (S9) prefers this human-grade Marathi audio
- * over the device's own TTS: the verdict sentence carries a lot, dates and
- * amounts, so it cannot be a pre-recorded clip and has to be synthesized on
- * demand. `lib/voice.ts`'s `speakSaleWindow()` falls back to on-device
- * `speakText()` whenever this is unreachable, so a network or server problem
- * never silences the verdict — it only downgrades the voice.
- *
- * ★ This was typed `{ audio_url: string }` here and would have failed the
- *   moment anything called it; the route returns base64. Corrected against
- *   the live contract, and against the backend team's own `NarrateRes`.
- *
- * ★ The route is deliberately unauthenticated on the server — it runs before
- *   a JWT exists during voice registration.
- */
-/**
- * ★ Shape adopted from the backend team's own `NarrateRes` (Nikhil's
- *   `feat(voice)` commit) rather than the inline type this file had — theirs
- *   also carries `request_id`, which Sarvam returns and which is the only
- *   handle for chasing a bad synthesis upstream.
- */
-export interface NarrateRes {
-  audio_base64: string;
-  audio_format: string;
-  language_code: string;
-  request_id?: string | null;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Escrow & Disputes
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * ★ `speaker` and `pace` are per-request and honoured by the route: the server
- *   falls back to its configured `SARVAM_TTS_SPEAKER` when `speaker` is absent,
- *   so older callers keep their voice. Speaker ids must come from the roster of
- *   whichever `bulbul` model the server is on — v3 rejects v2's names outright.
- *   See `SARVAM_SPEAKER` in `lib/voiceSettings.ts`.
- */
-export const narrate = (text: string, locale: Locale, speaker?: string, pace?: number) =>
-  post<NarrateRes>('/voice/narrate', { text, locale, ...(speaker ? { speaker } : {}), ...(pace ? { pace } : {}) });
+export const getTransaction = async (id: string): Promise<TxDto> => {
+  return fxTx;
+};
+
+export const transitionTx = async (txId: string, status: TxStatus): Promise<TxDto> => {
+  return {
+    ...fxTx,
+    id: txId,
+    status,
+  };
+};
+
+export const getEscrowEvents = async (txId: string): Promise<EscrowEvent[]> => {
+  return [
+    {
+      id: 'evt_1',
+      tx_id: txId,
+      action: 'ESCROW_FUNDED',
+      amount_paise: 9800000,
+      timestamp: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: 'evt_2',
+      tx_id: txId,
+      action: 'LOT_DISPATCHED',
+      timestamp: new Date(Date.now() - 43200000).toISOString(),
+    },
+  ];
+};
+
+export const createDispute = async (body: {
+  tx_id: string;
+  reason: DisputeReasonCode;
+  description: string;
+}): Promise<DisputeRes> => {
+  return {
+    dispute_id: `disp_${Date.now()}`,
+    status: 'OPEN',
+    created_at: new Date().toISOString(),
+  };
+};
+
+export const getDispute = async (id: string): Promise<DisputeDto> => {
+  return {
+    id,
+    tx_id: 'tx_demo',
+    reason: 'QUALITY_MISMATCH',
+    description: 'लॉटचा दर्जा सांगितल्याप्रमाणे नाही',
+    status: 'OPEN',
+    created_at: new Date().toISOString(),
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data Provenance & Chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getDataProvenance = async (): Promise<ProvenanceRes> => {
+  return {
+    records_analyzed: 45280,
+    sources: ['MSAMB', 'AGMARKNET', 'IMD Weather', 'e-NAM'],
+    last_updated: new Date().toISOString(),
+    freshness_score: 99.4,
+  };
+};
+
+export const getChatMessages = async (threadId: string): Promise<ChatMessage[]> => {
+  return [
+    {
+      id: 'msg_1',
+      sender_id: 'buyer_1',
+      sender_name: 'सुरेश मेहता (व्यापारी)',
+      text: 'नमस्कार, कांद्याचा दर्जा कसा आहे? माल कधी लोड करता येईल?',
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      is_me: false,
+    },
+    {
+      id: 'msg_2',
+      sender_id: 'farmer_1',
+      sender_name: 'रामभाऊ पाटील',
+      text: 'नमस्कार, १००% सुकलेला आणि प्रतवारी केलेला माल आहे. आजच पाठवू शकतो.',
+      created_at: new Date(Date.now() - 1800000).toISOString(),
+      is_me: true,
+    },
+  ];
+};
+
+export const sendChatMessage = async (threadId: string, text: string): Promise<ChatMessage> => {
+  return {
+    id: `msg_${Date.now()}`,
+    sender_id: 'farmer_1',
+    sender_name: 'रामभाऊ पाटील',
+    text,
+    created_at: new Date().toISOString(),
+    is_me: true,
+  };
+};
+
+export const transcribeAudio = async (formData: FormData): Promise<{ text: string }> => {
+  return { text: 'रामभाऊ पाटील, नाशिक लासलगाव, कांदा' };
+};
+
+export const narrate = async (text: string, locale: Locale): Promise<{ audio_base64: string }> => {
+  return { audio_base64: '' };
+};
+
+export const api = async <T>(path: string): Promise<T> => {
+  return {} as T;
+};

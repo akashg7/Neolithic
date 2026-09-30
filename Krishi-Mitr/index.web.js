@@ -1,5 +1,5 @@
 /**
- * Web entry point. Mounts the same `App` the phone mounts.
+ * Web entry point for Krishi Mitr.
  */
 
 import { AppRegistry } from 'react-native';
@@ -12,42 +12,55 @@ const style = document.createElement('style');
 style.type = 'text/css';
 style.appendChild(
   document.createTextNode(`
-  html, body, #root {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
     height: 100%;
     width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    background-color: #FAF6EE;
+    font-family: "Plus Jakarta Sans", "Noto Sans Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    touch-action: pan-y pinch-zoom;
+    scroll-behavior: smooth;
+  }
+  #root {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden !important;
     background-color: #FAF6EE;
   }
   #root > div {
     height: 100%;
     width: 100%;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     flex: 1;
+    overflow-x: hidden !important;
   }
 
-  /* ★ Full-bleed web layout — no more phone container.
-     The app fills the viewport. The navbar and footer provide framing. */
+  /* ★ Full-bleed web layout — the app fills the viewport. The navbar and footer provide framing. */
 
-  /* Smooth scrolling for the whole page */
-  * {
-    -webkit-tap-highlight-color: transparent;
-    box-sizing: border-box;
-  }
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Interactive element enhancements for web */
+  /* Interactive web element enhancements */
   [role="button"], [data-focusable="true"], button, a {
     cursor: pointer;
-    transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+    transition: opacity 0.15s ease, transform 0.1s ease;
   }
   [role="button"]:hover, [data-focusable="true"]:hover {
-    opacity: 0.92;
+    opacity: 0.94;
   }
   [role="button"]:active {
     transform: scale(0.985);
@@ -65,24 +78,24 @@ style.appendChild(
     }
   }
 
-  /* Focus outlines for keyboard navigation (accessibility) */
+  /* Focus outlines for keyboard accessibility */
   :focus-visible {
     outline: 2px solid #C2410C;
     outline-offset: 2px;
     border-radius: 4px;
   }
 
-  /* Custom tactile scrollbar */
+  /* Modern clean scrollbar */
   ::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #DCC9A8;
-    border-radius: 6px;
+    background: rgba(155, 47, 0, 0.22);
+    border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #C2410C;
@@ -93,7 +106,7 @@ style.appendChild(
     background: rgba(194, 65, 12, 0.15);
     color: #1C1C17;
   }
-`),
+`)
 );
 document.head.appendChild(style);
 

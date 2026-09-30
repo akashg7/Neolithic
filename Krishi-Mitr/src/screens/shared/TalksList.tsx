@@ -41,7 +41,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import { colors, fontFamily, radius, space, type as typography } from '../../theme/tokens';
@@ -56,7 +56,6 @@ import { getOffers } from '../../lib/api';
 import { USE_FIXTURES } from '../../config';
 import { fxMyOffers } from '../../fixtures/offers';
 import { ErrorState, Skeleton } from '../../components/farmer/States';
-import { WebFooter } from '../../components/web/WebFooter';
 import type { OfferDto, OfferStatus, Role } from '../../types/api';
 
 const MAX_ROUND = 3;
@@ -225,7 +224,7 @@ export function TalksList({
         {offers.length > 0 ? (
           <>
             {/* ── What is on the table ────────────────────────────────── */}
-            <View style={styles.summaryCard} {...{ dataSet: { hover: 'lift' } } as any}>
+            <View style={styles.summaryCard}>
               <View style={styles.summaryTop}>
                 <View style={styles.summaryLeft}>
                   <Text style={styles.summaryLabel}>{t('chat_summary_label')}</Text>
@@ -271,7 +270,7 @@ export function TalksList({
         ) : null}
 
         {shown.length === 0 ? (
-          <View style={styles.emptyCard} {...{ dataSet: { hover: 'lift' } } as any}>
+          <View style={styles.emptyCard}>
             <View style={styles.emptyIcon}>
               <Icon name="message-circle" size={26} color={colors.outline} />
             </View>
@@ -282,7 +281,6 @@ export function TalksList({
           </View>
         ) : null}
 
-        <View style={styles.cardGrid}>
         {shown.map((offer, i) => {
           const waitingOnViewer = isWaitingOnViewer(offer);
           const live = offer.status === 'OPEN';
@@ -303,7 +301,7 @@ export function TalksList({
             : null;
 
           return (
-            <View key={offer.id} style={[styles.card, waitingOnViewer && styles.cardWaiting]} {...{ dataSet: { hover: 'lift' } } as any}>
+            <View key={offer.id} style={[styles.card, waitingOnViewer && styles.cardWaiting]}>
               {/* ── Round band ───────────────────────────────────────── */}
               <View style={[styles.band, waitingOnViewer && styles.bandWaiting]}>
                 <Icon
@@ -457,7 +455,6 @@ export function TalksList({
             </View>
           );
         })}
-        </View>
       </ScrollView>
     </View>
   );
@@ -574,17 +571,6 @@ const styles = StyleSheet.create({
   filterChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterText: { ...typography.labelMd, color: colors.onSurfaceVariant },
   filterTextOn: { color: colors.onPrimary, fontFamily: fontFamily.extraBold },
-
-  cardGrid: Platform.select({
-    web: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-      gap: 16,
-    },
-    default: {
-      gap: space.sm,
-    },
-  }) as any,
 
   card: {
     backgroundColor: colors.surface,

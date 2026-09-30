@@ -27,14 +27,13 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, fontFamily, radius, space, type as typography } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { ListenButton } from '../../components/ui/ListenButton';
-import { WebFooter } from '../../components/web/WebFooter';
 import { useT } from '../../lib/i18n';
 import { formatNumber, formatPaise, formatQuintal, quintalValuePaise } from '../../lib/money';
 import { formatDateShort } from '../../lib/dates';
@@ -164,7 +163,6 @@ export default function S31_DealsList({ navigation }: Props) {
           </View>
         ) : null}
 
-        <View style={styles.grid}>
         {rows.map(o => {
           const total = quintalValuePaise(o.price_paise_per_qtl, o.qty_kg);
           const isAgreed = o.status === 'ACCEPTED';
@@ -178,7 +176,6 @@ export default function S31_DealsList({ navigation }: Props) {
             <TouchableOpacity
               key={o.id}
               style={styles.card}
-              {...{ dataSet: { hover: 'lift' } } as any}
               disabled={isAgreed && tx === null}
               onPress={
                 isAgreed
@@ -251,9 +248,6 @@ export default function S31_DealsList({ navigation }: Props) {
             </TouchableOpacity>
           );
         })}
-        </View>
-
-        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
   );
@@ -304,18 +298,6 @@ const styles = StyleSheet.create({
   filterTextActive: { color: colors.onPrimary, fontFamily: fontFamily.extraBold },
 
   scroll: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
-
-  grid: Platform.select({
-    web: {
-      // @ts-ignore
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-      gap: space.md,
-    },
-    default: {
-      gap: space.sm,
-    },
-  }) as any,
 
   emptyCard: {
     alignItems: 'center',

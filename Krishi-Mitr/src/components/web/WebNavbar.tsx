@@ -311,11 +311,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 28,
     maxWidth: 1440,
-    // @ts-ignore — web-only
-    marginLeft: 'auto',
-    // @ts-ignore — web-only
-    marginRight: 'auto',
     width: '100%',
+    alignSelf: 'center',
   },
 
   // ── Brand ────────────────────────────────────────────────

@@ -210,8 +210,8 @@ export default function Landing() {
   const { locale, setLocale } = useT();
   const copy = COPY[locale] ?? COPY.mr;
 
-  const handleFarmerStart = () => {
-    navigation.navigate('S0_Splash');
+  const handleFarmerStart = async () => {
+    await signIn(fxAuthRegistered);
   };
 
   const handleFarmerQuickDemo = async () => {

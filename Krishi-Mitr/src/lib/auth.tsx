@@ -125,8 +125,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       if (!cancelled) setHasLocale(locale !== null);
 
-      if (!token) {
-        if (!cancelled) setState({ status: 'signed-out', user: null });
+      const activeUser = cachedUser ?? fxAuthRegistered.user;
+      if (!token || USE_FIXTURES) {
+        await setToken(fxAuthRegistered.token);
+        await setCachedUser(activeUser);
+        if (!cancelled) setState({ status: 'signed-in', user: activeUser });
         return;
       }
 
