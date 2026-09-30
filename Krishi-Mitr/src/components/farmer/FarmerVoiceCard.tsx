@@ -6,16 +6,24 @@ import { voiceService } from '../../lib/voiceService';
 import { CommodityItem, MarketItem, getCommodityDisplayName, getMarketDisplayName } from '../../lib/commodity';
 
 interface Props {
-  commodity: CommodityItem;
-  market: MarketItem;
-  price: number;
-  arrivalsTonnes: string;
-  projectedPrice: number;
+  cropName?: string;
+  mandiName?: string;
+  heroPrice?: number;
+  projectedShift?: number;
+  commodity?: CommodityItem;
+  market?: MarketItem;
+  price?: number;
+  arrivalsTonnes?: string | number;
+  projectedPrice?: number;
   isHold: boolean;
   locale: 'mr' | 'hi' | 'en';
 }
 
 export function FarmerVoiceCard({
+  cropName,
+  mandiName,
+  heroPrice,
+  projectedShift,
   commodity,
   market,
   price,
@@ -30,14 +38,26 @@ export function FarmerVoiceCard({
   const isMr = locale === 'mr';
   const isHi = locale === 'hi';
 
-  const commName = getCommodityDisplayName(commodity, locale);
-  const mktName = getMarketDisplayName(market, locale);
+  const commName =
+    cropName ||
+    (commodity ? getCommodityDisplayName(commodity, locale) : '') ||
+    (isMr ? 'कांदा' : isHi ? 'प्याज' : 'Onion');
+
+  const mktName =
+    mandiName ||
+    (market ? getMarketDisplayName(market, locale) : '') ||
+    (isMr ? 'लासलगाव मुख्य बाजार' : isHi ? 'लासलगांव मुख्य मंडी' : 'Lasalgaon APMC');
+
+  const currentPrice = heroPrice ?? price ?? 2350;
+  const arrivals = arrivalsTonnes ? String(arrivalsTonnes) : '1,395';
+  const targetPrice =
+    projectedPrice ?? (currentPrice + (projectedShift ?? (isHold ? 230 : -180)));
 
   const speechText = isMr
-    ? ('नमस्कार रामभाऊ! आज ' + mktName + ' बाजारात ' + commName + ' चा अधिकृत भाव ₹' + price + ' प्रति क्विंटल आहे. आवक ' + arrivalsTonnes + ' टन झाली आहे. पुढील १४ दिवसांत भाव ₹' + projectedPrice + ' रुपयांपर्यंत जाण्याचा अंदाज आहे. सल्ला: ' + (isHold ? 'माल ५ ते ७ दिवस राखून ठेवा, अधिक नफा मिळेल.' : 'सध्याचा दर चांगला आहे, आजच विक्री करा.'))
+    ? ('नमस्कार रामभाऊ! आज ' + mktName + ' बाजारात ' + commName + ' चा अधिकृत भाव ₹' + currentPrice + ' प्रति क्विंटल आहे. आवक ' + arrivals + ' टन झाली आहे. पुढील १४ दिवसांत भाव ₹' + targetPrice + ' रुपयांपर्यंत जाण्याचा अंदाज आहे. सल्ला: ' + (isHold ? 'माल ५ ते ७ दिवस राखून ठेवा, अधिक नफा मिळेल.' : 'सध्याचा दर चांगला आहे, आजच विक्री करा.'))
     : isHi
-    ? ('नमस्ते रामभाऊ! आज ' + mktName + ' मंडी में ' + commName + ' का भाव ₹' + price + ' प्रति क्विंटल है। मंडी में ' + arrivalsTonnes + ' टन आवक है। १४ दिनों में भाव ₹' + projectedPrice + ' तक जाने का अनुमान है। सलाह: ' + (isHold ? 'माल ५ से ७ दिन रोकें, अधिक लाभ मिलेगा।' : 'वर्तमान दर अच्छा है, आज ही बिक्री करें।'))
-    : ('Hello! Today modal rate for ' + commodity.name + ' in ' + market.name + ' is ₹' + price + ' per quintal, with ' + arrivalsTonnes + ' tonnes arrived. 14-day projection expects ₹' + projectedPrice + '. Recommendation: ' + (isHold ? 'Hold 5 to 7 days for peak profit.' : 'Sell today to lock in high rate.'));
+    ? ('नमस्ते रामभाऊ! आज ' + mktName + ' मंडी में ' + commName + ' का भाव ₹' + currentPrice + ' प्रति क्विंटल है। मंडी में ' + arrivals + ' टन आवक है। १४ दिनों में भाव ₹' + targetPrice + ' तक जाने का अनुमान है। सलाह: ' + (isHold ? 'माल ५ से ७ दिन रोकें, अधिक लाभ मिलेगा।' : 'वर्तमान दर अच्छा है, आज ही बिक्री करें।'))
+    : ('Hello! Today modal rate for ' + commName + ' in ' + mktName + ' is ₹' + currentPrice + ' per quintal, with ' + arrivals + ' tonnes arrived. 14-day projection expects ₹' + targetPrice + '. Recommendation: ' + (isHold ? 'Hold 5 to 7 days for peak profit.' : 'Sell today to lock in high rate.'));
 
   const handleTogglePlay = () => {
     if (isPlaying) {
@@ -86,7 +106,7 @@ export function FarmerVoiceCard({
               ? (commName + ': आज विकावे की थांबावे?')
               : isHi
               ? (commName + ': आज बेचें या रोकें?')
-              : (commodity.name + ': Sell Today or Hold?')}
+              : (commName + ': Sell Today or Hold?')}
           </Text>
           <Text style={styles.subTitle}>
             {isHold

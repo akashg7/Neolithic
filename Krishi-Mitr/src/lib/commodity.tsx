@@ -182,24 +182,28 @@ export const INITIAL_MARKETS: MarketItem[] = [
   { id: '20', name: 'Sangli APMC', name_mr: 'सांगली हळद बाजार समिती', district_name: 'Sangli' },
 ];
 
-export function getCommodityDisplayName(c: CommodityItem, locale: string): string {
-  if (locale === 'mr') return c.name_mr || COMMODITY_MR_NAMES[c.name] || c.name;
-  if (locale === 'hi') return COMMODITY_HI_NAMES[c.name] || c.name_mr || c.name;
-  return c.name;
+export function getCommodityDisplayName(c?: CommodityItem | null, locale: string = 'mr'): string {
+  if (!c) return '';
+  if (locale === 'mr') return c.name_mr || COMMODITY_MR_NAMES[c.name] || c.name || '';
+  if (locale === 'hi') return COMMODITY_HI_NAMES[c.name] || c.name_mr || c.name || '';
+  return c.name || '';
 }
 
-export function getCommodityIcon(name: string): string {
+export function getCommodityIcon(name?: string): string {
+  if (!name) return '🌾';
   return COMMODITY_ICONS[name] || '🌾';
 }
 
-export function getMarketDisplayName(m: MarketItem, locale: string): string {
-  if (locale === 'mr') return m.name_mr || m.name;
-  return m.name;
+export function getMarketDisplayName(m?: MarketItem | null, locale: string = 'mr'): string {
+  if (!m) return '';
+  if (locale === 'mr') return m.name_mr || m.name || '';
+  return m.name || '';
 }
 
-export function getDistrictDisplayName(d: DistrictItem, locale: string): string {
-  if (locale === 'mr' || locale === 'hi') return d.name_mr || d.name;
-  return d.name;
+export function getDistrictDisplayName(d?: DistrictItem | null, locale: string = 'mr'): string {
+  if (!d) return '';
+  if (locale === 'mr' || locale === 'hi') return d.name_mr || d.name || '';
+  return d.name || '';
 }
 
 interface CommodityContextValue {
