@@ -530,8 +530,9 @@ export default function S04_Home({ navigation }: Props) {
           )}
         </View>
 
-        {/* ── 6. Price Intelligence Card ── */}
-        <View style={styles.priceCard}>
+        {/* ── 6. Price Intelligence & Advisory Grid ── */}
+        <View style={styles.cardGrid}>
+        <View style={styles.priceCard} {...{ dataSet: { hover: 'lift' } } as any}>
           {pricesQuery.isLoading ? (
             <Text style={styles.cardStatusText}>{t('loading_label')}</Text>
           ) : pricesQuery.isError || !last ? (
@@ -630,7 +631,7 @@ export default function S04_Home({ navigation }: Props) {
         </View>
 
         {/* ── 7. AI Selling Window Advisory Card ── */}
-        <View style={styles.advisoryCard}>
+        <View style={styles.advisoryCard} {...{ dataSet: { hover: 'lift' } } as any}>
           {verdictQuery.isLoading ? (
             <Text style={styles.cardStatusText}>{t('loading_label')}</Text>
           ) : verdictQuery.isError || !verdict ? (
@@ -755,6 +756,7 @@ export default function S04_Home({ navigation }: Props) {
             </>
           )}
         </View>
+        </View>
 
         {/* ── 8. My Lots Section ── */}
         <View style={styles.sectionHeader}>
@@ -766,15 +768,18 @@ export default function S04_Home({ navigation }: Props) {
         </View>
 
         {lot === null ? (
-          <View style={styles.lotCard}>
-            <Text style={styles.lotEmptyText}>{t('home_no_lots')}</Text>
-            <TouchableOpacity style={styles.lotPrimaryBtn} onPress={goToLots}>
-              <Icon name="plus" size={16} color={colors.onPrimary} />
-              <Text style={styles.lotPrimaryBtnText}>{t('home_list_lot')}</Text>
-            </TouchableOpacity>
+          <View style={styles.lotGrid}>
+            <View style={styles.lotCard} {...{ dataSet: { hover: 'lift' } } as any}>
+              <Text style={styles.lotEmptyText}>{t('home_no_lots')}</Text>
+              <TouchableOpacity style={styles.lotPrimaryBtn} onPress={goToLots}>
+                <Icon name="plus" size={16} color={colors.onPrimary} />
+                <Text style={styles.lotPrimaryBtnText}>{t('home_list_lot')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
-          <View style={styles.lotCard}>
+          <View style={styles.lotGrid}>
+          <View style={styles.lotCard} {...{ dataSet: { hover: 'lift' } } as any}>
             <View style={styles.lotCardHeader}>
               <Image source={redOnions} style={styles.lotPhoto} />
               <View style={styles.lotInfo}>
@@ -822,6 +827,7 @@ export default function S04_Home({ navigation }: Props) {
               <Text style={styles.escrowText}>{t('home_escrow_guarantee')}</Text>
             </View>
           </View>
+          </View>
         )}
         
         {Platform.OS === 'web' && <WebFooter />}
@@ -838,6 +844,32 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 90,
   },
+  cardGrid: Platform.select({
+    web: {
+      // @ts-ignore
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+      gap: space.md,
+      paddingHorizontal: space.md,
+      marginBottom: space.md,
+    },
+    default: {
+      gap: 0,
+    },
+  }) as any,
+  lotGrid: Platform.select({
+    web: {
+      // @ts-ignore
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+      gap: space.md,
+      paddingHorizontal: space.md,
+      marginBottom: space.md,
+    },
+    default: {
+      gap: 0,
+    },
+  }) as any,
 
   // Top bar
   topBar: {
@@ -1355,20 +1387,34 @@ const styles = StyleSheet.create({
   },
 
   // Advisory card
-  advisoryCard: {
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    padding: space.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.onPrimaryContainer,
-    borderWidth: 2,
-    borderColor: colors.primaryContainer,
-    shadowColor: '#C2410C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 3,
-  },
+  advisoryCard: Platform.select({
+    web: {
+      padding: space.md,
+      borderRadius: radius.lg,
+      backgroundColor: colors.onPrimaryContainer,
+      borderWidth: 2,
+      borderColor: colors.primaryContainer,
+      shadowColor: '#C2410C',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    default: {
+      marginHorizontal: space.md,
+      marginBottom: space.sm,
+      padding: space.md,
+      borderRadius: radius.lg,
+      backgroundColor: colors.onPrimaryContainer,
+      borderWidth: 2,
+      borderColor: colors.primaryContainer,
+      shadowColor: '#C2410C',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+  }) as any,
   advisoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1515,16 +1561,26 @@ const styles = StyleSheet.create({
   },
 
   // Lot card
-  lotCard: {
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    padding: space.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.outlineVariant,
-    ...cardShadow,
-  },
+  lotCard: Platform.select({
+    web: {
+      padding: space.md,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.outlineVariant,
+      ...cardShadow,
+    },
+    default: {
+      marginHorizontal: space.md,
+      marginBottom: space.sm,
+      padding: space.md,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.outlineVariant,
+      ...cardShadow,
+    },
+  }) as any,
   lotCardHeader: {
     flexDirection: 'row',
     gap: space.sm,

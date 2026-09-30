@@ -53,6 +53,18 @@ style.appendChild(
     transform: scale(0.985);
   }
 
+  /* Lift cards on hover */
+  [data-hover="lift"] {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  }
+  @media (hover: hover) {
+    [data-hover="lift"]:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 12px 24px rgba(155, 47, 0, 0.08) !important;
+      border-color: rgba(194, 65, 12, 0.4) !important;
+    }
+  }
+
   /* Focus outlines for keyboard navigation (accessibility) */
   :focus-visible {
     outline: 2px solid #C2410C;
