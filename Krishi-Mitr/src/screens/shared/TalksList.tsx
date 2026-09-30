@@ -41,7 +41,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import { colors, fontFamily, radius, space, type as typography } from '../../theme/tokens';
@@ -56,6 +56,7 @@ import { getOffers } from '../../lib/api';
 import { USE_FIXTURES } from '../../config';
 import { fxMyOffers } from '../../fixtures/offers';
 import { ErrorState, Skeleton } from '../../components/farmer/States';
+import { WebFooter } from '../../components/web/WebFooter';
 import type { OfferDto, OfferStatus, Role } from '../../types/api';
 
 const MAX_ROUND = 3;
@@ -205,6 +206,7 @@ export function TalksList({
       {header}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.scrollMain}>
         {/* ── Title row ───────────────────────────────────────────────── */}
         <View style={styles.titleRow}>
           <View style={styles.titleText}>
@@ -455,6 +457,8 @@ export function TalksList({
             </View>
           );
         })}
+        </View>
+        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
   );
@@ -498,7 +502,25 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
 
-  scroll: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
+  scroll: Platform.select({
+    web: {
+      paddingHorizontal: space.md,
+      paddingTop: space.md,
+      paddingBottom: 0,
+      gap: space.sm,
+      flexGrow: 1,
+    },
+    default: {
+      padding: space.md,
+      paddingBottom: space.xxl,
+      gap: space.sm,
+    }
+  }) as any,
+  scrollMain: {
+    flex: 1,
+    gap: space.sm,
+    paddingBottom: space.xxl,
+  },
 
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   titleText: { flex: 1, minWidth: 0 },

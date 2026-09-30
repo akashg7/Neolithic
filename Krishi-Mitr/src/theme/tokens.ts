@@ -79,32 +79,62 @@ export const colors = {
   borderInput: '#E5D9C3',
 } as const;
 
+import { Platform } from 'react-native';
+
 /** Android matches a font by the exact filename in `assets/fonts/`, one
  * family string per weight. */
-export const fontFamily = {
-  regular: 'PlusJakartaSans-Regular',
-  medium: 'PlusJakartaSans-Medium',
-  semiBold: 'PlusJakartaSans-SemiBold',
-  bold: 'PlusJakartaSans-Bold',
-  extraBold: 'PlusJakartaSans-ExtraBold',
-} as const;
+export const fontFamily = Platform.select({
+  web: {
+    regular: 'Inter',
+    medium: 'Inter',
+    semiBold: 'Inter',
+    bold: 'Inter',
+    extraBold: 'Inter',
+  },
+  default: {
+    regular: 'PlusJakartaSans-Regular',
+    medium: 'PlusJakartaSans-Medium',
+    semiBold: 'PlusJakartaSans-SemiBold',
+    bold: 'PlusJakartaSans-Bold',
+    extraBold: 'PlusJakartaSans-ExtraBold',
+  },
+}) as any;
+
+const weights = Platform.select({
+  web: {
+    regular: '400',
+    medium: '500',
+    semiBold: '600',
+    bold: '700',
+    extraBold: '800',
+  },
+  default: {
+    regular: undefined,
+    medium: undefined,
+    semiBold: undefined,
+    bold: undefined,
+    extraBold: undefined,
+  },
+}) as any;
 
 export const type = {
-  displayLg: { fontFamily: fontFamily.extraBold, fontSize: 30, lineHeight: 36, letterSpacing: -0.4 },
-  headlineLg: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.2 },
-  headlineMd: { fontFamily: fontFamily.bold, fontSize: 21, lineHeight: 27, letterSpacing: -0.2 },
-  headlineSm: { fontFamily: fontFamily.semiBold, fontSize: 19, lineHeight: 25 },
-  titleLg: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 23 },
-  titleMd: { fontFamily: fontFamily.semiBold, fontSize: 17, lineHeight: 23 },
-  bodyLg: { fontFamily: fontFamily.medium, fontSize: 17, lineHeight: 25 },
-  bodyMd: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 24 },
-  bodySm: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
-  labelLg: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 22, letterSpacing: 0.3 },
-  labelMd: { fontFamily: fontFamily.semiBold, fontSize: 14, lineHeight: 20, letterSpacing: 0.4 },
-  labelSm: { fontFamily: fontFamily.bold, fontSize: 13, lineHeight: 18, letterSpacing: 0.5 },
-  numeralHero: { fontFamily: fontFamily.extraBold, fontSize: 38, lineHeight: 44, letterSpacing: -0.3 },
-  numeralData: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 28 },
-} as const;
+  displayLg: { fontFamily: fontFamily.extraBold, fontWeight: weights.extraBold, fontSize: 30, lineHeight: 36, letterSpacing: -0.4 },
+  headlineLg: { fontFamily: fontFamily.bold, fontWeight: weights.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.2 },
+  headlineMd: { fontFamily: fontFamily.bold, fontWeight: weights.bold, fontSize: 21, lineHeight: 27, letterSpacing: -0.2 },
+  headlineSm: { fontFamily: fontFamily.semiBold, fontWeight: weights.semiBold, fontSize: 19, lineHeight: 25 },
+  titleLg: { fontFamily: fontFamily.bold, fontWeight: weights.bold, fontSize: 17, lineHeight: 23 },
+  titleMd: { fontFamily: fontFamily.semiBold, fontWeight: weights.semiBold, fontSize: 17, lineHeight: 23 },
+  bodyLg: { fontFamily: fontFamily.medium, fontWeight: weights.medium, fontSize: 17, lineHeight: 25 },
+  bodyMd: { fontFamily: fontFamily.regular, fontWeight: weights.regular, fontSize: 16, lineHeight: 24 },
+  bodySm: { fontFamily: fontFamily.regular, fontWeight: weights.regular, fontSize: 14, lineHeight: 20 },
+  labelLg: { fontFamily: fontFamily.bold, fontWeight: weights.bold, fontSize: 16, lineHeight: 22, letterSpacing: 0.3 },
+  labelMd: { fontFamily: fontFamily.semiBold, fontWeight: weights.semiBold, fontSize: 14, lineHeight: 20, letterSpacing: 0.4 },
+  labelSm: { fontFamily: fontFamily.bold, fontWeight: weights.bold, fontSize: 13, lineHeight: 18, letterSpacing: 0.5 },
+  // The two roles the mockups reserve for on-screen figures — a hero number
+  // (today's price, the hero gain) and a smaller in-line data number.
+  numeralHero: { fontFamily: fontFamily.extraBold, fontWeight: weights.extraBold, fontSize: 38, lineHeight: 44, letterSpacing: -0.3 },
+  numeralData: { fontFamily: fontFamily.bold, fontWeight: weights.bold, fontSize: 22, lineHeight: 28 },
+} as any;
 
 export const radius = { sm: 4, md: 12, lg: 16, xl: 24, full: 999, pill: 999 } as const;
 
