@@ -186,26 +186,6 @@ export function WebNavbar() {
             ))}
           </View>
 
-          {/* Video Walkthrough link */}
-          <TouchableOpacity
-            style={styles.videoNavBtn}
-            onPress={() => {
-              if (typeof window !== 'undefined') window.open('/video', '_blank');
-            }}
-            // @ts-ignore
-            onClick={() => {
-              if (typeof window !== 'undefined') window.open('/video', '_blank');
-            }}
-            activeOpacity={0.7}
-            accessibilityRole="link"
-            accessibilityLabel="Watch Demo Video"
-          >
-            <Icon name="video" size={14} color={colors.primary} />
-            <Text style={styles.videoNavText}>
-              {locale === 'mr' ? 'व्हिडिओ' : locale === 'hi' ? 'वीडियो' : 'Video'}
-            </Text>
-          </TouchableOpacity>
-
           {/* Divider */}
           <View style={styles.vertDivider} />
 
@@ -438,34 +418,11 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
   },
 
-  videoNavBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1.2,
-    borderColor: '#FDBA74',
-    // @ts-ignore
-    cursor: 'pointer',
-    // @ts-ignore
-    transition: 'all 0.15s ease',
-  },
-  videoNavText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 12.5,
-    color: colors.primary,
-    // @ts-ignore
-    userSelect: 'none',
-  },
-
   vertDivider: {
     width: 1,
     height: 28,
     backgroundColor: colors.outlineVariant,
-    marginHorizontal: 4,
+    marginHorizontal: 8,
   },
 
   profileBtn: {
