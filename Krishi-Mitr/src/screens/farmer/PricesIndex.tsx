@@ -29,8 +29,6 @@ import { WebFooter } from '../../components/web/WebFooter';
 import { useStaticMarket } from '../../lib/staticMarketStore';
 import type { PricesStackParamList } from '../../navigation/FarmerTabs';
 
-const mandiImage = require('../../assets/images/mandi.jpg');
-
 type Props = NativeStackScreenProps<PricesStackParamList, 'PricesIndex'>;
 
 export default function PricesIndex({ navigation }: Props) {
@@ -83,31 +81,6 @@ export default function PricesIndex({ navigation }: Props) {
                 : 'महाराष्ट्र राज्य कृषी पणन मंडळ (MSAMB) थेट दर · दैनंदिन आवक'}
             </Text>
           </View>
-
-          {/* 1-Tap Quick Language Switcher */}
-          <View style={styles.langToggleGroup}>
-            {[
-              { id: 'en', label: 'English' },
-              { id: 'mr', label: 'मराठी' },
-              { id: 'hi', label: 'हिंदी' },
-            ].map(item => {
-              const active = locale === item.id;
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.langChip, active && styles.langChipActive]}
-                  onPress={() => setLocale(item.id as any)}
-                  // @ts-ignore
-                  onClick={() => setLocale(item.id as any)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button">
-                  <Text style={[styles.langChipText, active && styles.langChipTextActive]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </View>
       </View>
 
@@ -136,7 +109,7 @@ export default function PricesIndex({ navigation }: Props) {
               {/* Mandi Hero Banner with Real Yard Photo */}
               <View style={styles.mandiBannerCard}>
                 <Image
-                  source={mandiImage}
+                  source={{ uri: '/images/mandi.jpg' }}
                   style={styles.mandiBannerImage}
                   resizeMode="cover"
                 />

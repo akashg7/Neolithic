@@ -34,9 +34,9 @@ const TAB_CONFIG: { name: string; icon: IconName; pathPrefix: string }[] = [
 ];
 
 const LANGUAGES: { code: Locale; label: string }[] = [
-  { code: 'mr', label: 'मरा' },
-  { code: 'hi', label: 'हिं' },
-  { code: 'en', label: 'EN' },
+  { code: 'mr', label: 'मराठी' },
+  { code: 'hi', label: 'हिंदी' },
+  { code: 'en', label: 'English' },
 ];
 
 /** Derive the active tab from the current URL pathname. */
@@ -185,23 +185,6 @@ export function WebNavbar() {
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Demo Video button */}
-          <TouchableOpacity
-            style={styles.videoBtn}
-            onPress={() => {
-              if (typeof window !== 'undefined') {
-                window.open('/video', '_blank');
-              }
-            }}
-            activeOpacity={0.8}
-            accessibilityRole="link"
-            accessibilityLabel="Demo Video">
-            <Icon name="video" size={14} color={colors.primary} />
-            <Text style={styles.videoBtnText}>
-              {locale === 'mr' ? 'व्हिडिओ' : locale === 'hi' ? 'वीडियो' : 'Video'}
-            </Text>
-          </TouchableOpacity>
 
           {/* Divider */}
           <View style={styles.vertDivider} />
@@ -407,46 +390,34 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   langPill: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'transparent',
     backgroundColor: 'transparent',
     // @ts-ignore
     cursor: 'pointer',
     // @ts-ignore
-    transition: 'background-color 0.15s ease',
+    transition: 'all 0.15s ease',
   },
   langPillActive: {
     backgroundColor: colors.primaryContainer,
+    borderColor: colors.primaryContainer,
   },
   langText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 12,
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12.5,
     color: colors.outline,
-    letterSpacing: 0.3,
+    letterSpacing: 0.1,
     // @ts-ignore
     userSelect: 'none',
   },
   langTextActive: {
     color: colors.onPrimary,
+    fontFamily: fontFamily.bold,
   },
 
-  videoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(155,47,0,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(155,47,0,0.2)',
-  },
-  videoBtnText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 12,
-    color: colors.primary,
-  },
   vertDivider: {
     width: 1,
     height: 28,
