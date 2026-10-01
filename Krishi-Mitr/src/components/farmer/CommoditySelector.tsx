@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import {
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -87,68 +88,117 @@ export function CommoditySelector({
 
   return (
     <View style={styles.container}>
-      {/* ── 1. The 3 Clean Selector Pills ─────────────────────── */}
+      {/* ── 1. District, Mandi, & Crop Dropdown Selectors ─────────────────────── */}
       <View style={styles.pillsRow}>
-        {/* District Pill */}
-        <TouchableOpacity
-          style={[styles.pill, openDropdown === 'district' && styles.pillActive]}
-          onPress={() => toggleDropdown('district')}
-          // @ts-ignore web native click
-          onClick={() => toggleDropdown('district')}
-          activeOpacity={0.8}
-          accessibilityRole="button">
-          <Icon name="navigation" size={14} color={colors.primary} />
-          <Text style={styles.pillText} numberOfLines={1}>
-            {districtLabel}
-          </Text>
-          <Icon
-            name={openDropdown === 'district' ? 'chevron-up' : 'chevron-down'}
-            size={13}
-            color={colors.outline}
-          />
-        </TouchableOpacity>
+        {/* District Dropdown */}
+        <View style={styles.selectWrapper}>
+          <View style={styles.selectIconLeft} pointerEvents="none">
+            <Icon name="navigation" size={14} color={colors.primary} />
+          </View>
+          {Platform.OS === 'web' ? (
+            // @ts-ignore
+            <select
+              value={activeDistObj.name}
+              onChange={(e: any) => {
+                const dName = e.target.value;
+                const d = STATIC_DISTRICTS.find(x => x.name === dName);
+                if (d) {
+                  onSelectDistrict(isMr ? d.name_mr : isHi ? d.name_hi : d.name);
+                  onSelectMandi(isMr ? d.defaultMandi : d.defaultMandiEn || d.name + ' APMC');
+                }
+              }}
+              style={webSelectStyle}>
+              {STATIC_DISTRICTS.map(d => (
+                <option key={d.id} value={d.name}>
+                  {getDistrictTitle(d)}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <TouchableOpacity
+              style={[styles.pill, openDropdown === 'district' && styles.pillActive]}
+              onPress={() => toggleDropdown('district')}>
+              <Text style={styles.pillText} numberOfLines={1}>
+                {districtLabel}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.selectChevronRight} pointerEvents="none">
+            <Icon name="chevron-down" size={13} color={colors.outline} />
+          </View>
+        </View>
 
-        {/* Mandi Pill */}
-        <TouchableOpacity
-          style={[styles.pill, openDropdown === 'mandi' && styles.pillActive]}
-          onPress={() => toggleDropdown('mandi')}
-          // @ts-ignore web native click
-          onClick={() => toggleDropdown('mandi')}
-          activeOpacity={0.8}
-          accessibilityRole="button">
-          <Icon name="map-pin" size={14} color={colors.primary} />
-          <Text style={styles.pillText} numberOfLines={1}>
-            {mandiCleanName}
-          </Text>
-          <Icon
-            name={openDropdown === 'mandi' ? 'chevron-up' : 'chevron-down'}
-            size={13}
-            color={colors.outline}
-          />
-        </TouchableOpacity>
+        {/* Mandi Dropdown */}
+        <View style={styles.selectWrapper}>
+          <View style={styles.selectIconLeft} pointerEvents="none">
+            <Icon name="map-pin" size={14} color={colors.primary} />
+          </View>
+          {Platform.OS === 'web' ? (
+            // @ts-ignore
+            <select
+              value={selectedMandi}
+              onChange={(e: any) => {
+                onSelectMandi(e.target.value);
+              }}
+              style={webSelectStyle}>
+              {STATIC_MANDIS.map(m => {
+                const label = getMandiTitle(m);
+                return (
+                  <option key={m.id} value={label}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+          ) : (
+            <TouchableOpacity
+              style={[styles.pill, openDropdown === 'mandi' && styles.pillActive]}
+              onPress={() => toggleDropdown('mandi')}>
+              <Text style={styles.pillText} numberOfLines={1}>
+                {mandiCleanName}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.selectChevronRight} pointerEvents="none">
+            <Icon name="chevron-down" size={13} color={colors.outline} />
+          </View>
+        </View>
 
-        {/* Crop Pill with Real Thumbnail */}
-        <TouchableOpacity
-          style={[styles.pill, styles.pillHighlight, openDropdown === 'crop' && styles.pillActive]}
-          onPress={() => toggleDropdown('crop')}
-          // @ts-ignore web native click
-          onClick={() => toggleDropdown('crop')}
-          activeOpacity={0.8}
-          accessibilityRole="button">
+        {/* Crop Dropdown */}
+        <View style={[styles.selectWrapper, styles.selectWrapperHighlight]}>
           <Image
             source={{ uri: selectedCrop.image }}
-            style={styles.pillThumb}
+            style={styles.selectThumbLeft}
             resizeMode="cover"
           />
-          <Text style={[styles.pillText, styles.pillTextHighlight]} numberOfLines={1}>
-            {getCropTitle(selectedCrop)}
-          </Text>
-          <Icon
-            name={openDropdown === 'crop' ? 'chevron-up' : 'chevron-down'}
-            size={13}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
+          {Platform.OS === 'web' ? (
+            // @ts-ignore
+            <select
+              value={selectedCrop.id}
+              onChange={(e: any) => {
+                const c = STATIC_CROPS.find(x => x.id === e.target.value);
+                if (c) onSelectCrop(c);
+              }}
+              style={webSelectCropStyle}>
+              {STATIC_CROPS.map(c => (
+                <option key={c.id} value={c.id}>
+                  {getCropTitle(c)} • ₹{c.heroPrice}/qtl
+                </option>
+              ))}
+            </select>
+          ) : (
+            <TouchableOpacity
+              style={[styles.pill, styles.pillHighlight, openDropdown === 'crop' && styles.pillActive]}
+              onPress={() => toggleDropdown('crop')}>
+              <Text style={[styles.pillText, styles.pillTextHighlight]} numberOfLines={1}>
+                {getCropTitle(selectedCrop)}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.selectChevronRight} pointerEvents="none">
+            <Icon name="chevron-down" size={13} color={colors.primary} />
+          </View>
+        </View>
       </View>
 
       {/* ── Dropdown: District ─────────────────────────────────── */}
@@ -304,6 +354,44 @@ export function CommoditySelector({
   );
 }
 
+const webSelectStyle: any = {
+  width: '100%',
+  height: 42,
+  paddingLeft: 34,
+  paddingRight: 28,
+  backgroundColor: '#FAF6EE',
+  borderRadius: 12,
+  border: '1.5px solid #E2D7C8',
+  fontFamily: "'Inter', sans-serif",
+  fontSize: 13.5,
+  fontWeight: '600',
+  color: '#2C221E',
+  cursor: 'pointer',
+  outline: 'none',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  boxSizing: 'border-box',
+};
+
+const webSelectCropStyle: any = {
+  width: '100%',
+  height: 42,
+  paddingLeft: 38,
+  paddingRight: 28,
+  backgroundColor: '#FFF8F5',
+  borderRadius: 12,
+  border: '1.5px solid #C2410C',
+  fontFamily: "'Inter', sans-serif",
+  fontSize: 13.5,
+  fontWeight: '700',
+  color: '#9A3412',
+  cursor: 'pointer',
+  outline: 'none',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  boxSizing: 'border-box',
+};
+
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
@@ -324,6 +412,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     gap: space.xs,
     width: '100%',
+    flexWrap: 'wrap',
+  },
+  selectWrapper: {
+    flex: 1,
+    minWidth: 160,
+    position: 'relative',
+  },
+  selectWrapperHighlight: {
+    flex: 1.25,
+    minWidth: 190,
+  },
+  selectIconLeft: {
+    position: 'absolute',
+    left: 11,
+    top: 14,
+    zIndex: 2,
+  },
+  selectThumbLeft: {
+    position: 'absolute',
+    left: 10,
+    top: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    zIndex: 2,
+  },
+  selectChevronRight: {
+    position: 'absolute',
+    right: 10,
+    top: 14,
+    zIndex: 2,
   },
   pill: {
     flex: 1,

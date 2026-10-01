@@ -125,7 +125,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       if (!cancelled) setHasLocale(locale !== null);
 
-      if (!token) {
+      const isWeb = typeof window !== 'undefined';
+      // On web, if visiting the dashboard routes (/app/*), restore the authenticated session.
+      // If visiting the root (/) or onboarding routes, always present the onboarding flow.
+      const isAppRoute = isWeb && window.location.pathname.startsWith('/app');
+
+      if (!token || (isWeb && !isAppRoute)) {
         if (!cancelled) setState({ status: 'signed-out', user: null });
         return;
       }
@@ -173,13 +178,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (res: AuthRes) => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('app.session_active', '1');
+      } catch {}
+    }
     await setToken(res.token);
     await setCachedUser(res.user);
     setState({ status: 'signed-in', user: res.user });
   }, []);
 
   const signOut = useCallback(async () => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('app.session_active');
+        localStorage.removeItem('auth.token');
+        localStorage.removeItem('auth.user');
+      } catch {}
+    }
     await clearToken();
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.removeItem('auth.user');
+      await AsyncStorage.removeItem('app.user');
+    } catch {}
     setState({ status: 'signed-out', user: null });
   }, []);
 

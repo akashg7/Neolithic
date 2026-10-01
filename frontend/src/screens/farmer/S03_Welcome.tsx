@@ -10,6 +10,7 @@ import { colors, fontFamily, space, radius, touch } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
+import { fxAuthRegistered } from '../../fixtures/auth';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { demoTodayPrice } from '../../lib/demoPrice';
 import { ListenButton } from '../../components/ui/ListenButton';
@@ -20,9 +21,7 @@ const mandiWarehouse = require('../../assets/images/mandi_warehouse.jpg');
 
 export default function S03_Welcome({ navigation }: Props) {
   const { t, locale } = useT();
-  // ★ This screen greeted a hardcoded "Rambhau Vithal Patil" — shown to a
-  //   farmer who had just typed his own name two screens earlier.
-  const { user } = useAuth();
+  const { user, signIn } = useAuth();
 
   const FEATURES = [
     { iconName: 'trending-up', titleKey: 'welcome_feat1_title', subKey: 'welcome_feat1_sub', highlightKey: 'welcome_feat1_hl', color: colors.primary },
@@ -153,14 +152,17 @@ export default function S03_Welcome({ navigation }: Props) {
       <View style={styles.dock}>
         <TouchableOpacity
           style={styles.primaryCta}
-          onPress={() => navigation.getParent()?.navigate('FarmerTabs')}>
+          onPress={async () => {
+            await signIn(user ? { token: fxAuthRegistered.token, user } : fxAuthRegistered);
+          }}>
           <Text style={styles.primaryCtaText}>{t('welcome_cta_dashboard')}</Text>
           <Icon name="arrow-right" size={20} color={colors.onPrimary} />
         </TouchableOpacity>
-        {/* ★ Had no onPress at all. It now goes where it says it goes. */}
         <TouchableOpacity
           style={styles.secondaryCta}
-          onPress={() => navigation.getParent()?.navigate('FarmerTabs')}>
+          onPress={async () => {
+            await signIn(user ? { token: fxAuthRegistered.token, user } : fxAuthRegistered);
+          }}>
           <Icon name="plus" size={16} color={colors.primaryContainer} />
           <Text style={styles.secondaryCtaText}>{t('welcome_cta_list_lot')}</Text>
         </TouchableOpacity>

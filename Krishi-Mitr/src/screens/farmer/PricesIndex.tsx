@@ -29,6 +29,8 @@ import { WebFooter } from '../../components/web/WebFooter';
 import { useStaticMarket } from '../../lib/staticMarketStore';
 import type { PricesStackParamList } from '../../navigation/FarmerTabs';
 
+const mandiImage = require('../../assets/images/mandi.jpg');
+
 type Props = NativeStackScreenProps<PricesStackParamList, 'PricesIndex'>;
 
 export default function PricesIndex({ navigation }: Props) {
@@ -134,7 +136,7 @@ export default function PricesIndex({ navigation }: Props) {
               {/* Mandi Hero Banner with Real Yard Photo */}
               <View style={styles.mandiBannerCard}>
                 <Image
-                  source={{ uri: '/images/mandi.jpg' }}
+                  source={mandiImage}
                   style={styles.mandiBannerImage}
                   resizeMode="cover"
                 />

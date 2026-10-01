@@ -100,7 +100,7 @@ export const fontFamily = Platform.select({
   },
 }) as any;
 
-const weights = Platform.select({
+export const weights = Platform.select({
   web: {
     regular: '400',
     medium: '500',

@@ -39,6 +39,8 @@ import { setPendingAuth } from '../../lib/auth';
 import type { Role } from '../../types/api';
 import { getLocale } from '../../lib/locale';
 import { USE_FIXTURES } from '../../config';
+import { useAuth } from '../../lib/auth';
+import { fxAuthRegistered } from '../../fixtures/auth';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { demoTodayRange } from '../../lib/demoPrice';
 
@@ -66,6 +68,7 @@ async function ensureMicPermission(): Promise<boolean> {
 
 export default function S02_Phone({ navigation }: Props) {
   const { t, locale } = useT();
+  const { signIn } = useAuth();
 
   const narration = t('nar_scr_phone');
   const [phone, setPhone] = useState('');
@@ -342,6 +345,21 @@ export default function S02_Phone({ navigation }: Props) {
               <Icon name="arrow-right" size={20} color={colors.onPrimary} />
             </>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.directLoginBtn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          onPress={() => void signIn(fxAuthRegistered)}>
+          <Icon name="zap" size={13} color={colors.primary} />
+          <Text style={styles.directLoginText}>
+            {locale === 'mr'
+              ? '⚡ थेट डेमो लॉगिन (डॅशबोर्ड) →'
+              : locale === 'hi'
+                ? '⚡ सीधा डेमो लॉगिन (डैशबोर्ड) →'
+                : '⚡ Direct Demo Login (Dashboard) →'}
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -830,4 +848,18 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant,
   },
   langBtnText: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.primary },
+  directLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.xs,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  directLoginText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12.5,
+    color: colors.primary,
+    letterSpacing: 0.2,
+  },
 });

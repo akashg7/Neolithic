@@ -24,15 +24,24 @@ if (!fs.existsSync(to)) {
   process.exit(1);
 }
 
-let copied = 0;
-for (const name of fs.readdirSync(from)) {
-  // index.html is the HtmlWebpackPlugin template; it emits its own, with the
-  // hashed bundle injected. Copying ours over it would erase the script tag.
-  if (name === 'index.html') continue;
-  const src = path.join(from, name);
-  if (fs.statSync(src).isDirectory()) continue;
-  fs.copyFileSync(src, path.join(to, name));
-  copied += 1;
+function copyRecursive(srcDir, destDir) {
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
+  }
+  let count = 0;
+  for (const name of fs.readdirSync(srcDir)) {
+    if (name === 'index.html' && srcDir === from) continue;
+    const srcPath = path.join(srcDir, name);
+    const destPath = path.join(destDir, name);
+    if (fs.statSync(srcPath).isDirectory()) {
+      count += copyRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+      count += 1;
+    }
+  }
+  return count;
 }
 
+const copied = copyRecursive(from, to);
 console.log(`copy-static: ${copied} file(s) → dist/`);

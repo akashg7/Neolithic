@@ -19,7 +19,7 @@ import {
   View,
   Image,
 } from 'react-native';
-import Svg, { Line, Text as SvgText, Polyline } from 'react-native-svg';
+import Svg, { Line, Text as SvgText, Polyline, Rect, Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, fontFamily, space, radius } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
@@ -49,6 +49,10 @@ const BAR_GAP = 8;
  * PriceBarChart with realistic market curves, authentic price fluctuations,
  * gridlines, and clear price labels.
  */
+/**
+ * PriceBarChart — High-clarity agricultural bar chart with vertical bars,
+ * guideline grids, and price labels.
+ */
 function PriceBarChart({
   data,
   isEn,
@@ -59,29 +63,40 @@ function PriceBarChart({
   if (!data || data.length === 0) return null;
 
   const numBars = data.length;
-  const barW = Math.max(10, (CHART_W - BAR_GAP * (numBars - 1)) / numBars);
+  const barW = Math.max(8, (CHART_W - BAR_GAP * (numBars - 1)) / numBars);
   const prices = data.map(d => d.price);
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const spread = Math.max(maxPrice - minPrice, 10);
-  const plotMin = Math.round(minPrice - spread * 0.15);
-  const plotMax = Math.round(maxPrice + spread * 0.15);
+  const plotMin = Math.round(minPrice - spread * 0.18);
+  const plotMax = Math.round(maxPrice + spread * 0.18);
   const plotSpread = Math.max(plotMax - plotMin, 1);
 
   // Compute polyline coordinates for a smooth trend overlay
   const linePoints = data
     .map((d, i) => {
       const x = i * (barW + BAR_GAP) + barW / 2;
-      const y = CHART_H - Math.max(14, ((d.price - plotMin) / plotSpread) * CHART_H) + 8;
+      const y = CHART_H - Math.max(14, ((d.price - plotMin) / plotSpread) * CHART_H) + 12;
       return `${x},${y}`;
     })
     .join(' ');
 
   return (
-    <Svg width="100%" height={CHART_H + 36} viewBox={`0 0 ${CHART_W} ${CHART_H + 36}`}>
+    <Svg width="100%" height={CHART_H + 42} viewBox={`0 0 ${CHART_W} ${CHART_H + 42}`}>
+      <Defs>
+        <LinearGradient id="barGradLatest" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%" stopColor="#C2410C" stopOpacity="1" />
+          <Stop offset="100%" stopColor="#EA580C" stopOpacity="0.85" />
+        </LinearGradient>
+        <LinearGradient id="barGradNormal" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%" stopColor="#D97706" stopOpacity="0.75" />
+          <Stop offset="100%" stopColor="#FDE68A" stopOpacity="0.35" />
+        </LinearGradient>
+      </Defs>
+
       {/* Horizontal Guideline Grids */}
       {[0, 0.5, 1].map(frac => {
-        const y = CHART_H * (1 - frac) + 8;
+        const y = CHART_H * (1 - frac) + 12;
         const val = Math.round(plotMin + frac * plotSpread);
         return (
           <React.Fragment key={frac}>
@@ -100,19 +115,56 @@ function PriceBarChart({
               fontSize={11}
               fontWeight="600"
               fontFamily={fontFamily.semiBold}
-              fill="rgba(141,113,104,0.55)">
+              fill="rgba(141,113,104,0.65)">
               ₹{val}
             </SvgText>
           </React.Fragment>
         );
       })}
 
-      {/* Polyline trend connecting price points */}
+      {/* Vertical Rounded Bars for Each Day */}
+      {data.map((d, i) => {
+        const x = i * (barW + BAR_GAP);
+        const barH = Math.max(16, ((d.price - plotMin) / plotSpread) * CHART_H);
+        const y = CHART_H - barH + 12;
+        const isLatest = i === numBars - 1;
+        const isHigh = d.price === maxPrice;
+        const isLow = d.price === minPrice;
+
+        return (
+          <React.Fragment key={i}>
+            <Rect
+              x={x}
+              y={y}
+              width={barW}
+              height={barH}
+              rx={Math.min(5, barW / 3)}
+              fill={isLatest ? 'url(#barGradLatest)' : isHigh ? '#C2410C' : isLow ? '#9A3412' : 'url(#barGradNormal)'}
+              opacity={isLatest ? 1 : 0.88}
+            />
+            {/* Price values on prominent bars */}
+            {(isLatest || isHigh || numBars <= 7) && (
+              <SvgText
+                x={x + barW / 2}
+                y={y - 5}
+                fontSize={numBars > 14 ? 9.5 : 11}
+                fontWeight="700"
+                fontFamily={fontFamily.bold}
+                fill={isLatest ? colors.primary : '#5A4E46'}
+                textAnchor="middle">
+                ₹{d.price}
+              </SvgText>
+            )}
+          </React.Fragment>
+        );
+      })}
+
+      {/* Polyline trend connecting the tops of the bars */}
       <Polyline
         points={linePoints}
         fill="none"
         stroke={colors.primary}
-        strokeWidth={2.5}
+        strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -120,7 +172,6 @@ function PriceBarChart({
       {/* Date Labels below chart */}
       {data.map((d, i) => {
         const x = i * (barW + BAR_GAP) + barW / 2;
-        // Show every Nth label to prevent cluttering
         const showLabel = numBars <= 7 || i % Math.ceil(numBars / 6) === 0 || i === numBars - 1;
         if (!showLabel) return null;
 
@@ -128,12 +179,178 @@ function PriceBarChart({
           <SvgText
             key={i}
             x={x}
-            y={CHART_H + 24}
+            y={CHART_H + 28}
             fontSize={11}
-            fontFamily={fontFamily.bold}
+            fontWeight="600"
+            fontFamily={fontFamily.semiBold}
             fill="#5A4E46"
             textAnchor="middle">
             {d.label}
+          </SvgText>
+        );
+      })}
+    </Svg>
+  );
+}
+
+/**
+ * ForecastCorridorChart — High-fidelity 14-day AI forecast fan corridor.
+ * Draws the p10 pessimistic floor, p90 optimistic ceiling, and p50 median trajectory.
+ */
+function ForecastCorridorChart({
+  p10,
+  p50,
+  p90,
+  isHold,
+  isEn,
+}: {
+  p10: number[];
+  p50: number[];
+  p90: number[];
+  isHold: boolean;
+  isEn: boolean;
+}) {
+  if (!p50 || p50.length === 0) return null;
+  const toRs = (v: number) => (v > 10000 ? Math.round(v / 100) : Math.round(v));
+  const cleanP50 = p50.map(toRs);
+  const cleanP10 = (p10 && p10.length > 0 ? p10 : p50.map(v => Math.round(v * 0.95))).map(toRs);
+  const cleanP90 = (p90 && p90.length > 0 ? p90 : p50.map(v => Math.round(v * 1.05))).map(toRs);
+
+  const n = cleanP50.length;
+  const W = 500;
+  const H = 170;
+  const padX = 24;
+  const padY = 22;
+
+  const allVals = [...cleanP10, ...cleanP50, ...cleanP90];
+  const minVal = Math.min(...allVals);
+  const maxVal = Math.max(...allVals);
+  const spread = Math.max(maxVal - minVal, 10);
+  const plotMin = Math.round(minVal - spread * 0.15);
+  const plotMax = Math.round(maxVal + spread * 0.15);
+  const plotSpread = Math.max(plotMax - plotMin, 1);
+
+  const getX = (i: number) => padX + (i / (n - 1)) * (W - padX * 2);
+  const getY = (v: number) => H - padY - ((v - plotMin) / plotSpread) * (H - padY * 2);
+
+  const p50Points = cleanP50.map((v, i) => `${getX(i)},${getY(v)}`).join(' ');
+
+  const p90Coords = cleanP90.map((v, i) => ({ x: getX(i), y: getY(v) }));
+  const p10Coords = cleanP10.map((v, i) => ({ x: getX(i), y: getY(v) }));
+
+  const corridorPath = `M ${p90Coords.map(p => `${p.x},${p.y}`).join(' L ')} L ${p10Coords.slice().reverse().map(p => `${p.x},${p.y}`).join(' L ')} Z`;
+
+  const milestones = [
+    { idx: 0, label: isEn ? 'Today' : 'आज', price: cleanP50[0] },
+    { idx: Math.min(6, n - 1), label: isEn ? 'Day 7' : '७ दिवस', price: cleanP50[Math.min(6, n - 1)] },
+    { idx: n - 1, label: isEn ? 'Day 14' : '१४ दिवस', price: cleanP50[n - 1] },
+  ];
+
+  const mainColor = isHold ? '#047857' : '#C2410C';
+
+  return (
+    <Svg width="100%" height={H + 34} viewBox={`0 0 ${W} ${H + 34}`}>
+      <Defs>
+        <LinearGradient id="corridorGrad" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0%" stopColor={mainColor} stopOpacity="0.22" />
+          <Stop offset="100%" stopColor={mainColor} stopOpacity="0.08" />
+        </LinearGradient>
+      </Defs>
+
+      {/* Grid lines */}
+      {[0, 0.5, 1].map(frac => {
+        const y = H - padY - frac * (H - padY * 2);
+        const val = Math.round(plotMin + frac * plotSpread);
+        return (
+          <React.Fragment key={frac}>
+            <Line
+              x1={padX}
+              y1={y}
+              x2={W - padX}
+              y2={y}
+              stroke="rgba(141,113,104,0.18)"
+              strokeWidth={1}
+              strokeDasharray="4,4"
+            />
+            <SvgText
+              x={padX}
+              y={y - 4}
+              fontSize={10.5}
+              fontWeight="600"
+              fontFamily={fontFamily.semiBold}
+              fill="rgba(141,113,104,0.65)">
+              ₹{val}
+            </SvgText>
+          </React.Fragment>
+        );
+      })}
+
+      {/* Shaded AI Confidence Corridor Fan (p10 to p90) */}
+      <Path d={corridorPath} fill="url(#corridorGrad)" />
+
+      {/* Upper Ceiling Boundary (p90) */}
+      <Polyline
+        points={p90Coords.map(p => `${p.x},${p.y}`).join(' ')}
+        fill="none"
+        stroke={isHold ? '#059669' : '#D97706'}
+        strokeWidth={1.5}
+        strokeDasharray="3,3"
+      />
+
+      {/* Lower Floor Boundary (p10) */}
+      <Polyline
+        points={p10Coords.map(p => `${p.x},${p.y}`).join(' ')}
+        fill="none"
+        stroke={isHold ? '#10B981' : '#EA580C'}
+        strokeWidth={1.5}
+        strokeDasharray="3,3"
+      />
+
+      {/* p50 Median Expected AI Price Line */}
+      <Polyline
+        points={p50Points}
+        fill="none"
+        stroke={mainColor}
+        strokeWidth={3.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Milestone Nodes & Badges */}
+      {milestones.map((m, i) => {
+        const cx = getX(m.idx);
+        const cy = getY(m.price);
+        return (
+          <React.Fragment key={i}>
+            <Circle cx={cx} cy={cy} r={6} fill="#FFFFFF" stroke={mainColor} strokeWidth={3} />
+            <SvgText
+              x={cx}
+              y={cy - 10}
+              fontSize={11}
+              fontWeight="700"
+              fontFamily={fontFamily.bold}
+              fill={mainColor}
+              textAnchor={i === 0 ? 'start' : i === milestones.length - 1 ? 'end' : 'middle'}>
+              ₹{m.price}
+            </SvgText>
+          </React.Fragment>
+        );
+      })}
+
+      {/* X-axis Day Labels */}
+      {milestones.map((m, i) => {
+        const cx = getX(m.idx);
+        return (
+          <SvgText
+            key={i}
+            x={cx}
+            y={H + 20}
+            fontSize={11}
+            fontWeight="600"
+            fontFamily={fontFamily.semiBold}
+            fill="#5A4E46"
+            textAnchor={i === 0 ? 'start' : i === milestones.length - 1 ? 'end' : 'middle'}>
+            {m.label}
           </SvgText>
         );
       })}
@@ -203,7 +420,7 @@ export default function S04_Home({ navigation }: Props) {
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
-      {/* ── 1. Top Header: Farmer Profile + 1-Tap Language Toggle (Full Width) ── */}
+      {/* ── 1. Top Header: Farmer Profile Greeting Card ── */}
       <View style={styles.topBar}>
         <View style={styles.topBarInner}>
           <View style={styles.profileTapArea}>
@@ -229,31 +446,6 @@ export default function S04_Home({ navigation }: Props) {
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* 1-Tap Quick Language Switcher: English | मराठी | हिंदी */}
-          <View style={styles.langToggleGroup}>
-            {[
-              { id: 'en', label: 'English' },
-              { id: 'mr', label: 'मराठी' },
-              { id: 'hi', label: 'हिंदी' },
-            ].map(item => {
-              const active = locale === item.id;
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.langChip, active && styles.langChipActive]}
-                  onPress={() => setLocale(item.id as any)}
-                  // @ts-ignore
-                  onClick={() => setLocale(item.id as any)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button">
-                  <Text style={[styles.langChipText, active && styles.langChipTextActive]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
           </View>
         </View>
       </View>
@@ -474,13 +666,14 @@ export default function S04_Home({ navigation }: Props) {
                   </View>
                 </View>
 
-                {/* ForecastFan SVG */}
+                {/* 14-Day AI Forecast Corridor Chart */}
                 <View style={styles.forecastFanWrap}>
-                  <ForecastFan
-                    p10={crop.forecastP10}
-                    p50={crop.forecastP50}
-                    p90={crop.forecastP90}
-                    locale={locale}
+                  <ForecastCorridorChart
+                    p10={selectedCrop.forecastP10}
+                    p50={selectedCrop.forecastP50}
+                    p90={selectedCrop.forecastP90}
+                    isHold={selectedCrop.isHold}
+                    isEn={isEn}
                   />
                 </View>
 

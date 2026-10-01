@@ -26,6 +26,8 @@ import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { ListenButton } from '../../components/ui/ListenButton';
 import { Logo } from '../../components/ui/Logo';
 import { SpeakingFace } from '../../components/ui/SpeakingFace';
+import { useAuth } from '../../lib/auth';
+import { fxAuthRegistered } from '../../fixtures/auth';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S0_Splash'>;
 
@@ -34,6 +36,7 @@ const mandiWarehouse = require('../../assets/images/mandi_warehouse.jpg');
 
 export default function S00_Splash({ navigation }: Props) {
   const { t, locale, setLocale } = useT();
+  const { signIn } = useAuth();
   const [selectedLang, setSelectedLang] = useState<Locale>(locale);
 
   const handleLangSwitch = (lang: Locale) => {
@@ -88,7 +91,7 @@ export default function S00_Splash({ navigation }: Props) {
           <View style={styles.emblemGlow} />
           {/* ★ This drew a leaf, a white bar, and the literal text "SETU" —
               the project's old name, on the first screen of an app called
-              Krishi Mitra. It is now the real mark: the same bridge shape the
+              Krishi Mitr. It is now the real mark: the same bridge shape the
               bar was gesturing at, with the sprout growing through it, drawn
               once in `components/ui/Logo` so the splash, the header and the
               tab bar cannot drift apart. */}
@@ -106,7 +109,7 @@ export default function S00_Splash({ navigation }: Props) {
 
         {/* ── 3. App name ───────────────────────────────────── */}
         {/* ★ One name. This rendered `splash_app_name` *and*
-            `splash_app_name_latin` — so an English farmer saw "Krishi Mitra"
+            `splash_app_name_latin` — so an English farmer saw "Krishi Mitr"
             with "KRISHI MITRA" stacked beneath it, and a Marathi one saw two
             scripts at once on the app's first screen. */}
         <Text style={styles.appName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
@@ -181,7 +184,7 @@ export default function S00_Splash({ navigation }: Props) {
         {/* ★ Three "trust" cards sat here — both numbers always, it says when
             it does not know, buyers direct. They are the right three points
             and they are already made, at length and better, on the very next
-            screen ("Why Krishi Mitra"). Saying them twice was what pushed this
+            screen ("Why Krishi Mitr"). Saying them twice was what pushed this
             screen past one screenful and made it scroll. A splash that scrolls
             is a splash that has not decided what it is for. */}
       </View>
@@ -230,11 +233,7 @@ export default function S00_Splash({ navigation }: Props) {
           <Icon name="arrow-right" size={20} color={colors.onPrimary} />
         </TouchableOpacity>
 
-        {/* OTP login link
-            ★ This had no `onPress` — it read "already registered? log in with
-              OTP" and did nothing at all. It is the shortcut for a returning
-              farmer, so it goes where that farmer wants to be: the phone
-              number, which is where the OTP is sent from. */}
+        {/* OTP login link */}
         <TouchableOpacity
           style={styles.otpRow}
           activeOpacity={0.7}
@@ -243,6 +242,36 @@ export default function S00_Splash({ navigation }: Props) {
           onPress={() => navigation.navigate('S2_Phone')}>
           <Icon name="zap" size={12} color={colors.tertiary} />
           <Text style={styles.otpText}>{t('splash_otp_login')}</Text>
+        </TouchableOpacity>
+
+        {/* Direct Demo Login (Dashboard shortcut for judges / testing) */}
+        <TouchableOpacity
+          style={styles.directLoginBtn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Direct Demo Login"
+          onPress={async () => {
+            await signIn(fxAuthRegistered);
+          }}>
+          <Icon name="zap" size={13} color={colors.primary} />
+          <Text style={styles.directLoginText}>
+            {locale === 'mr'
+              ? '⚡ थेट डेमो लॉगिन (डॅशबोर्ड) →'
+              : locale === 'hi'
+                ? '⚡ सीधा डेमो लॉगिन (डैशबोर्ड) →'
+                : '⚡ Direct Demo Login (Dashboard) →'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* The trader's way in */}
+        <TouchableOpacity
+          style={styles.otpRow}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('splash_buyer_entry')}
+          onPress={() => navigation.navigate('Buyer_Splash')}>
+          <Icon name="building" size={12} color={colors.outline} />
+          <Text style={styles.otpText}>{t('splash_buyer_entry')}</Text>
         </TouchableOpacity>
 
         {/* ★ The footer read "लासलगाव • नाशिक नोड v2.4" beside "256-bit bank
@@ -654,5 +683,18 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     letterSpacing: 0.2,
   },
-
+  directLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.xs,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  directLoginText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12.5,
+    color: colors.primary,
+    letterSpacing: 0.2,
+  },
 });

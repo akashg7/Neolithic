@@ -186,6 +186,23 @@ export function WebNavbar() {
             ))}
           </View>
 
+          {/* Demo Video button */}
+          <TouchableOpacity
+            style={styles.videoBtn}
+            onPress={() => {
+              if (typeof window !== 'undefined') {
+                window.open('/video', '_blank');
+              }
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="link"
+            accessibilityLabel="Demo Video">
+            <Icon name="video" size={14} color={colors.primary} />
+            <Text style={styles.videoBtnText}>
+              {locale === 'mr' ? 'व्हिडिओ' : locale === 'hi' ? 'वीडियो' : 'Video'}
+            </Text>
+          </TouchableOpacity>
+
           {/* Divider */}
           <View style={styles.vertDivider} />
 
@@ -414,6 +431,22 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 
+  videoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(155,47,0,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(155,47,0,0.2)',
+  },
+  videoBtnText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: colors.primary,
+  },
   vertDivider: {
     width: 1,
     height: 28,

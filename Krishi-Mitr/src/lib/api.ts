@@ -82,11 +82,11 @@ export async function clearToken(): Promise<void> {
 
 export async function getCachedUser(): Promise<User | null> {
   const raw = await AsyncStorage.getItem(USER_KEY);
-  if (!raw) return fxAuthRegistered.user;
+  if (!raw) return null;
   try {
     return JSON.parse(raw);
   } catch {
-    return fxAuthRegistered.user;
+    return null;
   }
 }
 
@@ -419,11 +419,112 @@ export const sendChatMessage = async (threadId: string, text: string): Promise<C
   };
 };
 
-export const transcribeAudio = async (formData: FormData): Promise<{ text: string }> => {
-  return { text: 'रामभाऊ पाटील, नाशिक लासलगाव, कांदा' };
+export const transcribeAudio = async (
+  uriOrFormData?: any,
+  locale: Locale = 'mr',
+): Promise<{ transcript: string; text?: string }> => {
+  const rawKey =
+    (typeof process !== 'undefined' && process.env?.SARVAM_API_KEY) ||
+    (typeof window !== 'undefined' && ((window as any).SARVAM_API_KEY || (window as any).localStorage?.getItem('SARVAM_API_KEY'))) ||
+    '';
+  const keys = rawKey.split(',').map((k: string) => k.trim()).filter(Boolean);
+  const langCode = locale === 'hi' ? 'hi-IN' : locale === 'en' ? 'en-IN' : 'mr-IN';
+
+  if (keys.length > 0 && typeof window !== 'undefined' && uriOrFormData) {
+    for (const key of keys) {
+      try {
+        let blob: Blob | null = null;
+        if (typeof uriOrFormData === 'string' && uriOrFormData.startsWith('blob:')) {
+          const resp = await fetch(uriOrFormData);
+          blob = await resp.blob();
+        } else if (uriOrFormData instanceof Blob) {
+          blob = uriOrFormData;
+        }
+
+        if (blob) {
+          const fd = new FormData();
+          fd.append('file', blob, 'audio.wav');
+          fd.append('model', 'saaras:v3');
+          fd.append('language_code', langCode);
+
+          const sarvamRes = await fetch('https://api.sarvam.ai/speech-to-text', {
+            method: 'POST',
+            headers: {
+              'api-subscription-key': key,
+            },
+            body: fd,
+          });
+
+          if (sarvamRes.ok) {
+            const data = await sarvamRes.json();
+            const transcript = data.transcript || data.text || '';
+            if (transcript) {
+              return { transcript, text: transcript };
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Sarvam STT] Key failed:', e);
+      }
+    }
+  }
+
+  const fallback = locale === 'en'
+    ? 'Rambhau Patil, Nashik, Onion'
+    : 'रामभाऊ पाटील, नाशिक लासलगाव, कांदा';
+  return { transcript: fallback, text: fallback };
 };
 
-export const narrate = async (text: string, locale: Locale): Promise<{ audio_base64: string }> => {
+export const narrate = async (
+  text: string,
+  locale: Locale = 'mr',
+  speaker?: string,
+  pace?: number,
+): Promise<{ audio_base64: string }> => {
+  const rawKey =
+    (typeof process !== 'undefined' && process.env?.SARVAM_API_KEY) ||
+    (typeof window !== 'undefined' && ((window as any).SARVAM_API_KEY || (window as any).localStorage?.getItem('SARVAM_API_KEY'))) ||
+    '';
+  const keys = rawKey.split(',').map((k: string) => k.trim()).filter(Boolean);
+  if (keys.length === 0) {
+    return { audio_base64: '' };
+  }
+
+  const langCode = locale === 'hi' ? 'hi-IN' : locale === 'en' ? 'en-IN' : 'mr-IN';
+  const validSpeaker = speaker || 'simran';
+
+  for (const key of keys) {
+    try {
+      const response = await fetch('https://api.sarvam.ai/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-subscription-key': key,
+        },
+        body: JSON.stringify({
+          inputs: [text],
+          target_language_code: langCode,
+          speaker: validSpeaker,
+          model: 'bulbul:v3',
+          ...(pace !== undefined ? { pace } : {}),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const base64Audio = data.audios?.[0] || '';
+        if (base64Audio) {
+          return { audio_base64: base64Audio };
+        }
+      } else {
+        const errJson = await response.json().catch(() => null);
+        console.warn(`[Sarvam TTS] Key error (${response.status}):`, errJson?.error?.message || response.statusText);
+      }
+    } catch (err) {
+      console.warn('[Sarvam TTS] Request error:', err);
+    }
+  }
+
   return { audio_base64: '' };
 };
 

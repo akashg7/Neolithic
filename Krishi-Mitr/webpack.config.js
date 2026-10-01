@@ -106,17 +106,79 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: path.resolve(appDirectory, 'public/index.html'),
+      filename: 'index.html',
+      chunks: ['main'],
+    }),
+    new HtmlWebpackPlugin({
+      template: path.resolve(appDirectory, 'public/video.html'),
+      filename: 'video.html',
+      inject: false,
     }),
     new webpack.DefinePlugin({
       __DEV__: JSON.stringify(process.env.NODE_ENV !== 'production'),
-      'process.env': JSON.stringify({ NODE_ENV: process.env.NODE_ENV || 'development' }),
+      'process.env': JSON.stringify({
+        NODE_ENV: process.env.NODE_ENV || 'development',
+        SARVAM_API_KEY: (() => {
+          let k = process.env.SARVAM_API_KEY || '';
+          if (!k) {
+            try {
+              const fs = require('fs');
+              const envPath = path.resolve(appDirectory, '.env');
+              if (fs.existsSync(envPath)) {
+                const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+                for (const line of lines) {
+                  const match = line.match(/^SARVAM_API_KEY\s*=\s*(.+)$/);
+                  if (match) {
+                    k = match[1].trim();
+                    break;
+                  }
+                }
+              }
+            } catch {}
+          }
+          return k;
+        })(),
+      }),
     }),
+    {
+      apply: (compiler) => {
+        compiler.hooks.afterEmit.tap('AutoCopyStaticPlugin', () => {
+          const fs = require('fs');
+          const fromDir = path.resolve(appDirectory, 'public');
+          const toDir = path.resolve(appDirectory, 'dist');
+          if (!fs.existsSync(fromDir)) return;
+          function copyRec(src, dest) {
+            if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+            for (const item of fs.readdirSync(src)) {
+              if (item === 'index.html' && src === fromDir) continue;
+              const sPath = path.join(src, item);
+              const dPath = path.join(dest, item);
+              if (fs.statSync(sPath).isDirectory()) copyRec(sPath, dPath);
+              else fs.copyFileSync(sPath, dPath);
+            }
+          }
+          try {
+            copyRec(fromDir, toDir);
+          } catch (e) {
+            console.error('AutoCopyStaticPlugin error:', e);
+          }
+        });
+      },
+    },
   ],
   performance: { hints: false },
   devServer: {
     host: '0.0.0.0',
     port: 8080,
-    historyApiFallback: true,
+    static: {
+      directory: path.resolve(appDirectory, 'public'),
+      publicPath: '/',
+    },
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/video$/, to: '/video.html' },
+      ],
+    },
     hot: true,
     allowedHosts: 'all',
     client: {

@@ -5,6 +5,8 @@ import { Icon } from '../ui/Icon';
 import { voiceService } from '../../lib/voiceService';
 import { CommodityItem, MarketItem, getCommodityDisplayName, getMarketDisplayName } from '../../lib/commodity';
 
+const farmerPhoto = require('../../assets/images/farmer.jpg');
+
 interface Props {
   cropName?: string;
   mandiName?: string;
@@ -96,7 +98,7 @@ export function FarmerVoiceCard({
 
       <View style={styles.bodyRow}>
         <Image
-          source={{ uri: '/images/farmer.jpg' }}
+          source={farmerPhoto}
           style={styles.farmerPhoto}
           resizeMode="cover"
         />

@@ -312,7 +312,7 @@ export const STATIC_CROPS: StaticCrop[] = [
     { id: 'm9_2', name: 'Basmat Nanded APMC', name_mr: 'नांदेड हळद मंडी (वसमत)', name_hi: 'वसमत हल्दी मंडी', dist: 70, bonus: 280 },
     { id: 'm9_3', name: 'Hingoli APMC', name_mr: 'हिंगोली कृषी उत्पन्न बाजार', name_hi: 'हिंगोली मंडी', dist: 95, bonus: 200 },
   ]),
-  createCrop('10', 'Groundnut', 'भुईमूग', 'मूंगफली', '🥜', '/images/soybean.jpg', 6350, 730, 120, true, 280, [
+  createCrop('10', 'Groundnut', 'भुईमूग', 'मूंगफली', '🥜', '/images/groundnut.jpg', 6350, 730, 120, true, 280, [
     { id: 'm10_1', name: 'Dhule APMC', name_mr: 'धुळे तेलबिया बाजार समिती', name_hi: 'धुले मंडी', dist: 45, bonus: 180 },
     { id: 'm10_2', name: 'Jalgaon APMC', name_mr: 'जळगाव कृषी बाजार समिती', name_hi: 'जलगांव मंडी', dist: 55, bonus: 140 },
     { id: 'm10_3', name: 'Sangli APMC', name_mr: 'सांगली कृषी उत्पन्न बाजार', name_hi: 'सांगली मंडी', dist: 110, bonus: 90 },
@@ -322,17 +322,17 @@ export const STATIC_CROPS: StaticCrop[] = [
     { id: 'm11_2', name: 'Sangola APMC', name_mr: 'सांगोला डाळिंब बाजार समिती', name_hi: 'सांगोला मंडी', dist: 48, bonus: 350 },
     { id: 'm11_3', name: 'Pandharpur APMC', name_mr: 'पंढरपूर कृषी उत्पन्न बाजार', name_hi: 'पंढरपुर मंडी', dist: 65, bonus: 280 },
   ]),
-  createCrop('12', 'Grapes', 'द्राक्षे', 'अंगूर', '🍇', '/images/pomegranate.jpg', 6900, 820, 200, true, 410, [
+  createCrop('12', 'Grapes', 'द्राक्षे', 'अंगूर', '🍇', '/images/grapes.jpg', 6900, 820, 200, true, 410, [
     { id: 'm12_1', name: 'Nashik Grape APMC', name_mr: 'नाशिक द्राक्ष मुख्य मंडी', name_hi: 'नासिक अंगूर मंडी', dist: 15, bonus: 250 },
     { id: 'm12_2', name: 'Pimpalgaon Grape APMC', name_mr: 'पिंपळगाव बसवंत द्राक्ष बाजार', name_hi: 'पिंपलगांव बाजार', dist: 28, bonus: 300 },
     { id: 'm12_3', name: 'Tasgaon Sangli APMC', name_mr: 'सांगली तासगाव द्राक्ष बाजार', name_hi: 'तासगांव मंडी', dist: 160, bonus: 180 },
   ]),
-  createCrop('13', 'Sugarcane', 'ऊस', 'गन्ना', '🎋', '/images/wheat.jpg', 3380, 4400, 60, false, 70, [
+  createCrop('13', 'Sugarcane', 'ऊस', 'गन्ना', '🎋', '/images/sugarcane.jpg', 3380, 4400, 60, false, 70, [
     { id: 'm13_1', name: 'Kolhapur Sugar Hub', name_mr: 'कोल्हापूर साखर कारखाना केंद्र', name_hi: 'कोल्हापुर केंद्र', dist: 20, bonus: 90 },
     { id: 'm13_2', name: 'Baramati APMC', name_mr: 'बारामती गूळ व ऊस बाजार', name_hi: 'बारामती मंडी', dist: 40, bonus: 70 },
     { id: 'm13_3', name: 'Sangli APMC', name_mr: 'सांगली कृषी उत्पन्न बाजार', name_hi: 'सांगली मंडी', dist: 55, bonus: 50 },
   ]),
-  createCrop('14', 'Potato', 'बटाटा', 'आलू', '🥔', '/images/onion.jpg', 1980, 2350, 40, false, 60, [
+  createCrop('14', 'Potato', 'बटाटा', 'आलू', '🥔', '/images/potato.jpg', 1980, 2350, 40, false, 60, [
     { id: 'm14_1', name: 'Manchar Pune Potato APMC', name_mr: 'पुणे मंचर बटाटा मुख्य मंडी', name_hi: 'मंचर आलू मंडी', dist: 32, bonus: 110 },
     { id: 'm14_2', name: 'Satara Khatav APMC', name_mr: 'सातारा खटाव कृषी बाजार', name_hi: 'सातारा मंडी', dist: 60, bonus: 70 },
     { id: 'm14_3', name: 'Pune Gultekdi APMC', name_mr: 'पुणे गुलटेकडी भाजीपाला बाजार', name_hi: 'पुणे मंडी', dist: 50, bonus: 90 },

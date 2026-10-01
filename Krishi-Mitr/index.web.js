@@ -31,8 +31,8 @@ style.appendChild(
     touch-action: pan-y pinch-zoom;
     scroll-behavior: smooth;
   }
-  #root, [dir="auto"], input, button, select, textarea {
-    font-family: 'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  #root, input, button, select, textarea {
+    font-family: 'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   #root {
     height: 100%;
@@ -116,6 +116,17 @@ document.head.appendChild(style);
 const appName = appJson.name || 'KrishiMitr';
 
 AppRegistry.registerComponent(appName, () => App);
+
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error('CRASH:', message, error);
+  const el = document.createElement('pre');
+  el.id = 'app-crash-log';
+  el.style.color = 'red';
+  el.style.padding = '20px';
+  el.style.zIndex = '999999';
+  el.innerText = 'CRASH: ' + message + '\n' + (error && error.stack);
+  document.body.appendChild(el);
+};
 
 AppRegistry.runApplication(appName, {
   initialProps: {},

@@ -159,11 +159,36 @@
 </div>
 
 <script>
-  /* The one line to change when the real video is ready. */
-  var VIDEO_ID = "WAPLwC0vs8A";
+  /* Dynamically resolved from process.env.VIDEO_URL or query param */
+  var envVideo = "<%= typeof VIDEO_URL !== 'undefined' ? VIDEO_URL : 'https://www.youtube-nocookie.com/embed/WAPLwC0vs8A?rel=0&modestbranding=1' %>";
+  
+  function resolveEmbedUrl(input) {
+    if (!input) input = "WAPLwC0vs8A";
+    var params = new URLSearchParams(window.location.search);
+    var override = params.get('url') || params.get('v');
+    if (override) input = override;
 
-  document.getElementById("player").src =
-    "https://www.youtube-nocookie.com/embed/" + VIDEO_ID + "?rel=0&modestbranding=1";
+    if (input.indexOf("watch?v=") !== -1) {
+      var id = input.split("watch?v=")[1].split("&")[0];
+      return "https://www.youtube-nocookie.com/embed/" + id + "?rel=0&modestbranding=1";
+    }
+    if (input.indexOf("youtu.be/") !== -1) {
+      var id = input.split("youtu.be/")[1].split("?")[0];
+      return "https://www.youtube-nocookie.com/embed/" + id + "?rel=0&modestbranding=1";
+    }
+    if (input.indexOf("/embed/") !== -1) {
+      return input.indexOf("?") === -1 ? input + "?rel=0&modestbranding=1" : input;
+    }
+    if (input.indexOf("http") === -1 && input.length >= 6 && input.length <= 20) {
+      return "https://www.youtube-nocookie.com/embed/" + input + "?rel=0&modestbranding=1";
+    }
+    return input;
+  }
+
+  var player = document.getElementById("player");
+  if (player) {
+    player.src = resolveEmbedUrl(envVideo);
+  }
 </script>
 </body>
 </html>
