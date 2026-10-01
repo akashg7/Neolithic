@@ -36,6 +36,7 @@ import { FarmerVoiceCard } from '../../components/farmer/FarmerVoiceCard';
 import { ForecastFan } from '../../components/charts/ForecastFan';
 import { WebFooter } from '../../components/web/WebFooter';
 import { useStaticMarket } from '../../lib/staticMarketStore';
+import { fxMyLots } from '../../fixtures/lots';
 import type { HomeStackParamList } from '../../navigation/FarmerTabs';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'S4_Home'>;
@@ -648,6 +649,79 @@ export default function S04_Home({ navigation }: Props) {
                 );
               })}
             </View>
+          </View>
+
+          {/* ── 5. Akash's Active Produce Lots Section ── */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {isEn ? '📦 My Active Produce Lots' : isHi ? '📦 मेरी सक्रिय फसल लॉट' : '📦 माझे नोंदणीकृत शेतीमाल लॉट'}
+            </Text>
+            <TouchableOpacity
+              style={styles.sectionAction}
+              onPress={() => (navigation as any).navigate('MyLots')}>
+              <Text style={styles.sectionActionText}>
+                {isEn ? 'Manage All Lots' : isHi ? 'सभी लॉट देखें' : 'सर्व लॉट पहा'}
+              </Text>
+              <Icon name="chevron-right" size={15} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.lotGrid}>
+            {fxMyLots.map((itemLot) => (
+              <View
+                key={itemLot.id}
+                style={styles.lotCard}
+                {...{ dataSet: { hover: 'lift' } } as any}>
+                <View style={styles.lotCardHeader}>
+                  <Image source={{ uri: crop.image }} style={styles.lotPhoto} />
+                  <View style={styles.lotInfo}>
+                    <View style={styles.lotTitleRow}>
+                      <Text style={styles.lotTitle} numberOfLines={1}>
+                        {cropTitle} ({itemLot.grade ?? 'FAQ'})
+                      </Text>
+                      <View style={styles.lotActiveBadge}>
+                        <View style={styles.lotActiveDot} />
+                        <Text style={styles.lotActiveText}>{itemLot.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.lotSub}>
+                      {isEn ? 'Stored at Lasalgaon APMC Warehouse' : 'लासलगाव मुख्य बाजार समिती गोदाम'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.lotStatsRow}>
+                  <View style={styles.lotStat}>
+                    <Text style={styles.lotStatLabel}>{isEn ? 'Quantity' : 'वजन'}</Text>
+                    <Text style={styles.lotStatValue}>{(itemLot.qty_kg / 100).toFixed(0)} {isEn ? 'Qtl' : 'क्विं.'}</Text>
+                  </View>
+                  <View style={styles.lotStat}>
+                    <Text style={styles.lotStatLabel}>{isEn ? 'Grade' : 'दर्जा'}</Text>
+                    <Text style={[styles.lotStatValue, { color: colors.primary }]}>{itemLot.grade ?? 'FAQ'}</Text>
+                  </View>
+                  <View style={styles.lotStat}>
+                    <Text style={styles.lotStatLabel}>{isEn ? 'Lot #' : 'लॉट क्र.'}</Text>
+                    <Text style={styles.lotStatValue}>{itemLot.id.slice(-4).toUpperCase()}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.lotActions}>
+                  <TouchableOpacity
+                    style={styles.lotPrimaryBtn}
+                    onPress={() => (navigation as any).navigate('MyLots')}>
+                    <Text style={styles.lotPrimaryBtnText}>{isEn ? 'View Lot & Offers' : 'लॉट व ऑफर पहा'}</Text>
+                    <Icon name="chevron-right" size={15} color={colors.onPrimary} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.escrowRow}>
+                  <Icon name="shield-check" size={14} color={colors.tertiary} />
+                  <Text style={styles.escrowText}>
+                    {isEn ? 'Krishi-Mitr Escrow Guaranteed Settlement' : 'कृषी-मित्र डिजिटल एस्क्रो १००% पेमेंट हमी'}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
 
         </View>
@@ -1272,5 +1346,166 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.outline,
     marginTop: 2,
+  },
+
+  /* Akash's Active Produce Lots Section */
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: space.lg,
+    marginBottom: space.sm,
+    paddingHorizontal: 2,
+  },
+  sectionTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 18,
+    color: colors.onSurface,
+  },
+  sectionAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    cursor: 'pointer' as any,
+  },
+  sectionActionText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: colors.primary,
+  },
+  lotGrid: Platform.select({
+    web: {
+      // @ts-ignore
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+      gap: space.md,
+      marginBottom: space.lg,
+    },
+    default: {
+      gap: space.sm,
+      marginBottom: space.lg,
+    },
+  }) as any,
+  lotCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.outlineVariant,
+    boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
+  } as any,
+  lotCardHeader: {
+    flexDirection: 'row',
+    gap: space.sm,
+    marginBottom: space.sm,
+  },
+  lotPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+  },
+  lotInfo: {
+    flex: 1,
+  },
+  lotTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lotTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    color: colors.onSurface,
+  },
+  lotActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    backgroundColor: '#E8F5E9',
+  },
+  lotActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.tertiary,
+  },
+  lotActiveText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 10.5,
+    color: colors.tertiary,
+    letterSpacing: 0.4,
+  },
+  lotSub: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  lotStatsRow: {
+    flexDirection: 'row',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    overflow: 'hidden',
+    marginBottom: space.sm,
+  },
+  lotStat: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: space.xs,
+    borderRightWidth: 1,
+    borderRightColor: colors.outlineVariant,
+  },
+  lotStatLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  lotStatValue: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 14,
+    color: colors.onSurface,
+    marginTop: 2,
+  },
+  lotActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: space.xs,
+  },
+  lotPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    cursor: 'pointer' as any,
+  },
+  lotPrimaryBtnText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13.5,
+    color: colors.onPrimary,
+  },
+  escrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    justifyContent: 'center',
+    paddingTop: space.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  escrowText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11.5,
+    color: colors.tertiary,
   },
 });
