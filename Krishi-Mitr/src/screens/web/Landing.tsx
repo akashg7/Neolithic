@@ -267,6 +267,26 @@ export default function Landing() {
         <Text style={styles.tagline}>{copy.tagline}</Text>
         <Text style={styles.subtagline}>{copy.subtagline}</Text>
         <Text style={styles.promise}>{copy.promise}</Text>
+
+        <Pressable
+          onPress={() => {
+            if (typeof window !== 'undefined') window.open('/video', '_blank');
+          }}
+          // @ts-ignore
+          onClick={() => {
+            if (typeof window !== 'undefined') window.open('/video', '_blank');
+          }}
+          style={styles.heroVideoBtn}>
+          <Text style={styles.heroVideoIcon}>🎥</Text>
+          <Text style={styles.heroVideoText}>
+            {locale === 'mr'
+              ? 'व्हिडिओ प्रात्यक्षिक पहा'
+              : locale === 'hi'
+              ? 'वीडियो डेमो देखें'
+              : 'Watch Video Walkthrough'}
+          </Text>
+          <Icon name="arrow-right" size={14} color={colors.primary} />
+        </Pressable>
       </View>
 
       {/* ── The Two Doors ──────────────────────────────────── */}
@@ -522,6 +542,30 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     textAlign: 'center',
     maxWidth: 680,
+  },
+  heroVideoBtn: {
+    marginTop: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 3,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    borderRadius: radius.full,
+    alignSelf: 'center',
+    // @ts-ignore
+    cursor: 'pointer',
+  },
+  heroVideoIcon: {
+    fontSize: 15,
+  },
+  heroVideoText: {
+    fontFamily: fontFamily.bold,
+    fontWeight: '700',
+    fontSize: 14,
+    color: colors.primary,
   },
 
   doors: {

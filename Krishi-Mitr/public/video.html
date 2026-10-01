@@ -106,25 +106,23 @@
 
   <div class="frame">
     <div class="ratio">
-      <!-- ══════════════════════════════════════════════════════════════════
-           TO SWAP IN YOUR OWN VIDEO: change VIDEO_ID below to the 11-character
-           id from your YouTube URL.
-               https://www.youtube.com/watch?v=XXXXXXXXXXX
-                                               ^^^^^^^^^^^  <- this part
-           Nothing else on the page needs to change.
-           ══════════════════════════════════════════════════════════════════ -->
       <iframe id="player"
-        title="Krishi Mitr demo video"
+        title="Krishi Mitr demo video — Neolithic SIH 2026"
+        src="https://www.youtube.com/embed/PdKY_oKUvoA?rel=0&modestbranding=1"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         referrerpolicy="strict-origin-when-cross-origin"
         allowfullscreen></iframe>
     </div>
   </div>
-  <p class="note" id="placeholder-note">
-    <b>Placeholder.</b>
-    <span>This is a stand-in clip while our own walkthrough is being recorded.
-    Replace <code>VIDEO_ID</code> in this page, then delete this line.</span>
-  </p>
+  
+  <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <span style="font-size:13.5px;color:var(--ink-soft);font-weight:600;">
+      Official SIH 2026 Walkthrough Video (Neolithic)
+    </span>
+    <a href="https://youtu.be/PdKY_oKUvoA" target="_blank" rel="noopener noreferrer" style="font-size:13.5px;font-weight:700;color:var(--primary);text-decoration:none;">
+      Watch directly on YouTube ↗
+    </a>
+  </div>
 
   <h2>What the walkthrough covers</h2>
   <div class="grid">
@@ -159,35 +157,11 @@
 </div>
 
 <script>
-  /* Dynamically resolved from process.env.VIDEO_URL or query param */
-  var envVideo = "<%= typeof VIDEO_URL !== 'undefined' ? VIDEO_URL : 'https://www.youtube-nocookie.com/embed/WAPLwC0vs8A?rel=0&modestbranding=1' %>";
-  
-  function resolveEmbedUrl(input) {
-    if (!input) input = "WAPLwC0vs8A";
-    var params = new URLSearchParams(window.location.search);
-    var override = params.get('url') || params.get('v');
-    if (override) input = override;
-
-    if (input.indexOf("watch?v=") !== -1) {
-      var id = input.split("watch?v=")[1].split("&")[0];
-      return "https://www.youtube-nocookie.com/embed/" + id + "?rel=0&modestbranding=1";
-    }
-    if (input.indexOf("youtu.be/") !== -1) {
-      var id = input.split("youtu.be/")[1].split("?")[0];
-      return "https://www.youtube-nocookie.com/embed/" + id + "?rel=0&modestbranding=1";
-    }
-    if (input.indexOf("/embed/") !== -1) {
-      return input.indexOf("?") === -1 ? input + "?rel=0&modestbranding=1" : input;
-    }
-    if (input.indexOf("http") === -1 && input.length >= 6 && input.length <= 20) {
-      return "https://www.youtube-nocookie.com/embed/" + input + "?rel=0&modestbranding=1";
-    }
-    return input;
-  }
+  var VIDEO_ID = "PdKY_oKUvoA";
 
   var player = document.getElementById("player");
-  if (player) {
-    player.src = resolveEmbedUrl(envVideo);
+  if (player && !player.src) {
+    player.src = "https://www.youtube.com/embed/" + VIDEO_ID + "?rel=0&modestbranding=1";
   }
 </script>
 </body>
