@@ -268,25 +268,6 @@ export default function Landing() {
         <Text style={styles.subtagline}>{copy.subtagline}</Text>
         <Text style={styles.promise}>{copy.promise}</Text>
 
-        <Pressable
-          onPress={() => {
-            if (typeof window !== 'undefined') window.open('/video', '_blank');
-          }}
-          // @ts-ignore
-          onClick={() => {
-            if (typeof window !== 'undefined') window.open('/video', '_blank');
-          }}
-          style={styles.heroVideoBtn}>
-          <Text style={styles.heroVideoIcon}>🎥</Text>
-          <Text style={styles.heroVideoText}>
-            {locale === 'mr'
-              ? 'व्हिडिओ प्रात्यक्षिक पहा'
-              : locale === 'hi'
-              ? 'वीडियो डेमो देखें'
-              : 'Watch Video Walkthrough'}
-          </Text>
-          <Icon name="arrow-right" size={14} color={colors.primary} />
-        </Pressable>
       </View>
 
       {/* ── The Two Doors ──────────────────────────────────── */}
@@ -373,8 +354,8 @@ export default function Landing() {
               {locale === 'mr'
                 ? 'किंवा थेट खरेदीदार कन्सोल बघा →'
                 : locale === 'hi'
-                ? 'या सीधा खरीदार कंसोल देखें →'
-                : 'or Instant Trader Dashboard →'}
+                  ? 'या सीधा खरीदार कंसोल देखें →'
+                  : 'or Instant Trader Dashboard →'}
             </Text>
           </Pressable>
         </View>
