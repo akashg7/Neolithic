@@ -25,11 +25,14 @@ style.appendChild(
     overflow-x: hidden !important;
     overflow-y: auto;
     background-color: #FAF6EE;
-    font-family: "Plus Jakarta Sans", "Noto Sans Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     touch-action: pan-y pinch-zoom;
     scroll-behavior: smooth;
+  }
+  #root, [dir="auto"], input, button, select, textarea {
+    font-family: 'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   }
   #root {
     height: 100%;

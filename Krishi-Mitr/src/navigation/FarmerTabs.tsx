@@ -36,6 +36,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useT } from '../lib/i18n';
+import { fontFamily } from '../theme/tokens';
 import { tabIcon } from './TabIcon';
 import { TabBarButton } from './TabBarButton';
 import type { AssayReq, AssayRes, TxDto } from '../types/api';
@@ -388,7 +389,7 @@ export function FarmerTabs() {
         sceneStyle: { backgroundColor: SCREEN_BG },
         tabBarActiveTintColor: '#C2410C',
         tabBarInactiveTintColor: '#8D7168',
-        tabBarLabelStyle: { fontSize: 12, fontFamily: 'PlusJakartaSans-SemiBold' },
+        tabBarLabelStyle: { fontSize: 12, fontFamily: fontFamily.semiBold },
         // Without this, Android draws a borderless ripple that paints outside
         // the 64px bar. See `TabBarButton`.
         tabBarButton: props => <TabBarButton {...props} />,

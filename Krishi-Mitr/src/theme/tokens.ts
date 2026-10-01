@@ -85,11 +85,11 @@ import { Platform } from 'react-native';
  * family string per weight. */
 export const fontFamily = Platform.select({
   web: {
-    regular: 'Inter',
-    medium: 'Inter',
-    semiBold: 'Inter',
-    bold: 'Inter',
-    extraBold: 'Inter',
+    regular: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    medium: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    semiBold: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    bold: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    extraBold: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
   },
   default: {
     regular: 'PlusJakartaSans-Regular',

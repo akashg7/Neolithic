@@ -313,10 +313,12 @@ export default function S15_MyLots({ navigation }: Props) {
           </View>
         </View>
 
+        <View style={styles.grid}>
         {lots.map(item => (
           <TouchableOpacity
             key={item.id}
             style={styles.lotCard}
+            {...{ dataSet: { hover: 'lift' } } as any}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('S20_QualityDiagnostic', { lot_id: item.id })}>
             <View style={styles.lotCardHead}>
@@ -348,7 +350,7 @@ export default function S15_MyLots({ navigation }: Props) {
           </TouchableOpacity>
         ))}
 
-        <TouchableOpacity style={styles.addLotCard} onPress={goCreateLot} accessibilityRole="button">
+        <TouchableOpacity style={styles.addLotCard} {...{ dataSet: { hover: 'lift' } } as any} onPress={goCreateLot} accessibilityRole="button">
           <View style={styles.addLotIconBox}>
             <Icon name="plus" size={20} color={colors.primary} />
           </View>
@@ -358,6 +360,7 @@ export default function S15_MyLots({ navigation }: Props) {
           </View>
           <Icon name="chevron-right" size={18} color={colors.outline} />
         </TouchableOpacity>
+        </View>
 
         {/* ★ "Offers waiting on you" and "My transactions" used to sit here.
             Both are gone, and the reason is the flow rather than the space:
@@ -444,6 +447,18 @@ const styles = StyleSheet.create({
     gap: space.sm,
     paddingBottom: space.xxl,
   },
+
+  grid: Platform.select({
+    web: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+      gap: space.md,
+      alignItems: 'stretch',
+    },
+    default: {
+      gap: space.sm,
+    },
+  }) as any,
 
   emptyHeading: { ...typography.displayLg, color: colors.onSurface },
   emptySub: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginTop: -4 },

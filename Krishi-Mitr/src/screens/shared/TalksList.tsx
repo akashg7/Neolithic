@@ -226,7 +226,7 @@ export function TalksList({
         {offers.length > 0 ? (
           <>
             {/* ── What is on the table ────────────────────────────────── */}
-            <View style={styles.summaryCard}>
+            <View style={styles.summaryCard} {...{ dataSet: { hover: 'lift' } } as any}>
               <View style={styles.summaryTop}>
                 <View style={styles.summaryLeft}>
                   <Text style={styles.summaryLabel}>{t('chat_summary_label')}</Text>
@@ -272,7 +272,7 @@ export function TalksList({
         ) : null}
 
         {shown.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View style={styles.emptyCard} {...{ dataSet: { hover: 'lift' } } as any}>
             <View style={styles.emptyIcon}>
               <Icon name="message-circle" size={26} color={colors.outline} />
             </View>
@@ -283,6 +283,7 @@ export function TalksList({
           </View>
         ) : null}
 
+        <View style={styles.cardGrid}>
         {shown.map((offer, i) => {
           const waitingOnViewer = isWaitingOnViewer(offer);
           const live = offer.status === 'OPEN';
@@ -303,7 +304,7 @@ export function TalksList({
             : null;
 
           return (
-            <View key={offer.id} style={[styles.card, waitingOnViewer && styles.cardWaiting]}>
+            <View key={offer.id} style={[styles.card, waitingOnViewer && styles.cardWaiting]} {...{ dataSet: { hover: 'lift' } } as any}>
               {/* ── Round band ───────────────────────────────────────── */}
               <View style={[styles.band, waitingOnViewer && styles.bandWaiting]}>
                 <Icon
@@ -458,6 +459,7 @@ export function TalksList({
           );
         })}
         </View>
+        </View>
         {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
@@ -593,6 +595,18 @@ const styles = StyleSheet.create({
   filterChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterText: { ...typography.labelMd, color: colors.onSurfaceVariant },
   filterTextOn: { color: colors.onPrimary, fontFamily: fontFamily.extraBold },
+
+  cardGrid: Platform.select({
+    web: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+      gap: 16,
+      alignItems: 'stretch',
+    },
+    default: {
+      gap: space.sm,
+    },
+  }) as any,
 
   card: {
     backgroundColor: colors.surface,
