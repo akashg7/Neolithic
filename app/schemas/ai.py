@@ -131,7 +131,7 @@ class WindowRes(BaseModel):
     data_source: str
     pledge_quote: Optional[PledgeQuote] = None
     alt_market: Optional[AltMarket] = None
-    refusal_reason: Optional[Literal["BAND_TOO_WIDE", "INSUFFICIENT_HISTORY", "STALE_DATA", "GAIN_BELOW_COST"]] = None
+    refusal_reason: Optional[Literal["BAND_TOO_WIDE", "INSUFFICIENT_HISTORY", "STALE_DATA", "GAIN_BELOW_COST", "MODEL_UNAVAILABLE"]] = None
     explain_mr: str
     explain_en: str
 

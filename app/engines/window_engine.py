@@ -80,9 +80,7 @@ def compute_sale_window(
     }
 
     # Sell-now net (per qtl) — used by the frontend identities.
-    sell_now_net_per_qtl = current_price_mid_paise - (
-        compute_costs(current_price_mid_paise, quantity_kg, distance_km, days=0).total_paise // qty_qtl
-    )
+    sell_now_net_per_qtl = result.sell_now_net_paise_per_qtl
 
     base_res: dict = {
         "recommendation": result.action,          # SELL_NOW | HOLD | SPLIT | NO_ADVICE
@@ -110,26 +108,10 @@ def compute_sale_window(
 
     # ── For HOLD/SPLIT: compute hold-day nets (per qtl) ────────────────
     if result.action in ("HOLD", "SPLIT") and result.hold_days > 0:
-        # Rebuild the chosen hold-day's per-qtl costs so nets are consistent.
-        hold_costs_qtl = {
-            "storage_paise_per_qtl": 5 * 100 * result.hold_days,  # ₹5/kg/day
-            "spoilage_paise_per_qtl": int(current_price_mid_paise * 0.002 * result.hold_days),
-            "loading_paise_per_qtl": 2000,  # ₹20/qtl
-        }
-        # p50 net at chosen day = p50 forecast - holding costs.
-        # We derive p50/p10 from the domain result's own cost total.
-        hold_p50_net = (current_price_mid_paise
-                        + result.expected_gain_paise // _qty_qtl(quantity_kg)
-                        - result.costs.total_paise // qty_qtl)
-        base_res["hold_p50_net_paise_per_qtl"] = hold_p50_net
-        base_res["hold_p10_net_paise_per_qtl"] = max(0, hold_p50_net - result.band_width_bps * qty_qtl // 10000)
-        base_res["itemised_costs"].update(hold_costs_qtl)
-        base_res["itemised_costs"]["total_paise_per_qtl"] = (
-            base_res["itemised_costs"]["storage_paise_per_qtl"]
-            + base_res["itemised_costs"]["spoilage_paise_per_qtl"]
-            + base_res["itemised_costs"]["loading_paise_per_qtl"]
-            + 0  # transport/commission already in costs for the whole lot
-        )
+        # The decision already calculated these values from the chosen forecast.
+        # Reusing them preserves whole-lot gain and per-quintal cost identities.
+        base_res["hold_p50_net_paise_per_qtl"] = result.hold_p50_net_paise_per_qtl
+        base_res["hold_p10_net_paise_per_qtl"] = result.hold_p10_net_paise_per_qtl
 
         # ── Pledge quote (only on HOLD/SPLIT with positive gain) ───────
         if result.expected_gain_paise > 0:
