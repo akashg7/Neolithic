@@ -97,6 +97,7 @@ app.include_router(transactions.router, prefix="/api/v1/tx", tags=["Transactions
 app.include_router(logistics.router, prefix="/api/v1/logistics", tags=["Logistics"])
 app.include_router(disputes.router, prefix="/api/v1/disputes", tags=["Disputes"])
 app.include_router(fpo.router, prefix="/api/v1/pools", tags=["FPO"])
+app.include_router(fpo.farmers_router, prefix="/api/v1/fpo", tags=["FPO"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["Voice"])
 app.include_router(ref.router, prefix="/api/v1/ref", tags=["Reference"])
