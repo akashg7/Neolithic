@@ -5,6 +5,11 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+
+import Landing from '../screens/web/Landing';
+import BuyerSplash from '../screens/buyer/BuyerSplash';
+import { useAuth } from '../lib/auth';
+import { fxAuthRegisteredBuyer } from '../fixtures/auth';
 import S00_Splash from '../screens/farmer/S00_Splash';
 import S01_Language from '../screens/farmer/S01_Language';
 import S01b_ValueCarousel from '../screens/farmer/S01b_ValueCarousel';
@@ -14,9 +19,15 @@ import S03_Profile from '../screens/farmer/S03_Profile';
 import S03_Welcome from '../screens/farmer/S03_Welcome';
 
 export type AuthStackParamList = {
+  /** Web only — a URL has no "I installed this on purpose" context, so the
+   * first screen asks farmer or buyer and then hands over to the phone flow
+   * unchanged. See `screens/web/Landing.tsx`. */
+  Web_Landing: undefined;
+  /** The trader's own first screen — the approved Stitch buyer splash. */
+  Buyer_Splash: undefined;
   S0_Splash: undefined;
   S1_Language: undefined;
-  /** Stitch 03 — "why Krishi Mitra", between the language choice and the
+  /** Stitch 03 — "why Krishi Mitr", between the language choice and the
    * phone number. `S1b` because three screens already carry the `S03_`
    * prefix from the pre-Stitch numbering. */
   S1b_ValueCarousel: undefined;
@@ -27,6 +38,17 @@ export type AuthStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
+
+/**
+ * The buyer splash, wired to the one thing it asks for. Signing in with the
+ * fixture buyer is how the phone build reaches the console too — there is no
+ * separate trader login yet, and inventing one on this screen would be a
+ * promise the backend cannot keep.
+ */
+function BuyerSplashRoute() {
+  const { signIn } = useAuth();
+  return <BuyerSplash onSignIn={() => void signIn(fxAuthRegisteredBuyer)} />;
+}
 
 export function AuthStack() {
   return (
@@ -50,9 +72,14 @@ export function AuthStack() {
       //   stack root. `S00_Splash` reads `hasLocale` and sends a returning
       //   farmer straight to the phone screen — one extra tap for him, a real
       //   back stack for everyone.
+      // ★ On the web the landing page sits *below* the splash in the stack,
+      //   so the splash's own back gesture returns here rather than dead-ending
+      //   — the same reason the splash itself is the root on the phone.
       initialRouteName="S0_Splash"
       screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="S0_Splash" component={S00_Splash} />
+      <Stack.Screen name="Web_Landing" component={Landing} />
+      <Stack.Screen name="Buyer_Splash" component={BuyerSplashRoute} />
       <Stack.Screen name="S1_Language" component={S01_Language} />
       <Stack.Screen name="S1b_ValueCarousel" component={S01b_ValueCarousel} />
       <Stack.Screen name="S2_Phone" component={S02_Phone} />

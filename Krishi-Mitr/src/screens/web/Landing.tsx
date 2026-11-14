@@ -267,6 +267,7 @@ export default function Landing() {
         <Text style={styles.tagline}>{copy.tagline}</Text>
         <Text style={styles.subtagline}>{copy.subtagline}</Text>
         <Text style={styles.promise}>{copy.promise}</Text>
+
       </View>
 
       {/* ── The Two Doors ──────────────────────────────────── */}
@@ -353,8 +354,8 @@ export default function Landing() {
               {locale === 'mr'
                 ? 'किंवा थेट खरेदीदार कन्सोल बघा →'
                 : locale === 'hi'
-                ? 'या सीधा खरीदार कंसोल देखें →'
-                : 'or Instant Trader Dashboard →'}
+                  ? 'या सीधा खरीदार कंसोल देखें →'
+                  : 'or Instant Trader Dashboard →'}
             </Text>
           </Pressable>
         </View>
@@ -419,12 +420,14 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontFamily: fontFamily.extraBold,
+    fontWeight: '800',
     fontSize: 20,
     color: colors.primary,
     letterSpacing: -0.5,
   },
   brandSub: {
     fontFamily: fontFamily.semiBold,
+    fontWeight: '600',
     fontSize: 11,
     color: colors.outline,
     marginTop: -2,
@@ -450,11 +453,13 @@ const styles = StyleSheet.create({
   },
   langChipText: {
     fontFamily: fontFamily.medium,
+    fontWeight: '500',
     fontSize: 13,
     color: colors.onSurfaceVariant,
   },
   langChipTextActive: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     color: colors.onPrimary,
   },
 
@@ -481,6 +486,7 @@ const styles = StyleSheet.create({
   },
   govPillText: {
     fontFamily: fontFamily.semiBold,
+    fontWeight: '600',
     fontSize: 12,
     color: colors.tertiary,
     letterSpacing: 0.3,
@@ -493,6 +499,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontFamily: fontFamily.extraBold,
+    fontWeight: '800',
     fontSize: 34,
     color: colors.onSurface,
     textAlign: 'center',
@@ -501,6 +508,7 @@ const styles = StyleSheet.create({
   },
   subtagline: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     fontSize: 17,
     color: colors.primary,
     textAlign: 'center',
@@ -508,12 +516,37 @@ const styles = StyleSheet.create({
   },
   promise: {
     fontFamily: fontFamily.regular,
+    fontWeight: '400',
     fontSize: 14.5,
     lineHeight: 22,
     color: colors.onSurfaceVariant,
     marginTop: space.sm,
     textAlign: 'center',
     maxWidth: 680,
+  },
+  heroVideoBtn: {
+    marginTop: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 3,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#FDBA74',
+    borderRadius: radius.full,
+    alignSelf: 'center',
+    // @ts-ignore
+    cursor: 'pointer',
+  },
+  heroVideoIcon: {
+    fontSize: 15,
+  },
+  heroVideoText: {
+    fontFamily: fontFamily.bold,
+    fontWeight: '700',
+    fontSize: 14,
+    color: colors.primary,
   },
 
   doors: {
@@ -590,12 +623,14 @@ const styles = StyleSheet.create({
 
   doorTitle: {
     fontFamily: fontFamily.extraBold,
+    fontWeight: '800',
     fontSize: 22,
     color: colors.onSurface,
     marginTop: space.xs,
   },
   doorSub: {
     fontFamily: fontFamily.regular,
+    fontWeight: '400',
     fontSize: 13.5,
     color: colors.onSurfaceVariant,
     marginTop: space.xxs,
@@ -636,6 +671,7 @@ const styles = StyleSheet.create({
   },
   primaryCtaText: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     fontSize: 15,
     color: '#FFFFFF',
   },
@@ -666,6 +702,7 @@ const styles = StyleSheet.create({
   },
   pointsSectionTitle: {
     fontFamily: fontFamily.extraBold,
+    fontWeight: '800',
     fontSize: 20,
     color: colors.onSurface,
     marginBottom: space.lg,
@@ -701,12 +738,14 @@ const styles = StyleSheet.create({
   },
   pointTitle: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     fontSize: 14,
     color: colors.onSurface,
     flex: 1,
   },
   pointDesc: {
     fontFamily: fontFamily.regular,
+    fontWeight: '400',
     fontSize: 12.5,
     lineHeight: 18,
     color: colors.onSurfaceVariant,

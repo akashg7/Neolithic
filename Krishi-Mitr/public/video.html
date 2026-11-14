@@ -106,25 +106,23 @@
 
   <div class="frame">
     <div class="ratio">
-      <!-- ══════════════════════════════════════════════════════════════════
-           TO SWAP IN YOUR OWN VIDEO: change VIDEO_ID below to the 11-character
-           id from your YouTube URL.
-               https://www.youtube.com/watch?v=XXXXXXXXXXX
-                                               ^^^^^^^^^^^  <- this part
-           Nothing else on the page needs to change.
-           ══════════════════════════════════════════════════════════════════ -->
       <iframe id="player"
-        title="Krishi Mitr demo video"
+        title="Krishi Mitr demo video — Neolithic SIH 2026"
+        src="https://www.youtube.com/embed/iU7oJJ0n8RQ?rel=0&modestbranding=1"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         referrerpolicy="strict-origin-when-cross-origin"
         allowfullscreen></iframe>
     </div>
   </div>
-  <p class="note" id="placeholder-note">
-    <b>Placeholder.</b>
-    <span>This is a stand-in clip while our own walkthrough is being recorded.
-    Replace <code>VIDEO_ID</code> in this page, then delete this line.</span>
-  </p>
+  
+  <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <span style="font-size:13.5px;color:var(--ink-soft);font-weight:600;">
+      Official SIH 2026 Walkthrough Video (Neolithic)
+    </span>
+    <a href="https://youtu.be/iU7oJJ0n8RQ" target="_blank" rel="noopener noreferrer" style="font-size:13.5px;font-weight:700;color:var(--primary);text-decoration:none;">
+      Watch directly on YouTube ↗
+    </a>
+  </div>
 
   <h2>What the walkthrough covers</h2>
   <div class="grid">
@@ -159,11 +157,12 @@
 </div>
 
 <script>
-  /* The one line to change when the real video is ready. */
-  var VIDEO_ID = "WAPLwC0vs8A";
+  var VIDEO_ID = "iU7oJJ0n8RQ";
 
-  document.getElementById("player").src =
-    "https://www.youtube-nocookie.com/embed/" + VIDEO_ID + "?rel=0&modestbranding=1";
+  var player = document.getElementById("player");
+  if (player && !player.src) {
+    player.src = "https://www.youtube.com/embed/" + VIDEO_ID + "?rel=0&modestbranding=1";
+  }
 </script>
 </body>
 </html>

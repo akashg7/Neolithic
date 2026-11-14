@@ -34,9 +34,9 @@ const TAB_CONFIG: { name: string; icon: IconName; pathPrefix: string }[] = [
 ];
 
 const LANGUAGES: { code: Locale; label: string }[] = [
-  { code: 'mr', label: 'मरा' },
-  { code: 'hi', label: 'हिं' },
-  { code: 'en', label: 'EN' },
+  { code: 'mr', label: 'मराठी' },
+  { code: 'hi', label: 'हिंदी' },
+  { code: 'en', label: 'English' },
 ];
 
 /** Derive the active tab from the current URL pathname. */
@@ -311,11 +311,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 28,
     maxWidth: 1440,
-    // @ts-ignore — web-only
-    marginLeft: 'auto',
-    // @ts-ignore — web-only
-    marginRight: 'auto',
     width: '100%',
+    alignSelf: 'center',
   },
 
   // ── Brand ────────────────────────────────────────────────
@@ -393,28 +390,32 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   langPill: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'transparent',
     backgroundColor: 'transparent',
     // @ts-ignore
     cursor: 'pointer',
     // @ts-ignore
-    transition: 'background-color 0.15s ease',
+    transition: 'all 0.15s ease',
   },
   langPillActive: {
     backgroundColor: colors.primaryContainer,
+    borderColor: colors.primaryContainer,
   },
   langText: {
-    fontFamily: fontFamily.bold,
-    fontSize: 12,
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12.5,
     color: colors.outline,
-    letterSpacing: 0.3,
+    letterSpacing: 0.1,
     // @ts-ignore
     userSelect: 'none',
   },
   langTextActive: {
     color: colors.onPrimary,
+    fontFamily: fontFamily.bold,
   },
 
   vertDivider: {

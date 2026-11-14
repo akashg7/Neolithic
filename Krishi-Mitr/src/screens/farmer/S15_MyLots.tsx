@@ -227,6 +227,7 @@ export default function S15_MyLots({ navigation }: Props) {
         <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
         {header}
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.scrollMain}>
           <Text style={styles.emptyHeading}>{t('produce_empty_heading')}</Text>
           <Text style={styles.emptySub}>{t('lots_empty_description')}</Text>
 
@@ -272,6 +273,7 @@ export default function S15_MyLots({ navigation }: Props) {
             </View>
             <Icon name="arrow-right" size={20} color={colors.onPrimary} />
           </TouchableOpacity>
+          </View>
         </ScrollView>
       </View>
     );
@@ -294,6 +296,7 @@ export default function S15_MyLots({ navigation }: Props) {
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       {header}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.scrollMain}>
         <Text style={styles.summaryLabel}>{t('mp_summary_label')}</Text>
 
         <View style={styles.statsRow}>
@@ -392,6 +395,7 @@ export default function S15_MyLots({ navigation }: Props) {
             ))}
           </>
         ) : null}
+        </View>
         
         {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
@@ -425,22 +429,39 @@ const styles = StyleSheet.create({
   topBarTitle: { ...typography.titleLg, color: colors.onSurface },
   topBarSub: { ...typography.labelSm, color: colors.onSurfaceVariant, fontFamily: fontFamily.medium },
 
-  scrollContent: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
-
-  emptyHeading: { ...typography.displayLg, color: colors.onSurface },
-  emptySub: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginTop: -4 },
+  scrollContent: Platform.select({
+    web: {
+      paddingHorizontal: space.md,
+      paddingTop: space.md,
+      paddingBottom: 0,
+      flexGrow: 1,
+    },
+    default: {
+      padding: space.md,
+      paddingBottom: space.xxl,
+      gap: space.sm,
+    },
+  }) as any,
+  scrollMain: {
+    flex: 1,
+    gap: space.sm,
+    paddingBottom: space.xxl,
+  },
 
   grid: Platform.select({
     web: {
-      // @ts-ignore
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-      gap: space.sm,
+      gap: space.md,
+      alignItems: 'stretch',
     },
     default: {
       gap: space.sm,
     },
   }) as any,
+
+  emptyHeading: { ...typography.displayLg, color: colors.onSurface },
+  emptySub: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginTop: -4 },
 
   whyHeadRow: {
     flexDirection: 'row',

@@ -72,7 +72,15 @@ const defaultContextValue: I18nContextValue = {
 const I18nContext = createContext<I18nContextValue>(defaultContextValue);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('mr'); // Marathi is the DEFAULT until S1 has run
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const saved = window.localStorage.getItem('app.locale');
+        if (saved === 'en' || saved === 'mr' || saved === 'hi') return saved as Locale;
+      } catch (e) {}
+    }
+    return 'en'; // Default to English for instant clarity; 1-tap switches to Marathi or Hindi
+  });
 
   // ★ BUG FIXED: this context's `locale` was write-only from S1's side — S1
   //   called `lib/locale.ts`'s `setLocale` (AsyncStorage) directly, never this

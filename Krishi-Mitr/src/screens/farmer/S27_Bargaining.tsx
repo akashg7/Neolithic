@@ -51,8 +51,10 @@ import { fxMyLots } from '../../fixtures/lots';
 import { fxTx } from '../../fixtures/escrow';
 import { fxPriceHistory } from '../../fixtures/prices';
 import { ErrorState, Skeleton } from '../../components/farmer/States';
+import { WebFooter } from '../../components/web/WebFooter';
 import type { MyLotsStackParamList } from '../../navigation/FarmerTabs';
 import type { LotDto, OfferDto, PriceSeriesRes } from '../../types/api';
+import { Platform } from 'react-native';
 
 type Props = NativeStackScreenProps<MyLotsStackParamList, 'S27_Bargaining'>;
 
@@ -231,8 +233,9 @@ export default function S27_Bargaining({ navigation, route }: Props) {
       {header}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.scrollMain}>
         {/* ── The lot under negotiation ───────────────────────────────── */}
-        <View style={styles.lotBand}>
+        <View style={styles.lotBand} {...{ dataSet: { hover: 'lift' } } as any}>
           <View style={styles.lotIcon}>
             <Icon name="box" size={16} color={colors.primary} />
           </View>
@@ -249,7 +252,7 @@ export default function S27_Bargaining({ navigation, route }: Props) {
 
         {/* ── Your ask against today's mandi ──────────────────────────── */}
         <View style={styles.statRow}>
-          <View style={styles.statCard}>
+          <View style={styles.statCard} {...{ dataSet: { hover: 'lift' } } as any}>
             <Text style={styles.statLabel}>{t('bg_your_ask')}</Text>
             {/* Sibling Texts, same reason as the rate rows below: a nested
                 smaller <Text> takes over the line metrics on Android and
@@ -261,7 +264,7 @@ export default function S27_Bargaining({ navigation, route }: Props) {
               <Text style={styles.statUnit}>{t('bg_per_qtl')}</Text>
             </View>
           </View>
-          <View style={styles.statCard}>
+          <View style={styles.statCard} {...{ dataSet: { hover: 'lift' } } as any}>
             <Text style={styles.statLabel}>{t('bg_mandi_avg')}</Text>
             <View style={styles.statLine}>
               <Text style={[styles.statValue, styles.statValueMandi]}>
@@ -284,7 +287,7 @@ export default function S27_Bargaining({ navigation, route }: Props) {
           const live = isLatest && awaitingFarmer;
           const note = noteText(round.note, t);
           return (
-            <View key={round.id} style={[styles.roundCard, live && styles.roundCardLive]}>
+            <View key={round.id} style={[styles.roundCard, live && styles.roundCardLive]} {...{ dataSet: { hover: 'lift' } } as any}>
               {live ? (
                 <View style={styles.awaitRibbon}>
                   <Icon name="zap" size={12} color={colors.onPrimary} />
@@ -350,7 +353,7 @@ export default function S27_Bargaining({ navigation, route }: Props) {
         })}
 
         {/* ── What accepting is worth ─────────────────────────────────── */}
-        <View style={styles.matrixCard}>
+        <View style={styles.matrixCard} {...{ dataSet: { hover: 'lift' } } as any}>
           <View style={styles.matrixHead}>
             <Icon name="clipboard" size={15} color={colors.onSurface} />
             <Text style={styles.matrixTitle}>{t('bg_matrix_title')}</Text>
@@ -399,54 +402,100 @@ export default function S27_Bargaining({ navigation, route }: Props) {
 
           <Text style={styles.matrixFoot}>{t('bg_matrix_escrow_note')}</Text>
         </View>
+        </View>
+
+        {Platform.OS === 'web' && (
+          <View style={styles.webDock}>
+            {awaitingFarmer ? (
+              <View style={styles.webDockRow}>
+                <TouchableOpacity
+                  style={styles.acceptBtn}
+                  disabled={acting}
+                  onPress={() => act('accept')}
+                  accessibilityRole="button">
+                  <Icon name="check-circle" size={18} color={colors.onPrimary} />
+                  <Text style={styles.acceptText}>
+                    {t('bg_accept_cta', {
+                      rate: formatPaise(latest.price_paise_per_qtl, locale),
+                      total: formatPaise(latestTotal, locale),
+                    })}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.counterBtn, atLastRound && styles.counterBtnDisabled]}
+                  disabled={atLastRound || acting}
+                  onPress={() => navigation.navigate('S28_CounterOffer', { offer_id: latest.id })}
+                  accessibilityRole="button">
+                  <Icon name="edit" size={16} color={atLastRound ? colors.outline : colors.primary} />
+                  <Text style={[styles.counterText, atLastRound && styles.counterTextDisabled]}>
+                    {atLastRound ? t('bg_counter_spent') : t('bg_counter_cta')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.declineBtn}
+                  disabled={acting}
+                  onPress={() => act('reject')}
+                  accessibilityRole="button">
+                  <Text style={styles.declineText}>{t('bg_decline_cta')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.waitingLine}>{t('chat_awaiting_them')}</Text>
+            )}
+          </View>
+        )}
+
+        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
 
       {/* ── The three moves CANON allows ──────────────────────────────── */}
-      {awaitingFarmer ? (
-        <View style={styles.dock}>
-          <TouchableOpacity
-            style={styles.acceptBtn}
-            disabled={acting}
-            onPress={() => act('accept')}
-            accessibilityRole="button">
-            <Icon name="check-circle" size={18} color={colors.onPrimary} />
-            <Text style={styles.acceptText}>
-              {t('bg_accept_cta', {
-                rate: formatPaise(latest.price_paise_per_qtl, locale),
-                total: formatPaise(latestTotal, locale),
-              })}
-            </Text>
-          </TouchableOpacity>
+      {Platform.OS !== 'web' && (
+        awaitingFarmer ? (
+          <View style={styles.dock}>
+            <TouchableOpacity
+              style={styles.acceptBtn}
+              disabled={acting}
+              onPress={() => act('accept')}
+              accessibilityRole="button">
+              <Icon name="check-circle" size={18} color={colors.onPrimary} />
+              <Text style={styles.acceptText}>
+                {t('bg_accept_cta', {
+                  rate: formatPaise(latest.price_paise_per_qtl, locale),
+                  total: formatPaise(latestTotal, locale),
+                })}
+              </Text>
+            </TouchableOpacity>
 
-          {/* Disabled from `round`, not by letting the server 409 after the
-              farmer has typed a price. */}
-          <TouchableOpacity
-            style={[styles.counterBtn, atLastRound && styles.counterBtnDisabled]}
-            disabled={atLastRound || acting}
-            onPress={() => navigation.navigate('S28_CounterOffer', { offer_id: latest.id })}
-            accessibilityRole="button">
-            <Icon
-              name="edit"
-              size={16}
-              color={atLastRound ? colors.outline : colors.primary}
-            />
-            <Text style={[styles.counterText, atLastRound && styles.counterTextDisabled]}>
-              {atLastRound ? t('bg_counter_spent') : t('bg_counter_cta')}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.counterBtn, atLastRound && styles.counterBtnDisabled]}
+              disabled={atLastRound || acting}
+              onPress={() => navigation.navigate('S28_CounterOffer', { offer_id: latest.id })}
+              accessibilityRole="button">
+              <Icon
+                name="edit"
+                size={16}
+                color={atLastRound ? colors.outline : colors.primary}
+              />
+              <Text style={[styles.counterText, atLastRound && styles.counterTextDisabled]}>
+                {atLastRound ? t('bg_counter_spent') : t('bg_counter_cta')}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.declineBtn}
-            disabled={acting}
-            onPress={() => act('reject')}
-            accessibilityRole="button">
-            <Text style={styles.declineText}>{t('bg_decline_cta')}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.dock}>
-          <Text style={styles.waitingLine}>{t('chat_awaiting_them')}</Text>
-        </View>
+            <TouchableOpacity
+              style={styles.declineBtn}
+              disabled={acting}
+              onPress={() => act('reject')}
+              accessibilityRole="button">
+              <Text style={styles.declineText}>{t('bg_decline_cta')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.dock}>
+            <Text style={styles.waitingLine}>{t('chat_awaiting_them')}</Text>
+          </View>
+        )
       )}
     </View>
   );
@@ -488,8 +537,24 @@ const styles = StyleSheet.create({
   roundChipText: { ...typography.labelSm, color: colors.onSurfaceVariant },
   roundChipTextFinal: { color: colors.onCriticalContainer, fontFamily: fontFamily.bold },
 
-  /* Clears the three-button dock, which is taller than it looks. */
-  scroll: { padding: space.md, paddingBottom: 200, gap: space.sm },
+  scroll: Platform.select({
+    web: {
+      paddingHorizontal: space.md,
+      paddingTop: space.md,
+      paddingBottom: 0,
+      flexGrow: 1,
+    },
+    default: {
+      padding: space.md,
+      paddingBottom: 200,
+      gap: space.sm,
+    },
+  }) as any,
+  scrollMain: {
+    flex: 1,
+    gap: space.sm,
+    paddingBottom: space.xxl,
+  },
 
   lotBand: {
     flexDirection: 'row',
@@ -683,6 +748,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.outlineVariant,
     gap: space.xs,
+  },
+  webDock: {
+    padding: space.md,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radius.md,
+    marginTop: space.md,
+    marginBottom: space.xxl,
+  },
+  webDockRow: {
+    gap: space.sm,
   },
   acceptBtn: {
     flexDirection: 'row',

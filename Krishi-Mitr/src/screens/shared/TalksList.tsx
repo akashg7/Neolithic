@@ -41,7 +41,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import { colors, fontFamily, radius, space, type as typography } from '../../theme/tokens';
@@ -206,6 +206,7 @@ export function TalksList({
       {header}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.scrollMain}>
         {/* ── Title row ───────────────────────────────────────────────── */}
         <View style={styles.titleRow}>
           <View style={styles.titleText}>
@@ -458,6 +459,8 @@ export function TalksList({
           );
         })}
         </View>
+        </View>
+        {Platform.OS === 'web' && <WebFooter />}
       </ScrollView>
     </View>
   );
@@ -501,7 +504,25 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
 
-  scroll: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
+  scroll: Platform.select({
+    web: {
+      paddingHorizontal: space.md,
+      paddingTop: space.md,
+      paddingBottom: 0,
+      gap: space.sm,
+      flexGrow: 1,
+    },
+    default: {
+      padding: space.md,
+      paddingBottom: space.xxl,
+      gap: space.sm,
+    }
+  }) as any,
+  scrollMain: {
+    flex: 1,
+    gap: space.sm,
+    paddingBottom: space.xxl,
+  },
 
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   titleText: { flex: 1, minWidth: 0 },
@@ -580,6 +601,7 @@ const styles = StyleSheet.create({
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
       gap: 16,
+      alignItems: 'stretch',
     },
     default: {
       gap: space.sm,

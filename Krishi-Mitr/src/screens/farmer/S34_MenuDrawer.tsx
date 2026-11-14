@@ -175,6 +175,25 @@ export default function S34_MenuDrawer({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        {/* Demo Video & Guides */}
+        <Text style={styles.sectionLabel}>{locale === 'mr' ? 'व्हिडिओ आणि मदत' : locale === 'hi' ? 'वीडियो और सहायता' : 'Demo & Help'}</Text>
+        <View style={styles.menuCard}>
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => {
+              if (typeof window !== 'undefined') window.open('/video', '_blank');
+            }}
+            accessibilityRole="link">
+            <View style={[styles.menuIconBg, { backgroundColor: 'rgba(155,47,0,0.1)' }]}>
+              <Icon name="video" size={16} color={colors.primary} />
+            </View>
+            <Text style={styles.menuTitle}>
+              {locale === 'mr' ? 'ॲप डेमो व्हिडिओ' : locale === 'hi' ? 'ऐप डेमो वीडियो' : 'Watch Demo Video'}
+            </Text>
+            <Icon name="external-link" size={16} color={colors.outline} />
+          </TouchableOpacity>
+        </View>
+
         {/* Sign out — bottom of the menu, deliberately, not top-bar chrome */}
         <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
           <Text style={styles.logoutText}>{t('root_sign_out')}</Text>

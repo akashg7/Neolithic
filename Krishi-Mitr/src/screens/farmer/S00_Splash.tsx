@@ -26,6 +26,8 @@ import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { ListenButton } from '../../components/ui/ListenButton';
 import { Logo } from '../../components/ui/Logo';
 import { SpeakingFace } from '../../components/ui/SpeakingFace';
+import { useAuth } from '../../lib/auth';
+import { fxAuthRegistered } from '../../fixtures/auth';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S0_Splash'>;
 
@@ -34,6 +36,7 @@ const mandiWarehouse = require('../../assets/images/mandi_warehouse.jpg');
 
 export default function S00_Splash({ navigation }: Props) {
   const { t, locale, setLocale } = useT();
+  const { signIn } = useAuth();
   const [selectedLang, setSelectedLang] = useState<Locale>(locale);
 
   const handleLangSwitch = (lang: Locale) => {
@@ -188,40 +191,7 @@ export default function S00_Splash({ navigation }: Props) {
 
       {/* ── 7. Bottom action pad (fixed) ────────────────── */}
       <View style={styles.bottomDock}>
-        {/* Language selector */}
-        <View style={styles.langRow}>
-          <Icon name="globe" size={14} color={colors.outline} />
-          {(['mr', 'hi', 'en'] as Locale[]).map(lang => {
-            const isActive = selectedLang === lang;
-            const label = lang === 'mr' ? 'मराठी' : lang === 'hi' ? 'हिंदी' : 'English';
-            return (
-              <TouchableOpacity
-                key={lang}
-                style={[styles.langPill, isActive && styles.langActive]}
-                onPress={() => handleLangSwitch(lang)}>
-                <Text style={[styles.langText, isActive && styles.langActiveText]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* CTA button
-            ★ "Get started" always runs the whole journey: language, then why
-              this app exists, then the phone number.
-
-              It used to skip to the phone screen whenever a language was
-              already saved — which is true of any device the app has been
-              opened on once, so the two onboarding screens became unreachable
-              in practice. That is wrong twice over: they are where a farmer
-              learns what the product is, and they are the part of the flow we
-              most need to be able to show.
-
-              A returning farmer is not made to sit through it: the "log in
-              with a one-time code" link below goes straight to the phone
-              screen. Starting fresh and coming back are different intents and
-              now have different buttons, instead of one button guessing. */}
+        {/* CTA button: proceeds directly to ValueCarousel (Why Krishi Mitr) since language is set on landing page */}
         <TouchableOpacity
           style={styles.ctaBtn}
           activeOpacity={0.85}
@@ -230,11 +200,7 @@ export default function S00_Splash({ navigation }: Props) {
           <Icon name="arrow-right" size={20} color={colors.onPrimary} />
         </TouchableOpacity>
 
-        {/* OTP login link
-            ★ This had no `onPress` — it read "already registered? log in with
-              OTP" and did nothing at all. It is the shortcut for a returning
-              farmer, so it goes where that farmer wants to be: the phone
-              number, which is where the OTP is sent from. */}
+        {/* OTP login link */}
         <TouchableOpacity
           style={styles.otpRow}
           activeOpacity={0.7}
@@ -245,13 +211,26 @@ export default function S00_Splash({ navigation }: Props) {
           <Text style={styles.otpText}>{t('splash_otp_login')}</Text>
         </TouchableOpacity>
 
-        {/* The trader's way in.
-            ★ The role comes from the JWT, so on a phone the buyer console had
-              no entry point at all — the only way to reach it was to be seeded
-              as a buyer, which made the whole console undemonstrable on a
-              device. It is deliberately the quietest control on this screen:
-              this app is for the farmer, and a trader arriving here is the
-              rarer case, not an equal one. */}
+        {/* Direct Demo Login (Dashboard shortcut for judges / testing) */}
+        <TouchableOpacity
+          style={styles.directLoginBtn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Direct Demo Login"
+          onPress={async () => {
+            await signIn(fxAuthRegistered);
+          }}>
+          <Icon name="zap" size={13} color={colors.primary} />
+          <Text style={styles.directLoginText}>
+            {locale === 'mr'
+              ? '⚡ थेट डेमो लॉगिन (डॅशबोर्ड) →'
+              : locale === 'hi'
+                ? '⚡ सीधा डेमो लॉगिन (डैशबोर्ड) →'
+                : '⚡ Direct Demo Login (Dashboard) →'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* The trader's way in */}
         <TouchableOpacity
           style={styles.otpRow}
           activeOpacity={0.7}
@@ -375,9 +354,10 @@ const styles = StyleSheet.create({
    */
   appName: {
     fontFamily: fontFamily.extraBold,
+    fontWeight: '800',
     fontSize: 38,
-    lineHeight: 58,
-    paddingTop: 6,
+    lineHeight: 52,
+    paddingTop: 4,
     paddingBottom: 2,
     color: colors.primary,
     letterSpacing: -0.5,
@@ -401,6 +381,7 @@ const styles = StyleSheet.create({
   },
   taglineDevanagari: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     fontSize: 20,
     lineHeight: 28,
     color: colors.onSurface,
@@ -491,6 +472,7 @@ const styles = StyleSheet.create({
   },
   howTitle: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     fontSize: 15,
     lineHeight: 21,
     color: colors.onSurface,
@@ -518,6 +500,7 @@ const styles = StyleSheet.create({
   },
   howLabel: {
     fontFamily: fontFamily.bold,
+    fontWeight: '700',
     fontSize: 13,
     lineHeight: 18,
     color: colors.onSurface,
@@ -526,6 +509,7 @@ const styles = StyleSheet.create({
   },
   howSub: {
     fontFamily: fontFamily.regular,
+    fontWeight: '400',
     fontSize: 11,
     lineHeight: 15,
     // Devanagari conjuncts get clipped by tight tracking at this size.
@@ -546,7 +530,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderCard,
   },
-  howOfflineText: { fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.tertiary },
+  howOfflineText: { fontFamily: fontFamily.semiBold, fontWeight: '600', fontSize: 12, color: colors.tertiary },
   trustGrid: {
     flexDirection: 'row',
     paddingHorizontal: space.md,
@@ -652,6 +636,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontFamily: fontFamily.extraBold,
+    fontWeight: '800',
     fontSize: 18,
     color: colors.onPrimary,
     letterSpacing: 0.3,
@@ -666,10 +651,25 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   otpText: {
-    fontFamily: fontFamily.regular,
-    fontSize: 11,
+    fontFamily: fontFamily.medium,
+    fontWeight: '500',
+    fontSize: 13,
     color: colors.onSurfaceVariant,
     letterSpacing: 0.2,
   },
-
+  directLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.xs,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  directLoginText: {
+    fontFamily: fontFamily.bold,
+    fontWeight: '700',
+    fontSize: 13,
+    color: colors.primary,
+    letterSpacing: 0.2,
+  },
 });

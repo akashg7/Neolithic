@@ -50,7 +50,9 @@ export type IconName =
   | 'plus'
   | 'camera'
   | 'scale'
-  | 'share';
+  | 'share'
+  | 'video'
+  | 'external-link';
 
 interface IconProps {
   name: IconName;
@@ -323,6 +325,18 @@ const ICON_PATHS: Record<IconName, (color: string) => React.ReactElement> = {
       <Path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke={c} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <Path d="M16 6L12 2L8 6" stroke={c} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <Path d="M12 2v13" stroke={c} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </G>
+  ),
+  video: (c) => (
+    <G>
+      <Path d="M23 7l-7 5 7 5V7z" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Rect x={1} y={5} width={15} height={14} rx={2} ry={2} stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </G>
+  ),
+  'external-link': (c) => (
+    <G>
+      <Path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Path d="M15 3h6v6M10 14L21 3" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </G>
   ),
 };

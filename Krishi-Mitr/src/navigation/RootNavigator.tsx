@@ -164,9 +164,6 @@ const styles = StyleSheet.create({
     web: {
       flex: 1,
       width: '100%',
-      maxWidth: 1440,
-      // @ts-ignore
-      marginHorizontal: 'auto',
     },
     default: { flex: 1 },
   }),
