@@ -12,3 +12,7 @@ build/
 .DS_Store
 *.DS_Store
 maharashtra_feature_data*.csv
+RESUME_EXTRACTION.md
+JUSTIFICATION.md
+AUTHORSHIP.md
+generate_authorship.py
