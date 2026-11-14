@@ -8,6 +8,7 @@ class OtpRequestReq(BaseModel):
 
 class OtpRequestRes(BaseModel):
     ok: bool = True
+    message: str = "OTP sent"
     expires_in_s: int
     dev_otp: Optional[str] = None
 
@@ -28,6 +29,13 @@ class RegisterRequest(BaseModel):
     lng: Optional[float] = Field(default=None, validation_alias=AliasChoices("lng", "lon"))
     village: Optional[str] = Field(None, max_length=200)   # farmer's village
     company_name: Optional[str] = None   # required only for role=BUYER
+    gst_number: Optional[str] = Field(None, max_length=15)  # BUYER only; validated, only last 4 stored
+    fpo_id: Optional[int] = None         # FARMER only; joins an existing FPO
+
+    @field_validator("role", mode="before")
+    def normalise_role(cls, v):
+        # Accept "farmer" / "Farmer" as well as "FARMER".
+        return v.strip().upper() if isinstance(v, str) else v
 
 
 class UserResponse(BaseModel):

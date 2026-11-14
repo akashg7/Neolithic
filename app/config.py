@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
+    # OTP policy (Member 1): 120 s TTL, 5 verify attempts, 3 issues / 10 min.
+    OTP_TTL_SECONDS: int = 120
+    OTP_MAX_ATTEMPTS: int = 5
+    OTP_MAX_REQUESTS_PER_WINDOW: int = 3
+    OTP_THROTTLE_WINDOW_SECONDS: int = 600
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     S3_ENDPOINT: str = "http://localhost:9000"

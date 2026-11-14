@@ -220,6 +220,8 @@ async def seed():
             locale="mr",
         )
         db.add(fpo_admin)
+        # Link the admin to FPO 1 (needed by /fpo/farmers and /pools/aggregate)
+        db.add(Farmer(user_id=3, fpo_id=1))
         await db.flush()
 
         print("Seeding Active Maharashtra Demand & Lot...")
