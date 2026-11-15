@@ -6,10 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role
 from app.models.user import User
+from app.dependencies.lots import get_lot_grading_service
+from app.models.lot import Lot
 from app.schemas.lot import (
     LotCreate, LotOut, SelfAssayRequest, SelfAssayResponse,
-    PriceSuggestionResponse,
+    PriceSuggestionResponse, GradeRequest, GradeResultOut,
 )
+from app.services.lot_grading_service import LotGradingService
 from app.schemas.matches import MatchesRes
 from app.services import lot_service
 from fastapi import UploadFile, File, HTTPException
@@ -60,6 +63,18 @@ async def submit_self_assay(
     return await lot_service.submit_self_assay(db, user, int(lot_id), payload)
 
 
+@router.post("/{lot_id}/grade", response_model=GradeResultOut)
+async def grade_lot(
+    lot_id: int,
+    payload: GradeRequest,
+    user: User = Depends(require_role("FARMER", "FPO_ADMIN")),
+    service: LotGradingService = Depends(get_lot_grading_service),
+):
+    """Grade a lot (A/B/C) from measured parameters using the crop's grading
+    strategy. Returns the grade, assessed value and improvement advice."""
+    return await service.grade_lot(user, lot_id, payload)
+
+
 @router.get("/{lot_id}/price-suggestion", response_model=PriceSuggestionResponse)
 async def get_price_suggestion(
     lot_id: str,
@@ -87,9 +102,9 @@ async def upload_lot_photo(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload lot photo, strip EXIF GPS, and save."""
-    # Ensure lot exists and belongs to user
-    lot = await lot_service.get_lot(db, user, int(lot_id))
-    if not lot:
+    # Ensure lot exists and belongs to user (owner only; buyers can't upload)
+    lot = await db.get(Lot, int(lot_id))
+    if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=404, detail="Lot not found")
 
     content = await file.read()
@@ -105,8 +120,8 @@ async def upload_lot_photo(
         # Mock upload to MinIO
         photo_path = f"lots/{lot_id}/photo.jpg"
         
-        # Update lot photo_path in DB
-        lot.photo_path = photo_path
+        # Save on the DB row (LotOut exposes image_url as photo_path)
+        lot.image_url = photo_path
         await db.commit()
         
         return {"photo_path": photo_path}

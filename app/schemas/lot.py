@@ -17,7 +17,7 @@ class LotOut(BaseModel):
     commodity_id: str
     qty_kg: int
     expected_price_paise: Optional[int] = None
-    status: Literal["DRAFT", "LISTED", "IN_AUCTION", "SOLD", "CANCELLED", "COMPLETED"]
+    status: Literal["DRAFT", "LISTED", "OFFERED", "POOLED", "IN_AUCTION", "SOLD", "CANCELLED", "COMPLETED"]
     market_id: Optional[str] = None
     warehouse_id: Optional[str] = None
     grade: Literal["UNGRADED", "A", "B", "C", "REJECTED"]
@@ -30,8 +30,8 @@ class LotOut(BaseModel):
     def map_db_fields(cls, values: Any) -> Any:
         if hasattr(values, "quantity_qtl"):
             db_status = str(values.status).upper() if values.status else "DRAFT"
-            if db_status == "ACTIVE":
-                db_status = "LISTED"
+            # DB lifecycle names (app/domain/lot_lifecycle.py) -> API enum
+            db_status = {"ACTIVE": "LISTED", "LOCKED": "OFFERED"}.get(db_status, db_status)
             return {
                 "id": str(values.id),
                 "commodity_id": str(values.commodity_id),
@@ -130,3 +130,35 @@ class BatchLotOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Pranay: measured-parameter grading (POST /lots/{id}/grade) ─────────────
+
+class GradeRequest(BaseModel):
+    """Measured quality parameters, all in percent (0-100).
+
+    Which ones are required depends on the crop: onion needs moisture +
+    size uniformity, grains need moisture + foreign matter, fresh vegetables
+    need damage + size uniformity. The response says which rules were used.
+    """
+    moisture_pct: Optional[float] = Field(None, ge=0, le=100)
+    foreign_matter_pct: Optional[float] = Field(None, ge=0, le=100)
+    size_uniformity_pct: Optional[float] = Field(None, ge=0, le=100)
+    damage_pct: Optional[float] = Field(None, ge=0, le=100)
+    discoloration_pct: Optional[float] = Field(None, ge=0, le=100)
+
+
+class GradeResultOut(BaseModel):
+    lot_id: str
+    commodity: Optional[str] = None
+    strategy: str
+    grade: Literal["A", "B", "C"]
+    assessed_multiplier: float
+    assessed_price_paise_per_qtl: Optional[int] = None
+    assessed_value_paise: Optional[int] = None
+    advice: list[str]
+
+
+class PoolRequest(BaseModel):
+    lot_ids: list[int] = Field(..., min_length=2)
+    fpo_id: Optional[int] = None  # optional; must match the caller's own FPO
