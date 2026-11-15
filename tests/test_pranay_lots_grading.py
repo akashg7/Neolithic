@@ -233,7 +233,8 @@ class InMemoryLotRepo(ILotRepository):
         return [l for l in self.rows.values()
                 if l.farmer_id == farmer_id and (status is None or l.status == status)]
 
-    async def get_many(self, lot_ids):
+    async def get_many(self, lot_ids, lock=False):
+        self.last_lock = lock
         return [self.rows[i] for i in lot_ids if i in self.rows]
 
     async def add_batch_member(self, member):
@@ -354,6 +355,16 @@ async def test_pool_merges_lots_into_one_batch():
     assert [m.quantity_contributed_kg for m in repo.members] == [1000, 3000]
     stored = repo.rows[batch.id]
     assert stored.fpo_id == 10 and stored.farmer_id == ADMIN.id
+    assert repo.last_lock is True        # source lots were row-locked
+
+
+@pytest.mark.asyncio
+async def test_pooling_the_same_lots_twice_is_rejected():
+    _, service = _pool_service(_db_lot(1), _db_lot(2, farmer_id=2))
+    await service.pool(ADMIN, [1, 2])
+    with pytest.raises(HTTPException) as exc:
+        await service.pool(ADMIN, [1, 2])
+    assert exc.value.status_code == 409
 
 
 @pytest.mark.asyncio

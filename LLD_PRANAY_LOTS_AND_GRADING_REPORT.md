@@ -23,7 +23,7 @@
 | `POST /api/v1/fpo/lots/pool` | ✅ **New** | `app/routers/fpo.py`, `app/services/lot_pool_service.py` |
 | `POST /api/v1/pools/aggregate` (existing) | ✅ **Fixed**. It crashed on every call before. | same service |
 | `POST /lots`, `GET /lots`, `GET /lots/{id}` | ✅ Already existed, left unchanged | `app/services/lot_service.py` |
-| Pytest suite | ✅ 46 tests, no Postgres needed | `tests/test_pranay_lots_grading.py` |
+| Pytest suite | ✅ 47 tests, no Postgres needed | `tests/test_pranay_lots_grading.py` |
 
 ---
 
@@ -40,7 +40,7 @@
 | `app/services/lot_grading_service.py` | `LotGradingService.grade_lot()` |
 | `app/services/lot_pool_service.py` | `LotPoolService.pool()` |
 | `app/dependencies/lots.py` | FastAPI providers that bind the interfaces to concrete classes |
-| `tests/test_pranay_lots_grading.py` | 46 tests |
+| `tests/test_pranay_lots_grading.py` | 47 tests |
 
 ### Modified (all in the lots / grading / pooling area)
 | File | Change |
@@ -165,19 +165,19 @@ Rules:
 
 ## 7. Tests
 
-`tests/test_pranay_lots_grading.py`, 46 tests:
+`tests/test_pranay_lots_grading.py`, 47 tests:
 - **LLD §6 (3):** onion A, B with tips, C. The tests are copied verbatim.
 - **Strategies (11):** grain and perishable grade tables, advice on every non-A grade.
 - **Registry (2):** lookup by name, OCP extension.
 - **Assessor (7):** full template run, integer rounding, no price, validation (negative, above 100, missing, non-number).
 - **Lifecycle (3):** legal and illegal moves, release from locked, `LotOut` status mapping.
 - **Grading service (6):** saves the grade, picks the crop strategy, 404 for another farmer's lot, 409, 422.
-- **Pool service (10):** happy path (sum, lowest grade, weighted price, kg column, source lots pooled), ungraded batch, and 404 / 400 / 409 cases.
+- **Pool service (11):** happy path (with row lock) (sum, lowest grade, weighted price, kg column, source lots pooled), ungraded batch, double-pooling blocked, and 404 / 400 / 409 cases.
 - **HTTP (5):** `/lots/{id}/grade`, range and ownership errors, `/fpo/lots/pool`, `/pools/aggregate`, a farmer can't pool.
 
 ```bash
-pytest tests/test_pranay_lots_grading.py -q        # 46 passed
-pytest tests/test_member_1_auth_repo.py tests/test_member_5_ai_voice.py tests/test_pranay_lots_grading.py -q   # 99 passed
+pytest tests/test_pranay_lots_grading.py -q        # 47 passed
+pytest tests/test_member_1_auth_repo.py tests/test_member_5_ai_voice.py tests/test_pranay_lots_grading.py -q   # 100 passed
 ```
 
 > `tests/test_grading.py` is older: it needs the Postgres test DB and tests an earlier version of `grade()` (`improvement_tip`, string answers). It fails the same way before and after this change, and was left as it is.

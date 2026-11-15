@@ -48,7 +48,9 @@ class LotPoolService:
         if len(unique_ids) < 2:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pooling needs at least 2 lots")
 
-        lots = list(await self.lot_repo.get_many(unique_ids))
+        # Row-lock the lots so a second, simultaneous pool request waits here
+        # and then sees them as "pooled" instead of pooling them twice.
+        lots = list(await self.lot_repo.get_many(unique_ids, lock=True))
         if len(lots) != len(unique_ids):
             raise _not_found()
         for lot in lots:

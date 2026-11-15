@@ -21,8 +21,12 @@ class ILotRepository(IRepository[Lot]):
         """Lots owned by this farmer, newest first."""
 
     @abstractmethod
-    async def get_many(self, lot_ids: Sequence[int]) -> Sequence[Lot]:
-        """Lots with these IDs. Missing IDs are simply absent from the result."""
+    async def get_many(self, lot_ids: Sequence[int], lock: bool = False) -> Sequence[Lot]:
+        """Lots with these IDs. Missing IDs are simply absent from the result.
+
+        lock=True takes a row lock (SELECT ... FOR UPDATE) until the request's
+        transaction ends, so two requests can't pool the same lot at once.
+        """
 
     @abstractmethod
     async def add_batch_member(self, member: BatchLotMember) -> BatchLotMember:
@@ -46,10 +50,13 @@ class SQLAlchemyLotRepository(SQLAlchemyBaseRepository[Lot], ILotRepository):
         result = await self.session.execute(query.order_by(Lot.created_at.desc()))
         return result.scalars().all()
 
-    async def get_many(self, lot_ids: Sequence[int]) -> Sequence[Lot]:
+    async def get_many(self, lot_ids: Sequence[int], lock: bool = False) -> Sequence[Lot]:
         if not lot_ids:
             return []
-        result = await self.session.execute(select(Lot).where(Lot.id.in_(list(lot_ids))))
+        query = select(Lot).where(Lot.id.in_(list(lot_ids))).order_by(Lot.id)
+        if lock:
+            query = query.with_for_update()
+        result = await self.session.execute(query)
         return result.scalars().all()
 
     async def add_batch_member(self, member: BatchLotMember) -> BatchLotMember:
