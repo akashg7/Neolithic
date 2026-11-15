@@ -22,9 +22,10 @@ only ever talks to us. On-device TTS (`speakText`) remains the offline fallback
 on the device when this route is unreachable.
 """
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 
-from app.engines.voice_engine import VoiceEngineError, voice_engine
+from app.adapters.voice_provider import IVoiceProvider, VoiceEngineError
+from app.dependencies.voice import get_voice_provider
 from app.schemas.voice import NarrateRequest, NarrateResponse, TranscribeResponse
 
 router = APIRouter()
@@ -39,17 +40,17 @@ _LOCALE_TO_SARVAM: dict[str, str] = {
 
 
 @router.post("/narrate", response_model=NarrateResponse)
-async def narrate(payload: NarrateRequest) -> NarrateResponse:
+async def narrate(payload: NarrateRequest, provider: IVoiceProvider = Depends(get_voice_provider)) -> NarrateResponse:
     """Synthesize Marathi speech for `text` via Sarvam TTS (bulbul:v3) and
     return it as base64 WAV. This is the sale-window voice agent's live spoke
     audio path — the narration sentence is dynamic and can't be pre-recorded.
     """
-    if not voice_engine.configured:
+    if not provider.configured:
         raise HTTPException(status_code=503, detail="Voice narration is not configured (SARVAM_API_KEY)")
 
     language_code = _LOCALE_TO_SARVAM.get(payload.locale, "mr-IN")
     try:
-        result = await voice_engine.text_to_speech(payload.text, language_code=language_code)
+        result = await provider.text_to_speech(payload.text, language_code=language_code)
     except VoiceEngineError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -62,6 +63,7 @@ async def transcribe(
     file: UploadFile | None = File(None),
     audio: UploadFile | None = File(None),
     locale: str = Form("mr"),
+    provider: IVoiceProvider = Depends(get_voice_provider),
 ) -> TranscribeResponse:
     """Transcribe a short farmer utterance (name/district/village/phone) by
     proxying the uploaded clip to Sarvam STT.
@@ -110,10 +112,13 @@ async def transcribe(
         raise HTTPException(status_code=413, detail="Audio clip too large (max 25MB)")
 
 
+    if not provider.configured:
+        raise HTTPException(status_code=503, detail="Voice transcription is not configured (SARVAM_API_KEY)")
+
     language_code = _LOCALE_TO_SARVAM.get(locale, "mr-IN")
 
     try:
-        result = await voice_engine.speech_to_text(raw, filename=upload_filename, language_code=language_code)
+        result = await provider.speech_to_text(raw, filename=upload_filename, language_code=language_code)
     except VoiceEngineError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 

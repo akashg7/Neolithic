@@ -10,6 +10,7 @@ inference on 129 commodities and 367 Maharashtra APMC mandis.
 from __future__ import annotations
 
 import logging
+from threading import RLock
 from datetime import datetime, timedelta, date
 
 from app.ml.quantile import load_models as load_quantile_models, predict_quantiles, ModelUnavailable
@@ -25,12 +26,25 @@ except ImportError:
 class PriceEngine:
     """Singleton — loaded once at app startup via lifespan."""
 
-    def __init__(self):
-        self._loaded = False
-        self._sota_predictor = None
+    _instance = None
+    _lock = RLock()
+
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+                cls._instance._loaded = False
+                cls._instance._sota_predictor = None
+            return cls._instance
 
     def load_models(self) -> None:
         """Called in FastAPI lifespan startup. Loads SOTA & LightGBM pickles."""
+        with self._lock:
+            if self._loaded:
+                return
+            self._load_models_once()
+
+    def _load_models_once(self) -> None:
         # 1. Load SOTA Maharashtra Model package if available
         if AgriPricePredictor is not None:
             try:
