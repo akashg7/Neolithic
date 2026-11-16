@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -10,7 +10,13 @@ from app.models.demand import BuyerDemand
 from app.models.lot import Lot
 from app.schemas.demand import DemandCreate, DemandOut
 from app.schemas.matches import MatchesRes
-from app.engines import matching_engine
+from app.engines.matching_engine import (
+    MatchingEngine,
+    GreedyHaversineStrategy,
+    FastClearanceStrategy,
+    PriceOptimizedStrategy,
+    matching_engine,
+)
 
 router = APIRouter()
 
@@ -56,10 +62,11 @@ async def list_demands(
 @router.get("/{demand_id}/matches", response_model=MatchesRes)
 async def get_demand_matches(
     demand_id: int,
+    strategy: Optional[str] = Query("greedy", description="Matching strategy: greedy | fast_clearance | price_optimized"),
     user: User = Depends(require_role("BUYER")),
     db: AsyncSession = Depends(get_db)
 ):
-    """Find matching lots for a demand."""
+    """Find matching lots for a demand using the selected Strategy Pattern algorithm."""
     result = await db.execute(select(BuyerDemand).where(BuyerDemand.id == demand_id))
     demand = result.scalar_one_or_none()
     
@@ -69,6 +76,14 @@ async def get_demand_matches(
     lot_result = await db.execute(select(Lot).where(Lot.commodity_id == demand.commodity_id))
     lots = lot_result.scalars().all()
     
-    # Use the matching engine
-    matches_dict = matching_engine.match_lots_for_demand(lots, demand)
+    # Instantiate strategy based on client request (GoF Strategy Pattern)
+    if strategy == "fast_clearance":
+        strat = FastClearanceStrategy()
+    elif strategy == "price_optimized":
+        strat = PriceOptimizedStrategy()
+    else:
+        strat = GreedyHaversineStrategy()
+
+    engine = MatchingEngine(strategy=strat)
+    matches_dict = engine.match_lots_for_demand(lots, demand)
     return MatchesRes(**matches_dict)
