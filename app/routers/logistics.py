@@ -7,7 +7,11 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.models.logistics import LogisticsProvider
-from app.schemas.logistics import LogisticsProviderOut
+from app.schemas.logistics import (
+    LogisticsProviderOut,
+    TransportEstimateReq,
+    TransportEstimateOut,
+)
 
 router = APIRouter()
 
@@ -102,4 +106,30 @@ async def get_nearby_logistics(
         "transport": transport,
         "total": len(storage) + len(transport)
     }
+
+
+@router.post("/estimate", response_model=TransportEstimateOut)
+async def estimate_transport_cost(req: TransportEstimateReq) -> TransportEstimateOut:
+    """
+    Estimate freight transit costs and duration based on Haversine distance and volume.
+    Member 3: Akash — Spatial Routing & Logistics.
+    """
+    dist_km = round(haversine_km(req.origin_lat, req.origin_lng, req.dest_lat, req.dest_lng), 2)
+    
+    # Base rate: 450 paise (₹4.50) per km + capacity scaling
+    base_rate_km_paise = 450
+    # Freight formula: Base transit + 35 paise per quintal-km
+    total_freight_paise = int((dist_km * base_rate_km_paise) + (dist_km * req.qty_qtl * 35))
+    
+    # Average rural cargo transit speed ~45 km/h + 1 hr loading/unloading buffer
+    transit_hours = round(max(1.0, (dist_km / 45.0) + 1.0), 1)
+
+    return TransportEstimateOut(
+        distance_km=dist_km,
+        qty_qtl=req.qty_qtl,
+        base_rate_per_km_paise=base_rate_km_paise,
+        estimated_freight_paise=total_freight_paise,
+        estimated_transit_hours=transit_hours,
+        route_summary=f"{dist_km} km freight transit for {req.qty_qtl} qtl {req.commodity_name or 'produce'}"
+    )
 
