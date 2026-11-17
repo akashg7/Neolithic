@@ -15,15 +15,22 @@ class Offer(Base):
     qty_kg = Column(Integer, nullable=False)
     round = Column(Integer, default=1, nullable=False)
     parent_offer_id = Column(Integer, ForeignKey("offers.id"), nullable=True)
-    initiator = Column(String(20), nullable=False) # 'BUYER' | 'FARMER'
-    status = Column(String(30), default="OPEN") # OPEN|ACCEPTED|REJECTED|COUNTERED|EXPIRED|WITHDRAWN
+    initiator = Column(String(20), nullable=False)  # 'BUYER' | 'FARMER'
+    status = Column(String(30), default="OPEN")  # OPEN|ACCEPTED|REJECTED|COUNTERED|EXPIRED|WITHDRAWN
     note = Column(String, nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     parent_offer = relationship("Offer", remote_side=[id])
+    lots = relationship("OfferLot", back_populates="offer", cascade="all, delete-orphan")
 
-    lots = relationship("OfferLot", back_populates="offer")
+    @property
+    def offered_price_paise(self) -> int:
+        return self.price_paise_per_qtl
+
+    @offered_price_paise.setter
+    def offered_price_paise(self, value: int):
+        self.price_paise_per_qtl = value
 
 
 class OfferLot(Base):
