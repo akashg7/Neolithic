@@ -33,14 +33,13 @@ import { Icon } from '../../components/ui/Icon';
 import { SpeakingFace } from '../../components/ui/SpeakingFace';
 import { useT } from '../../lib/i18n';
 import { ListenButton } from '../../components/ui/ListenButton';
-import { ApiError, requestOtp, transcribeAudio } from '../../lib/api';
+import { ApiError, demoLogin, requestOtp, transcribeAudio } from '../../lib/api';
 import { digitsFromSpeech } from '../../lib/spokenDigits';
 import { setPendingAuth } from '../../lib/auth';
 import type { Role } from '../../types/api';
 import { getLocale } from '../../lib/locale';
 import { USE_FIXTURES } from '../../config';
 import { useAuth } from '../../lib/auth';
-import { fxAuthRegistered } from '../../fixtures/auth';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { demoTodayRange } from '../../lib/demoPrice';
 
@@ -351,7 +350,12 @@ export default function S02_Phone({ navigation }: Props) {
           style={styles.directLoginBtn}
           activeOpacity={0.7}
           accessibilityRole="button"
-          onPress={() => void signIn(fxAuthRegistered)}>
+          onPress={() => {
+            setError('');
+            demoLogin('FARMER')
+              .then(signIn)
+              .catch(e => setError(e instanceof ApiError ? e.message : t('network_error_generic')));
+          }}>
           <Icon name="zap" size={13} color={colors.primary} />
           <Text style={styles.directLoginText}>
             {locale === 'mr'

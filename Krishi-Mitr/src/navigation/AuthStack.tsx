@@ -9,7 +9,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Landing from '../screens/web/Landing';
 import BuyerSplash from '../screens/buyer/BuyerSplash';
 import { useAuth } from '../lib/auth';
-import { fxAuthRegisteredBuyer } from '../fixtures/auth';
+import { demoLogin } from '../lib/api';
 import S00_Splash from '../screens/farmer/S00_Splash';
 import S01_Language from '../screens/farmer/S01_Language';
 import S01b_ValueCarousel from '../screens/farmer/S01b_ValueCarousel';
@@ -47,7 +47,8 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
  */
 function BuyerSplashRoute() {
   const { signIn } = useAuth();
-  return <BuyerSplash onSignIn={() => void signIn(fxAuthRegisteredBuyer)} />;
+  // Server demo login for the seeded buyer (DEMO_MODE); fixtures when USE_FIXTURES.
+  return <BuyerSplash onSignIn={() => void demoLogin('BUYER').then(signIn).catch(() => undefined)} />;
 }
 
 export function AuthStack() {

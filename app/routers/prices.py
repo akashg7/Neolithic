@@ -7,96 +7,57 @@ from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.mandi import PriceObservation, MandiLocation
 from app.schemas.prices import PriceSeriesRes, NearbyRes, PricePoint, NearbyMarketRow
+from app.services import price_service
+from app.utils.id_resolver import resolve_or_404
+from app.dependencies.auth import get_optional_user
+from app.models.user import User
 
 router = APIRouter()
 
 @router.get("/series", response_model=PriceSeriesRes)
 async def get_price_series(
-    commodity_id: int,
-    market_id: int,
+    commodity_id: str,
+    market_id: str,
     days: int = Query(180, ge=1, le=365),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get price series for a commodity and market."""
-    start_date = datetime.utcnow() - timedelta(days=days)
-    
-    query = (
-        select(PriceObservation)
-        .where(PriceObservation.commodity_id == commodity_id)
-        .where(PriceObservation.market_id == market_id)
-        .where(PriceObservation.date >= start_date)
-        .order_by(PriceObservation.date.asc())
-    )
-    result = await db.execute(query)
-    observations = result.scalars().all()
-    
-    points = []
-    source_summary = {}
-    latest_date = None
-    
-    for obs in observations:
-        obs_date_str = obs.date.strftime("%Y-%m-%d")
-        source = obs.observation_type if obs.observation_type in ['AGMARKNET', 'MSAMB', 'ARCHIVE', 'IMPUTED', 'SYNTHETIC'] else 'IMPUTED'
-        
-        points.append(PricePoint(
-            obs_date=obs_date_str,
-            min_paise_per_qtl=obs.min_price_paise or obs.modal_price_paise,
-            max_paise_per_qtl=obs.max_price_paise or obs.modal_price_paise,
-            modal_paise_per_qtl=obs.modal_price_paise,
-            arrivals_qtl=obs.arrivals_qtl or 0,
-            source=source
-        ))
-        
-        source_summary[source] = source_summary.get(source, 0) + 1
-        
-        if latest_date is None or obs_date_str > latest_date:
-            latest_date = obs_date_str
-            
-    if not latest_date:
-        latest_date = datetime.utcnow().strftime("%Y-%m-%d")
-        
+    """Get price series for a commodity and market. Accepts slug or integer IDs."""
+    commodity = await resolve_or_404(db, "commodity", commodity_id, "commodity_id")
+    market = await resolve_or_404(db, "market", market_id, "market_id")
+    series = await price_service.price_series(db, commodity.id, market.id, days)
     return PriceSeriesRes(
-        points=points,
-        source_summary=source_summary,
-        latest_obs_date=latest_date
+        points=[PricePoint(**p) for p in series["points"]],
+        source_summary=series["source_summary"],
+        latest_obs_date=series["latest_obs_date"],
     )
 
 @router.get("/nearby", response_model=NearbyRes)
 async def get_nearby_markets(
-    commodity_id: int,
-    district_id: int,
-    db: AsyncSession = Depends(get_db)
+    commodity_id: str,
+    district_id: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius_km: float = Query(250, ge=10, le=600),
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ):
-    """Get nearby markets sorted by net profit."""
-    # Stub implementation: fetch markets in the same district and return mock price rows
-    query = select(MandiLocation).where(MandiLocation.district_id == district_id)
-    result = await db.execute(query)
-    markets = result.scalars().all()
-    
-    rows = []
-    for m in markets:
-        # Mock calculation
-        gross = 250000
-        transport = 15000
-        commission = 5000
-        net = gross - transport - commission
-        
-        rows.append(NearbyMarketRow(
-            market_id=str(m.id),
-            name_mr=m.name_mr,
-            gross_paise_per_qtl=gross,
-            transport_paise_per_qtl=transport,
-            commission_paise_per_qtl=commission,
-            net_paise_per_qtl=net,
-            distance_km=45,
-            source='IMPUTED'
-        ))
-        
-    # Must sort by net_paise_per_qtl descending
-    rows.sort(key=lambda r: r.net_paise_per_qtl, reverse=True)
-    
-    return NearbyRes(
-        as_of_date=datetime.utcnow().strftime("%Y-%m-%d"),
-        rows=rows,
-        sorted_by="net_paise_per_qtl"
-    )
+    """Mandis with a recent price for this crop, ranked by net ₹/qtl after
+    transport, commission and loading. Origin: lat/lng → the caller's profile
+    location → the district's mandi centroid."""
+    commodity = await resolve_or_404(db, "commodity", commodity_id, "commodity_id")
+    district = await resolve_or_404(db, "district", district_id, "district_id") if district_id else None
+    district_db_id = district.id if district else (user.district_id if user else None)
+
+    origin = None
+    if lat is not None and lng is not None:
+        origin = (lat, lng)
+    elif user is not None and user.lat is not None and user.lng is not None:
+        origin = (user.lat, user.lng)
+    elif district_db_id is not None:
+        origin = await price_service.district_centroid(db, district_db_id)
+
+    res = await price_service.nearby_markets(db, commodity.id, origin=origin,
+                                             from_district_id=district_db_id, radius_km=radius_km)
+    return NearbyRes(as_of_date=res["as_of_date"],
+                     rows=[NearbyMarketRow(**r) for r in res["rows"]],
+                     sorted_by="net_paise_per_qtl")

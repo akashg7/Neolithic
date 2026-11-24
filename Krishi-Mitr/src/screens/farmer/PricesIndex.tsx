@@ -27,6 +27,7 @@ import { STATIC_CROPS, StaticCrop } from '../../lib/staticMarketData';
 import { CommoditySelector } from '../../components/farmer/CommoditySelector';
 import { WebFooter } from '../../components/web/WebFooter';
 import { useStaticMarket } from '../../lib/staticMarketStore';
+import { useLiveCrop } from '../../lib/liveMarket';
 import type { PricesStackParamList } from '../../navigation/FarmerTabs';
 
 type Props = NativeStackScreenProps<PricesStackParamList, 'PricesIndex'>;
@@ -35,13 +36,16 @@ export default function PricesIndex({ navigation }: Props) {
   const { t, locale, setLocale } = useT();
 
   const {
-    selectedCrop,
+    selectedCrop: pickedCrop,
     selectedDistrict,
     selectedMandi,
     setSelectedCrop,
     setSelectedDistrict,
     setSelectedMandi,
   } = useStaticMarket();
+  // Real numbers from the API (/market/overview) over the picked crop's
+  // presentation fields; falls back to the static crop with `live: false`.
+  const { crop: selectedCrop } = useLiveCrop(pickedCrop, selectedMandi, selectedDistrict);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'nearby' | 'highest'>('all');
 

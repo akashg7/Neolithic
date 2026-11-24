@@ -7,7 +7,7 @@ No HyDE / query rewriting on the live path: the agent's model already writes the
 tool call. `locale` is accepted (evals compare original-language vs translated queries) but BGE-M3 is
 multilingual, so it is not used to filter.
 
-Env: QDRANT_URL (":memory:" | path | http://...), QDRANT_COLLECTION (krishi_rag), EMBEDDER (bge-m3|fake),
+Env: QDRANT_URL (":memory:" | path | http://...), QDRANT_COLLECTION (krishi_mitr_kb), EMBEDDER (bge-m3|fake),
      RERANK (on|off, default off until measured), RERANK_MODEL (BAAI/bge-reranker-v2-m3),
      RETRIEVE_MODE (hybrid|dense|sparse) for ablations.
 """
@@ -34,7 +34,7 @@ class Retriever:
     def __init__(self, client=None, collection: Optional[str] = None, embedder: Optional[Embedder] = None,
                  reranker=None, mode: Optional[str] = None):
         self.client = client or store.connect(os.getenv("QDRANT_URL", "http://localhost:6333"))
-        self.collection = collection or os.getenv("QDRANT_COLLECTION", "krishi_rag")
+        self.collection = collection or os.getenv("QDRANT_COLLECTION", "krishi_mitr_kb")
         self.embedder = embedder or make_embedder()
         self.reranker = reranker if reranker is not None else self._load_reranker()
         self.mode = mode or os.getenv("RETRIEVE_MODE", "hybrid")

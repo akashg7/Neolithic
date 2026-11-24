@@ -18,13 +18,17 @@ class PriceSeriesRes(BaseModel):
 
 class NearbyMarketRow(BaseModel):
     market_id: str
+    name: Optional[str] = None
     name_mr: str
     gross_paise_per_qtl: int
     transport_paise_per_qtl: int
     commission_paise_per_qtl: int
+    loading_paise_per_qtl: int = 0
     net_paise_per_qtl: int
-    distance_km: int
+    distance_km: float
     source: DataSource
+    transport_source: Optional[str] = None  # seeded route source, or IMPUTED (estimate)
+    obs_date: Optional[str] = None
 
 class NearbyRes(BaseModel):
     as_of_date: str

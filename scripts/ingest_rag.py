@@ -79,7 +79,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--corpus", default=str(ROOT / "data/rag_corpus"))
     ap.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", "http://localhost:6333"))
-    ap.add_argument("--collection", default=os.getenv("QDRANT_COLLECTION", "krishi_rag"))
+    ap.add_argument("--collection", default=os.getenv("QDRANT_COLLECTION", "krishi_mitr_kb"))
     ap.add_argument("--embedder", default=os.getenv("EMBEDDER", "bge-m3"), choices=["bge-m3", "fake"])
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--prune", action="store_true")

@@ -10,7 +10,7 @@ import { colors, fontFamily, space, radius, touch } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
-import { fxAuthRegistered } from '../../fixtures/auth';
+import { enterDashboard } from '../../lib/api';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import { demoTodayPrice } from '../../lib/demoPrice';
 import { ListenButton } from '../../components/ui/ListenButton';
@@ -153,7 +153,7 @@ export default function S03_Welcome({ navigation }: Props) {
         <TouchableOpacity
           style={styles.primaryCta}
           onPress={async () => {
-            await signIn(user ? { token: fxAuthRegistered.token, user } : fxAuthRegistered);
+            await signIn(await enterDashboard());
           }}>
           <Text style={styles.primaryCtaText}>{t('welcome_cta_dashboard')}</Text>
           <Icon name="arrow-right" size={20} color={colors.onPrimary} />
@@ -161,7 +161,7 @@ export default function S03_Welcome({ navigation }: Props) {
         <TouchableOpacity
           style={styles.secondaryCta}
           onPress={async () => {
-            await signIn(user ? { token: fxAuthRegistered.token, user } : fxAuthRegistered);
+            await signIn(await enterDashboard());
           }}>
           <Icon name="plus" size={16} color={colors.primaryContainer} />
           <Text style={styles.secondaryCtaText}>{t('welcome_cta_list_lot')}</Text>

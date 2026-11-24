@@ -51,7 +51,13 @@ const DEV_TRANSPORT: DevTransport = 'adb-reverse';
  */
 const LAN_IP = '192.168.1.7';
 
-const PROD_HOST = 'http://<ec2-host>'; // TODO(kartik): real host at K9, the H28 deploy rehearsal
+/**
+ * ★ The deployed API, for release builds of the phone app. Set it to the EC2
+ *   host's HTTPS domain (e.g. `https://api.krishimitr.in`) before a release build.
+ *   The web build ignores this: it calls same-origin `/api/v1`, which the dev
+ *   server (webpack proxy) and Vercel (vercel.json rewrite) forward to the API.
+ */
+const PROD_HOST = 'https://api.krishimitr.example'; // ← replace with the real API host
 
 const DEV_HOST: Record<DevTransport, string> = {
   'adb-reverse': 'http://localhost:8000',
@@ -109,7 +115,7 @@ export const API_BASE_URL = IS_BROWSER
  *   `GET /tx`, and a `tx_id` on the accepted `OfferDto`), and those screens
  *   degrade to a stated empty state rather than guessing a URL.
  */
-export const USE_FIXTURES = true;
+export const USE_FIXTURES = false;
 
 /**
  * S15's empty-lots state (`fxMyLotsEmpty`) is otherwise unreachable in any

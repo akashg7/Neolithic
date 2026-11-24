@@ -246,13 +246,32 @@ async def test_missing_model_returns_no_advice_not_500(monkeypatch):
     def unavailable(*args, **kwargs):
         raise pe.ModelUnavailable("missing")
     monkeypatch.setattr(window, "predict_quantiles", unavailable)
+    # The route now resolves crop/mandi through the DB catalog; stub that lookup.
+    from app.services import window_service
+    from app.utils.id_resolver import RefEntity
+
+    async def fake_resolve(db, kind, ref):
+        return RefEntity(kind=kind, id=1, slug=f"{kind}_x", name=str(ref), name_mr="")
+    monkeypatch.setattr(window_service, "resolve", fake_resolve)
     app = FastAPI()
     app.include_router(ai.router)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        res = await client.post("/window/recommend", json={"commodity_id": "Onion", "qty_kg": 1000, "current_price_paise": 100000})
+        res = await client.post("/window/recommend", json={
+            "commodity_id": "Onion", "market_id": "Lasalgaon APMC",
+            "qty_kg": 1000, "current_price_paise": 100000})
     assert res.status_code == 200
     assert res.json()["recommendation"] == "NO_ADVICE"
     assert res.json()["refusal_reason"] == "MODEL_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_window_refuses_to_default_missing_mandi():
+    """No silent Lasalgaon default: a request without a mandi is a 400."""
+    app = FastAPI()
+    app.include_router(ai.router)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        res = await client.post("/window/recommend", json={"commodity_id": "Onion", "qty_kg": 1000})
+    assert res.status_code == 400
 
 
 @pytest.mark.parametrize("method,payload", [

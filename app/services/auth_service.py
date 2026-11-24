@@ -87,7 +87,13 @@ class OtpService:
 
     async def check(self, phone: str, code: str) -> bool:
         """True if `code` matches the newest live OTP. Every try is counted, and
-        the count is committed before returning so a 401 can't roll it back."""
+        the count is committed before returning so a 401 can't roll it back.
+
+        Outside production, `DEV_FIXED_OTP` (if set) is accepted for any phone —
+        there is no SMS provider yet, so this is how a real device signs in."""
+        if (settings.DEV_FIXED_OTP and not settings.is_production
+                and secrets.compare_digest(code, settings.DEV_FIXED_OTP)):
+            return True
         record = await self.otp_repo.latest_for_phone(phone)
         if record is None:
             return False
@@ -151,13 +157,22 @@ class AuthService:
         role = payload.role  # already normalised to upper-case by the schema
         await self._validate_fpo_link(role, payload.fpo_id)
 
-        district_id = payload.district_id
+        district_db_id = None
+        if payload.district_id is not None and str(payload.district_id).isdigit():
+            district_db_id = int(payload.district_id)
+        elif payload.district_id not in (None, ""):
+            # The app sends its slug ("dist_nashik"); integer ids still work.
+            from app.utils.id_resolver import ResolveError, resolve
+            try:
+                district_db_id = (await resolve(self.user_repo.session, "district", payload.district_id)).id
+            except ResolveError:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown district")
         user = await self.user_repo.create(User(
             name=payload.name,
             phone=payload.phone,
             role=role,
             locale=payload.locale,
-            district_id=int(district_id) if district_id is not None and str(district_id).isdigit() else None,
+            district_id=district_db_id,
             village=payload.village,
             lat=payload.lat,
             lng=payload.lng,
@@ -188,6 +203,18 @@ class AuthService:
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         return user
+
+    async def demo_login(self, role: str) -> AuthResponse:
+        """Sign in as the seeded demo farmer/buyer. Only when DEMO_MODE is on and
+        ENV is not production; the accounts come from scripts/seed_demo.py."""
+        if not settings.DEMO_MODE or settings.is_production:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        phone = settings.DEMO_BUYER_PHONE if role == "BUYER" else settings.DEMO_FARMER_PHONE
+        user = await self.user_repo.get_by_phone(phone)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Demo account not seeded — run scripts/seed_demo.py")
+        return self._issue_token(user)
 
     async def update_locale(self, user: User, locale: str) -> None:
         user.locale = locale

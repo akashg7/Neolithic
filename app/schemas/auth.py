@@ -1,9 +1,18 @@
 from pydantic import BaseModel, Field, field_validator, AliasChoices
 from typing import Optional
 
+from app.utils.id_resolver import slug_of
+from app.utils.phone import normalize_phone
+
+
+def _phone(v):
+    return normalize_phone(v) if isinstance(v, str) else v
+
 
 class OtpRequestReq(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15)
+
+    _norm_phone = field_validator("phone", mode="after")(_phone)
 
 
 class OtpRequestRes(BaseModel):
@@ -16,6 +25,8 @@ class OtpRequestRes(BaseModel):
 class OtpVerifyReq(BaseModel):
     phone: str
     code: str = Field(..., min_length=6, max_length=6)
+
+    _norm_phone = field_validator("phone", mode="after")(_phone)
 
 
 class RegisterRequest(BaseModel):
@@ -32,6 +43,8 @@ class RegisterRequest(BaseModel):
     gst_number: Optional[str] = Field(None, max_length=15)  # BUYER only; validated, only last 4 stored
     fpo_id: Optional[int] = None         # FARMER only; joins an existing FPO
 
+    _norm_phone = field_validator("phone", mode="after")(_phone)
+
     @field_validator("role", mode="before")
     def normalise_role(cls, v):
         # Accept "farmer" / "Farmer" as well as "FARMER".
@@ -46,9 +59,13 @@ class UserResponse(BaseModel):
     locale: str
     district_id: Optional[str] = None
     
-    @field_validator("id", "district_id", mode="before")
+    @field_validator("id", mode="before")
     def id_to_str(cls, v):
         return str(v) if v is not None else v
+
+    @field_validator("district_id", mode="before")
+    def district_slug(cls, v):
+        return slug_of("district", v)
 
     @field_validator("role", mode="before")
     def role_upper(cls, v):
@@ -97,9 +114,13 @@ class UserDetailResponse(BaseModel):
     farmer_profile: Optional[FarmerProfileOut] = None
     buyer_profile: Optional[BuyerProfileOut] = None
 
-    @field_validator("id", "district_id", mode="before")
+    @field_validator("id", mode="before")
     def id_to_str(cls, v):
         return str(v) if v is not None else v
+
+    @field_validator("district_id", mode="before")
+    def district_slug(cls, v):
+        return slug_of("district", v)
 
     @field_validator("role", mode="before")
     def role_upper(cls, v):
@@ -130,3 +151,11 @@ class MeResponse(BaseModel):
 
 class LocaleUpdateRequest(BaseModel):
     locale: str
+
+
+class DemoLoginRequest(BaseModel):
+    role: str = Field("FARMER", pattern=r"^(FARMER|BUYER)$")
+
+    @field_validator("role", mode="before")
+    def normalise_role(cls, v):
+        return v.strip().upper() if isinstance(v, str) else v

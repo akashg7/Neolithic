@@ -80,6 +80,7 @@ def decide(
     distance_km: float,
     history_rows: int,
     as_of: str | date | datetime,
+    quantiles: list[tuple[int, int, int]] | None = None,
 ) -> WindowResult:
     """Produce a hold/sell/no-advice recommendation.
 
@@ -109,7 +110,8 @@ def decide(
 
     # ── Refusal gate 2: model unavailable ──────────────────────────────
     try:
-        quantiles = predict_quantiles(commodity, market, as_of, FORECAST_HORIZON_DAYS)
+        if quantiles is None or len(quantiles) < FORECAST_HORIZON_DAYS:
+            quantiles = predict_quantiles(commodity, market, as_of, FORECAST_HORIZON_DAYS)
     except ModelUnavailable:
         return _no_advice(
             MODEL_UNAVAILABLE,

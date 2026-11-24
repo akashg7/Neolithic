@@ -39,6 +39,21 @@ async def get_current_user(
     return user
 
 
+optional_security = HTTPBearer(auto_error=False)
+
+
+async def get_optional_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_security)],
+    users: IUserRepository = Depends(get_user_repository),
+) -> User | None:
+    """Like `get_current_user`, but a request with no Authorization header is a
+    guest (None). A token that IS sent but is invalid or expired is still a 401 —
+    a bad token is never silently downgraded to guest."""
+    if credentials is None:
+        return None
+    return await get_current_user(credentials, users)
+
+
 def require_role(*roles: str):
     """Dependency factory: require the current user to have one of the given roles."""
     allowed = {r.upper() for r in roles}

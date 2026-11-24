@@ -12,7 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, fontFamily, space, radius, touch } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { useT } from '../../lib/i18n';
-import { ApiError, requestOtp, verifyOtp } from '../../lib/api';
+import { ApiError, getDevOtp, requestOtp, verifyOtp } from '../../lib/api';
 import { getPendingAuth, setPendingAuth, useAuth } from '../../lib/auth';
 import { USE_FIXTURES } from '../../config';
 import { fxAuthRegisteredBuyer } from '../../fixtures/auth';
@@ -124,9 +124,17 @@ export default function S03_OTP({ navigation }: Props) {
       }
       const res = await verifyOtp(phone, code);
       await signIn(res);
-    } catch {
-      setPendingAuth(phone, code, role);
-      navigation.navigate('S3_Profile');
+    } catch (e) {
+      // 404 = right code, but no account for this phone yet → registration.
+      // Anything else (wrong/expired code, throttle, network) stays here.
+      if (e instanceof ApiError && e.status === 404) {
+        setPendingAuth(phone, code, role);
+        navigation.navigate('S3_Profile');
+      } else if (e instanceof ApiError && e.status === 401) {
+        setError(t('otp_invalid_expired'));
+      } else {
+        setError(e instanceof ApiError ? e.message : t('network_error_generic'));
+      }
     } finally {
       setVerifying(false);
     }
@@ -139,12 +147,14 @@ export default function S03_OTP({ navigation }: Props) {
     if (!USE_FIXTURES) {
       try {
         await requestOtp(phone);
+        setOtp(['', '', '', '', '', '']); // re-render shows the new test code
       } catch (e) {
         setError(e instanceof ApiError ? e.message : t('network_error_generic'));
       }
     }
   };
 
+  const devOtp = phone ? getDevOtp(phone) : null;
   const filled = otp.filter(Boolean).length;
   const isReady = filled === 6;
   const timerStr = `00:${String(countdown).padStart(2, '0')}`;
@@ -218,17 +228,22 @@ export default function S03_OTP({ navigation }: Props) {
           <VoiceMic locale={locale} onTranscript={onVoiceCode} />
         </View>
 
-        {/* Auto-detect banner */}
-        <View style={styles.autoBanner}>
-          <View style={styles.autoIconBg}>
-            <Icon name="check-circle" size={18} color={colors.tertiary} />
-          </View>
-          <View style={styles.autoText}>
-            <Text style={styles.autoTitle}>{t('otp_auto_title')}</Text>
-            <Text style={styles.autoSub}>{t('otp_auto_sub')}</Text>
-          </View>
-          <Icon name="refresh" size={16} color={colors.outline} />
-        </View>
+        {/* Test mode: no SMS provider yet, so show the code the server generated
+            (only returned outside production). Tap to fill the boxes. */}
+        {devOtp ? (
+          <TouchableOpacity
+            style={styles.autoBanner}
+            onPress={() => setOtp(devOtp.split('').slice(0, 6))}>
+            <View style={styles.autoIconBg}>
+              <Icon name="message-circle" size={18} color={colors.tertiary} />
+            </View>
+            <View style={styles.autoText}>
+              <Text style={styles.autoTitle}>Test code: {devOtp}</Text>
+              <Text style={styles.autoSub}>SMS is not connected yet. Tap to fill.</Text>
+            </View>
+            <Icon name="check-circle" size={16} color={colors.tertiary} />
+          </TouchableOpacity>
+        ) : null}
 
         {/* Resend row */}
         <View style={styles.resendCard}>

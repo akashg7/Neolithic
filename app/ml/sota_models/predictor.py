@@ -44,9 +44,9 @@ class AgriPricePredictor:
         for k, v in mapping_dict.items():
             if k.lower() == name_clean or name_clean in k.lower() or k.lower() in name_clean:
                 return k, v
-        # Fallback to first
-        first_k = next(iter(mapping_dict))
-        return first_k, mapping_dict[first_k]
+        # No match: never fall back to an arbitrary entry (that silently
+        # forecasts the wrong crop/mandi). The caller treats this as "no model".
+        return None, None
 
     def predict_range(self, mandi: str, commodity: str, current_price_rs: float = None, days: int = 14) -> list[dict]:
         """
@@ -57,7 +57,13 @@ class AgriPricePredictor:
             self.load()
 
         comm_name, comm_id = self._normalize_name(commodity, self.metadata["commodities"])
+        if comm_name is None:
+            raise ValueError(f"no SOTA model coverage for commodity {commodity!r}")
         mandi_name, mandi_id = self._normalize_name(mandi, self.metadata["mandis"])
+        if mandi_name is None:
+            # Unknown mandi: use the commodity's pooled behaviour (Mandi_id 0) at
+            # state-average coordinates rather than another mandi's identity.
+            mandi_name, mandi_id = mandi, 0
         dist_id = self.metadata["mandi_districts"].get(mandi_name, 0)
         crop_grp_id = self.metadata["crop_groups"].get(comm_name, 0)
         lat = self.metadata["mandi_lat"].get(mandi_name, 19.75)

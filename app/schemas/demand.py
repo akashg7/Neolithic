@@ -1,22 +1,34 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Union
+
+from app.utils.id_resolver import slug_of
 
 class DemandCreate(BaseModel):
-    commodity_id: int
+    commodity_id: Union[int, str]          # slug ("cmd_onion") or integer id
     quantity_qtl: int = Field(..., gt=0)
     expected_price_paise: Optional[int] = None
-    market_id: Optional[int] = None
+    market_id: Optional[Union[int, str]] = None
     warehouse_id: Optional[int] = None
     desired_grade: Optional[str] = None
 
 class DemandOut(BaseModel):
     id: int
-    commodity_id: int
+    commodity_id: str
     quantity_qtl: int
     expected_price_paise: Optional[int] = None
-    market_id: Optional[int] = None
+    market_id: Optional[str] = None
     warehouse_id: Optional[int] = None
+    desired_grade: Optional[str] = None
     status: str
+    source: Optional[str] = None
+
+    @field_validator("commodity_id", mode="before")
+    @classmethod
+    def commodity_slug(cls, v): return slug_of("commodity", v)
+
+    @field_validator("market_id", mode="before")
+    @classmethod
+    def market_slug(cls, v): return slug_of("market", v)
 
     class Config:
         from_attributes = True

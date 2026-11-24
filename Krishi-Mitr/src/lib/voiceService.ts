@@ -3,10 +3,13 @@
  *
  * Designed specifically for farmers in Maharashtra:
  * 1. Speaks fluent Marathi (mr-IN), Hindi (hi-IN), and Indian English (en-IN).
- * 2. Prepared for Sarvam AI Neural TTS (keys attached in .env / localStorage / window).
- * 3. Gracefully uses HTML5 SpeechSynthesis when running locally before key is pasted.
+ * 2. Speaks with Sarvam AI neural TTS via our server (`/voice/narrate`; the key stays server-side).
+ * 3. Falls back to HTML5 SpeechSynthesis when the server can't narrate.
  * 4. Provides playback state, sound wave animation signals, and live read-along text.
  */
+
+import { narrate } from "./api";
+import type { Locale } from "../types/api";
 
 export interface VoicePlayOptions {
   text: string;
@@ -21,77 +24,35 @@ class VoiceService {
   private activeAudio: HTMLAudioElement | null = null;
   private isSpeaking: boolean = false;
 
-  public getApiKey(): string | null {
-    if (typeof window !== "undefined") {
-      const win = window as any;
-      if (win.SARVAM_API_KEY) return win.SARVAM_API_KEY;
-      try {
-        const stored = localStorage.getItem("SARVAM_API_KEY");
-        if (stored) return stored;
-      } catch (e) {}
-    }
-    if (typeof process !== "undefined" && process.env) {
-      return (
-        process.env.REACT_APP_SARVAM_API_KEY ||
-        process.env.EXPO_PUBLIC_SARVAM_API_KEY ||
-        process.env.SARVAM_API_KEY ||
-        null
-      );
-    }
-    return null;
-  }
-
   public async speak(opts: VoicePlayOptions): Promise<void> {
     this.stop();
     this.isSpeaking = true;
     opts.onStart?.();
 
-    const apiKey = this.getApiKey();
-
-    // 1. If Sarvam AI API Key is provided, call Sarvam Neural TTS
-    if (apiKey) {
-      try {
-        const langCode = opts.lang === "hi-IN" ? "hi-IN" : opts.lang === "en-IN" ? "en-IN" : "mr-IN";
-        const res = await fetch("https://api.sarvam.ai/text-to-speech", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "api-subscription-key": apiKey,
-          },
-          body: JSON.stringify({
-            inputs: [opts.text],
-            target_language_code: langCode,
-            speaker: "bulbul:v1",
-            pace: 1.0,
-            speech_sample_rate: 22050,
-            enable_preprocessing: true,
-            model: "bulbul:v1",
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const base64Audio = data.audios?.[0];
-          if (base64Audio) {
-            const audioSrc = `data:audio/wav;base64,${base64Audio}`;
-            const audio = new Audio(audioSrc);
-            this.activeAudio = audio;
-            audio.onended = () => {
-              this.isSpeaking = false;
-              opts.onEnd?.();
-            };
-            audio.onerror = (e) => {
-              this.isSpeaking = false;
-              opts.onError?.(e);
-            };
-            await audio.play();
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn("Sarvam API failed, falling back to browser TTS", e);
+    // 1. Sarvam neural voice, through our server (`POST /voice/narrate`). The
+    //    Sarvam key lives only on the server — a key in the page bundle is a
+    //    published key. `narrate()` returns '' when the server can't speak.
+    try {
+      const locale: Locale = opts.lang === "hi-IN" ? "hi" : opts.lang === "en-IN" ? "en" : "mr";
+      const { audio_base64 } = await narrate(opts.text, locale);
+      if (audio_base64 && this.isSpeaking) {
+        const audio = new Audio(`data:audio/wav;base64,${audio_base64}`);
+        this.activeAudio = audio;
+        audio.onended = () => {
+          this.isSpeaking = false;
+          opts.onEnd?.();
+        };
+        audio.onerror = (e) => {
+          this.isSpeaking = false;
+          opts.onError?.(e);
+        };
+        await audio.play();
+        return;
       }
+    } catch (e) {
+      console.warn("Sarvam narration failed, falling back to browser TTS", e);
     }
+    if (!this.isSpeaking) return;
 
     // 2. Browser SpeechSynthesis Fallback
     if (typeof window !== "undefined" && "speechSynthesis" in window) {

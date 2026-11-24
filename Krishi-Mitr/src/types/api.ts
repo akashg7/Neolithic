@@ -554,6 +554,8 @@ export interface OfferDto {
   created_at: string;
   lots: Array<{ lot_id: string; qty_allocated_kg: number }>;
   note: string | null;
+  /** Set by the server once the offer is ACCEPTED and an escrow transaction exists. */
+  tx_id?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -118,26 +118,8 @@ module.exports = {
       __DEV__: JSON.stringify(process.env.NODE_ENV !== 'production'),
       'process.env': JSON.stringify({
         NODE_ENV: process.env.NODE_ENV || 'development',
-        SARVAM_API_KEY: (() => {
-          let k = process.env.SARVAM_API_KEY || '';
-          if (!k) {
-            try {
-              const fs = require('fs');
-              const envPath = path.resolve(appDirectory, '.env');
-              if (fs.existsSync(envPath)) {
-                const lines = fs.readFileSync(envPath, 'utf8').split('\n');
-                for (const line of lines) {
-                  const match = line.match(/^SARVAM_API_KEY\s*=\s*(.+)$/);
-                  if (match) {
-                    k = match[1].trim();
-                    break;
-                  }
-                }
-              }
-            } catch {}
-          }
-          return k;
-        })(),
+        // No API keys here: anything in DefinePlugin ships in the public bundle.
+        // Sarvam is called by the server (/api/v1/voice/*), which holds the key.
       }),
     }),
     {
@@ -181,6 +163,16 @@ module.exports = {
     },
     hot: true,
     allowedHosts: 'all',
+    // The web build calls same-origin `/api/v1` (config.ts). In development that
+    // is forwarded to FastAPI; in production the host (Vercel rewrite / nginx)
+    // does the same. Point it elsewhere with API_PROXY_TARGET=http://host:port.
+    proxy: [
+      {
+        context: ['/api'],
+        target: process.env.API_PROXY_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    ],
     client: {
       overlay: {
         errors: true,

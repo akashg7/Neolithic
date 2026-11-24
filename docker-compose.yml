@@ -1,121 +1,114 @@
-version: "3.9"
+# Krishi-Mitr — whole stack in one step:
+#
+#     cp .env.example .env    # set JWT_SECRET, SARVAM_API_KEY, POSTGRES_PASSWORD
+#     docker compose up -d --build        (or: ./deploy/deploy.sh)
+#
+# Opens on port 80: web app at /, API at /api/v1, docs at /docs.
+# First boot on an empty database builds the schema and loads the demo seed;
+# after that, data lives in the named volumes below and survives rebuilds.
+#
+# Only nginx publishes a port. Postgres, Redis and MinIO are reachable from
+# the other containers only — never from the internet.
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agrisense}:${POSTGRES_PASSWORD:-agrisense}@postgis:5432/${POSTGRES_DB:-agrisense}
+  REDIS_URL: redis://redis:6379/1
+  CELERY_BROKER_URL: redis://redis:6379/0
+  AGENT_MEMORY_REDIS_URL: redis://redis:6379/2
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  S3_BUCKET: ${S3_BUCKET:-agrisense}
+
+x-app-depends: &app-depends
+  postgis:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  minio:
+    condition: service_started
 
 services:
   postgis:
-    image: postgis/postgis:15-3.4-alpine
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: agrisense
-      POSTGRES_PASSWORD: agrisense
-      POSTGRES_DB: agrisense
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-agrisense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agrisense}
+      POSTGRES_DB: ${POSTGRES_DB:-agrisense}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agrisense -d agrisense"]
-      interval: 2s
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 3s
       timeout: 3s
-      retries: 10
-
-  pgbouncer:
-    image: edoburu/pgbouncer:latest
-    environment:
-      DB_USER: agrisense
-      DB_PASSWORD: agrisense
-      DB_HOST: postgis
-      DB_NAME: agrisense
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: 1000
-      DEFAULT_POOL_SIZE: 20
-    ports:
-      - "6432:5432"
-    depends_on:
-      - postgis
+      retries: 20
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   minio:
     image: minio/minio:latest
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - miniodata:/data
 
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - api
-
-  # Separated API service for Alembic / Uvicorn
   api:
     build: .
-    ports:
-      - "8000:8000"
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://agrisense:agrisense@postgis:5432/agrisense
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - REDIS_URL=redis://redis:6379/1
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
-      - S3_BUCKET=agrisense
-    volumes:
-      - .:/app
-    depends_on:
-      redis:
-        condition: service_started
-      pgbouncer:
-        condition: service_started
-      postgis:
-        condition: service_healthy
-      minio:
-        condition: service_started
+    image: krishimitr-api
+    restart: unless-stopped
+    env_file: .env
+    environment: *app-env
+    depends_on: *app-depends
+    # First start on an empty DB loads ~34k price rows; give it time.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 120s
+      retries: 6
 
-  # Dedicated Celery Worker
   celery_worker:
-    build: .
-    command: celery -A app.worker.celery_app worker --loglevel=info
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://agrisense:agrisense@postgis:5432/agrisense
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - REDIS_URL=redis://redis:6379/1
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
-      - S3_BUCKET=agrisense
-    volumes:
-      - .:/app
-
+    image: krishimitr-api
+    restart: unless-stopped
+    entrypoint: []
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    env_file: .env
+    environment: *app-env
     depends_on:
-      redis:
-        condition: service_started
-      pgbouncer:
-        condition: service_started
-      postgis:
+      <<: *app-depends
+      api:
+        condition: service_healthy   # api start-up creates the schema first
+
+  nginx:
+    build: ./Krishi-Mitr
+    image: krishimitr-web
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api:
         condition: service_healthy
-      minio:
-        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
 volumes:
   pgdata:

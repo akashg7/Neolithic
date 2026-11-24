@@ -27,7 +27,7 @@ import { colors, fontFamily, radius, space, touch, type as typography } from '..
 import { Icon } from '../../components/ui/Icon';
 import { WebFooter } from '../../components/web/WebFooter';
 import { useT } from '../../lib/i18n';
-import { getLots } from '../../lib/api';
+import { getLots, refLabel } from '../../lib/api';
 import { translate } from '../../lib/i18n';
 import { formatDate } from '../../lib/dates';
 import { formatNumber, formatQuintal } from '../../lib/money';
@@ -131,8 +131,8 @@ async function fetchMyPools() {
 function commodityMarketLabel(lot: LotDto, locale: Locale): string {
   const commodityKey = COMMODITY_NAME_KEY[lot.commodity_id];
   const marketKey = MARKET_NAME_KEY[lot.market_id];
-  const commodity = commodityKey ? translate(commodityKey, locale) : lot.commodity_id;
-  const market = marketKey ? translate(marketKey, locale) : lot.market_id;
+  const commodity = commodityKey ? translate(commodityKey, locale) : refLabel(lot.commodity_id, locale);
+  const market = marketKey ? translate(marketKey, locale) : refLabel(lot.market_id, locale);
   return `${commodity} · ${market}`;
 }
 
