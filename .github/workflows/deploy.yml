@@ -8,9 +8,12 @@ name: Deploy to EC2
 #   EC2_USER      ssh user (ubuntu / ec2-user)
 #   EC2_SSH_KEY   private key for that user
 #   EC2_APP_DIR   (optional) checkout path on the server, default ~/Neolithic
+#   EC2_ENV_FILE  (optional) full path of the env file on the server. If it's
+#                 not set, deploy.sh looks in <app dir>/.env, then the parent
+#                 folder's .env, then ~/.env
 #
-# The server needs: Docker + compose plugin and a filled-in .env in the app
-# dir (never committed). Code is fetched with the job token, no deploy key. The workflow
+# The server needs: Docker + compose plugin and a filled-in env file
+# (never committed). Code is fetched with the job token, no deploy key. The workflow
 # never writes secrets to the server; .env is managed there by hand.
 
 on:
@@ -56,6 +59,7 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           RESEED: ${{ inputs.reseed && '--reseed' || '' }}
           APP_DIR: ${{ secrets.EC2_APP_DIR }}
+          ENV_FILE: ${{ secrets.EC2_ENV_FILE }}
           REPO: ${{ github.repository }}
           # Short-lived (job-scoped) token so the server can fetch the repo
           # without a deploy key. Used only on the fetch command line, never
@@ -65,7 +69,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: BRANCH,RESEED,APP_DIR,REPO,GH_TOKEN
+          envs: BRANCH,RESEED,APP_DIR,ENV_FILE,REPO,GH_TOKEN
           command_timeout: 30m
           script: |
             set -euo pipefail
@@ -80,5 +84,5 @@ jobs:
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git reset --hard "origin/$BRANCH"
             chmod +x deploy/deploy.sh
-            ./deploy/deploy.sh $RESEED
+            ENV_FILE="${ENV_FILE:-}" ./deploy/deploy.sh $RESEED
             docker image prune -f >/dev/null

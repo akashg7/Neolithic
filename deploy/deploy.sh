@@ -6,19 +6,41 @@
 #                                 (also moves prices forward to end yesterday)
 #
 # Run from anywhere on the server; needs Docker with the compose plugin and a
-# filled-in .env next to docker-compose.yml (see .env.example).
+# filled-in env file (see .env.example).
+#
+# Where the env file can live. The first one found wins:
+#   1. $ENV_FILE                 (explicit path, e.g. /home/ubuntu/.env)
+#   2. <repo>/.env               (next to docker-compose.yml)
+#   3. <repo>/../.env            (the folder that contains the checkout)
+#   4. $HOME/.env
+# If it is outside the repo, it is symlinked in as <repo>/.env. Docker Compose
+# reads .env from the project folder, and git ignores the link, so
+# `git reset --hard` on deploy never touches your secrets.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+REPO_DIR="$(pwd)"
 
 RESEED=0
 [[ "${1:-}" == "--reseed" ]] && RESEED=1
 
-if [[ ! -f .env ]]; then
-  echo "ERROR: .env not found. Run: cp .env.example .env  and fill in JWT_SECRET, SARVAM_API_KEY, POSTGRES_PASSWORD." >&2
+SRC=""
+for cand in "${ENV_FILE:-}" "$REPO_DIR/.env" "$REPO_DIR/../.env" "$HOME/.env"; do
+  [[ -n "$cand" && -f "$cand" ]] && { SRC="$(cd "$(dirname "$cand")" && pwd)/$(basename "$cand")"; break; }
+done
+if [[ -z "$SRC" ]]; then
+  echo "ERROR: no env file found. Looked at: \${ENV_FILE:-unset}, $REPO_DIR/.env, $REPO_DIR/../.env, $HOME/.env" >&2
+  echo "       Create one from .env.example (JWT_SECRET, SARVAM_API_KEY, POSTGRES_PASSWORD)." >&2
   exit 1
 fi
-if grep -Eq '^JWT_SECRET=(|change-me.*|local-dev-secret.*)$' .env; then
+if [[ "$SRC" != "$REPO_DIR/.env" ]]; then
+  ln -sfn "$SRC" "$REPO_DIR/.env"
+  echo "env: using $SRC (linked as $REPO_DIR/.env)"
+else
+  echo "env: using $SRC"
+fi
+if ! grep -Eq '^JWT_SECRET=' .env \
+   || grep -Eq '^JWT_SECRET=[[:space:]]*(#.*)?$|^JWT_SECRET=(change-me|local-dev-secret)' .env; then
   echo "ERROR: set a real JWT_SECRET in .env  (e.g. openssl rand -hex 32)." >&2
   exit 1
 fi
