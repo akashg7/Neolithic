@@ -28,7 +28,7 @@ export default function Landing() {
   return (
     <div className="km km-page">
       <section className="km-hero">
-        <img className="km-hero-img" src={sceneSrc('mandi')} alt="" />
+        <img className="km-hero-img" src={sceneSrc('sunrise')} alt="" />
         <div className="km-wrap" style={{ paddingBlock: '24px 72px', minHeight: 'clamp(600px,86vh,820px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 'auto', flexWrap: 'wrap' }}>
             <span className="km-brand" style={{ color: '#fff', marginRight: 'auto' }}><Logo size={40} /><b>{t('app_name')}</b></span>
@@ -44,6 +44,9 @@ export default function Landing() {
           </div>
           {err ? <p style={{ marginTop: 14, color: '#ffb59d' }}>{s('सर्व्हरशी जोडता आले नाही. थोड्या वेळाने पुन्हा पहा.', 'सर्वर से जुड़ नहीं पाए। थोड़ी देर बाद फिर देखें।', 'Couldn’t reach the server. Try again in a moment.')}</p> : null}
         </div>
+      </section>
+      <section className="km-wrap" style={{ paddingTop: 28 }}>
+        <div className="km-mosaic">{['onion', 'cotton', 'pomegranate', 'turmeric', 'soyabean', 'chilli', 'wheat', 'tomato'].map(c => <img key={c} src={tileSrc(c)} alt="" loading="lazy" />)}</div>
       </section>
       <section className="km-wrap km-sec">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(270px,1fr))', gap: 'clamp(24px,3vw,44px)' }}>

@@ -52,7 +52,12 @@ const STACK_SCREEN_OPTIONS = {
 
 /** Website only: forms and detail screens keep a readable column. Section
  *  roots (full-width pages) are passed through untouched. */
-const PAGES = new Set(['S4_Home', 'PricesIndex', 'S15_MyLots', 'S37_Talks', 'S31_DealsList']);
+const PAGES = new Set([
+  'S4_Home', 'PricesIndex', 'S15_MyLots', 'S37_Talks', 'S31_DealsList', 'S9_Verdict', 'S10_CostBreakdown', 'S13_CropLoan',
+  'S17_CameraGuide', 'S18_PhotoReview', 'S19_Quantity', 'S20_QualityDiagnostic', 'S21_GradeReveal', 'S22_PricePublish',
+  'S23_PublishedRadar', 'S27_Bargaining', 'S28_CounterOffer', 'S14_CounterOffer', 'S30_DealDone',
+  'S32_DealTracking', 'S33_Settled', 'S35_FarmerProfile', 'S38_Notifications',
+]);
 function screenLayout({ children, route }: { children: React.ReactElement; route: { name: string } }) {
   if (Platform.OS !== 'web' || PAGES.has(route.name)) return children;
   return (

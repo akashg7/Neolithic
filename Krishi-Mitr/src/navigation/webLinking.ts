@@ -54,8 +54,14 @@ const config = {
           path: 'prices',
           screens: { PricesIndex: '', S8_ModelCard: 'model' },
         },
-        MyLots: { path: 'lots', screens: { S15_MyLots: '' } },
-        Talks: { path: 'talks', screens: { S37_Talks: '' } },
+        MyLots: {
+          path: 'lots',
+          screens: {
+            S15_MyLots: '', S17_CameraGuide: 'new', S19_Quantity: 'new/quantity', S20_QualityDiagnostic: 'grade/:lot_id',
+            S22_PricePublish: 'price/:lot_id', S24_LotDetail: 'detail/:lot_id', S35_FarmerProfile: 'profile',
+          },
+        },
+        Talks: { path: 'talks', screens: { S37_Talks: '', S27_Bargaining: 'offer/:offer_id' } },
         Deals: {
           path: 'deals',
           screens: { S31_DealsList: '', S32_DealTracking: 'tracking', S33_Settled: 'settled' },
