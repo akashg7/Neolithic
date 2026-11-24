@@ -63,12 +63,16 @@ class PriceEngine:
 
         self._loaded = True
 
-    def _try_sota_predict(self, mandi: str, commodity: str, days: int = 14) -> list[dict] | None:
-        """Run inference using the trained SOTA Maharashtra models."""
+    def _try_sota_predict(self, mandi: str, commodity: str, days: int = 14,
+                          current_price_paise: int | None = None) -> list[dict] | None:
+        """Run inference using the trained SOTA Maharashtra models, anchored on
+        the observed price when one is given (else the predictor's own default)."""
         if self._sota_predictor is None:
             return None
         try:
-            res = self._sota_predictor.predict_range(mandi=mandi, commodity=commodity, days=days)
+            res = self._sota_predictor.predict_range(
+                mandi=mandi, commodity=commodity, days=days,
+                current_price_rs=(current_price_paise / 100.0) if current_price_paise else None)
             if res and len(res) > 0:
                 return res
         except Exception as e:
@@ -157,12 +161,17 @@ class PriceEngine:
         self, mandi: str, commodity: str,
         when: str | date | datetime | None = None,
         days: int = 14,
+        current_price_paise: int | None = None,
     ) -> list[dict]:
-        """Predict for the next N days. Returns list of daily predictions."""
+        """Predict for the next N days. Returns list of daily predictions.
+
+        `current_price_paise` anchors the SOTA trajectory on today's observed
+        mandi price; without it the predictor falls back to a crop default."""
         as_of = when if when is not None else datetime.now().isoformat()
 
         # 1. Try real SOTA Maharashtra LightGBM models first
-        sota_range = self._try_sota_predict(mandi, commodity, days=days)
+        sota_range = self._try_sota_predict(mandi, commodity, days=days,
+                                            current_price_paise=current_price_paise)
         if sota_range:
             return sota_range
 

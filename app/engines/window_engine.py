@@ -41,6 +41,7 @@ def compute_sale_window(
     horizon_days: int = 14,
     grade: str = "A",
     history_rows: int = 400,
+    quantiles: list[tuple[int, int, int]] | None = None,
 ) -> dict:
     """Compute the full WindowRes dict.
 
@@ -61,6 +62,7 @@ def compute_sale_window(
         distance_km=distance_km,
         history_rows=history_rows,
         as_of=as_of,
+        quantiles=quantiles,
     )
 
     # Confidence enum: low|medium|high -> LOW|MEDIUM|HIGH
@@ -116,11 +118,15 @@ def compute_sale_window(
         # ── Pledge quote (only on HOLD/SPLIT with positive gain) ───────
         if result.expected_gain_paise > 0:
             p10_fc = current_price_mid_paise  # conservative basis
-            try:
-                forecast = price_engine.predict(mandi, crop, datetime.now().isoformat())
-                p10_fc = forecast.get("p10_paise", current_price_mid_paise)
-            except Exception:
-                pass
+            if quantiles and len(quantiles) >= result.hold_days:
+                # p10 on the chosen hold day, from the same anchored forecast the decision used
+                p10_fc = int(quantiles[result.hold_days - 1][0])
+            else:
+                try:
+                    forecast = price_engine.predict(mandi, crop, datetime.now().isoformat())
+                    p10_fc = forecast.get("p10_paise", current_price_mid_paise)
+                except Exception:
+                    pass
             av = assessed_value(grade, quantity_kg, p10_fc)
             pq = pledge_quote(
                 assessed_value_paise=av,

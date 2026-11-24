@@ -19,7 +19,7 @@ import { SpeakingFace } from '../../components/ui/SpeakingFace';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
-import { fxAuthRegistered, fxAuthRegisteredBuyer } from '../../fixtures/auth';
+import { demoLogin } from '../../lib/api';
 import { colors, fontFamily, radius, space, touch, type } from '../../theme/tokens';
 import type { Locale } from '../../types/api';
 
@@ -215,7 +215,7 @@ export default function Landing() {
   };
 
   const handleFarmerQuickDemo = async () => {
-    await signIn(fxAuthRegistered);
+    await signIn(await demoLogin('FARMER'));
   };
 
   const handleBuyerStart = () => {
@@ -346,7 +346,7 @@ export default function Landing() {
 
           <Pressable
             onPress={async () => {
-              await signIn(fxAuthRegisteredBuyer);
+              await signIn(await demoLogin('BUYER'));
             }}
             accessibilityRole="button"
             style={styles.quickDemoLink}>

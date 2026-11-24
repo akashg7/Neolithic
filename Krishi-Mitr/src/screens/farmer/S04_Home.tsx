@@ -36,6 +36,8 @@ import { FarmerVoiceCard } from '../../components/farmer/FarmerVoiceCard';
 import { ForecastFan } from '../../components/charts/ForecastFan';
 import { WebFooter } from '../../components/web/WebFooter';
 import { useStaticMarket } from '../../lib/staticMarketStore';
+import { useLiveCrop } from '../../lib/liveMarket';
+import { useAuth } from '../../lib/auth';
 import { fxMyLots } from '../../fixtures/lots';
 import type { HomeStackParamList } from '../../navigation/FarmerTabs';
 
@@ -360,14 +362,18 @@ function ForecastCorridorChart({
 
 export default function S04_Home({ navigation }: Props) {
   const { locale, setLocale, devNum } = useT();
+  const { user } = useAuth();
   const {
-    selectedCrop,
+    selectedCrop: pickedCrop,
     selectedDistrict,
     selectedMandi,
     setSelectedCrop,
     setSelectedDistrict,
     setSelectedMandi,
   } = useStaticMarket();
+  // Real numbers from the API (/market/overview) over the picked crop's
+  // presentation fields; falls back to the static crop with `live: false`.
+  const { crop: selectedCrop } = useLiveCrop(pickedCrop, selectedMandi, selectedDistrict);
 
   const [timeframe, setTimeframe] = useState<7 | 14 | 30>(14);
   const [showDataTable, setShowDataTable] = useState<boolean>(false);
@@ -385,14 +391,21 @@ export default function S04_Home({ navigation }: Props) {
 
   // Language titles
   const cropTitle = isMr ? crop.name_mr : isHi ? crop.name_hi : crop.name;
-  const farmerName = isEn ? 'Namaste, Rambhau' : isHi ? 'नमस्ते, रामभाऊ' : 'रामराम, रामभाऊ';
+  const firstName = (user?.name || 'रामभाऊ').split(' ')[0];
+  const farmerName = isEn ? `Namaste, ${firstName}` : isHi ? `नमस्ते, ${firstName}` : `रामराम, ${firstName}`;
   const verifiedText = isEn ? 'Verified Farmer' : isHi ? 'सत्यापित किसान' : 'प्रमाणित शेतकरी';
 
   // Get historical dataset for the selected timeframe safely
   const historyData = getCropHistory(crop, timeframe);
 
   // Advisory titles & text
-  const advisoryTitle = selectedCrop.isHold
+  const advisoryTitle = selectedCrop.live
+    ? isEn
+      ? selectedCrop.advisoryTitleEn
+      : isHi
+      ? selectedCrop.advisoryTitleHi
+      : selectedCrop.advisoryTitleMr
+    : selectedCrop.isHold
     ? isEn
       ? `HOLD ${selectedCrop.name.toUpperCase()} (14 DAYS)`
       : isHi
@@ -404,7 +417,15 @@ export default function S04_Home({ navigation }: Props) {
     ? `${cropTitle} आज ही बेचें`
     : `${cropTitle} आजच विका`;
 
-  const advisorySub = selectedCrop.isHold
+  // Live: the server's own explanation of its verdict. Static fallback: the
+  // illustrative sentence below (no live arrivals data behind it).
+  const advisorySub = selectedCrop.live
+    ? isEn
+      ? selectedCrop.advisorySubEn
+      : isHi
+      ? selectedCrop.advisorySubHi
+      : selectedCrop.advisorySubMr
+    : selectedCrop.isHold
     ? isEn
       ? `Arrivals in ${selectedMandi} are dropping by 18%. Price expected to rise by +₹${fmtNum(selectedCrop.projectedShift)}/qtl over 14 days.`
       : isHi
@@ -489,7 +510,12 @@ export default function S04_Home({ navigation }: Props) {
                   <View style={styles.officialBadge}>
                     <Icon name="shield-check" size={13} color="#006146" />
                     <Text style={styles.officialBadgeText}>
-                      {isEn ? 'AGMARKNET LIVE' : 'थेट बाजारभाव'}
+                      {/* Say what the number is: live feed, archive replay, or illustrative. */}
+                      {!selectedCrop.live
+                        ? isEn ? 'ILLUSTRATIVE' : isHi ? 'उदाहरण' : 'उदाहरणार्थ'
+                        : selectedCrop.priceSource === 'AGMARKNET' || selectedCrop.priceSource === 'MSAMB'
+                        ? isEn ? `${selectedCrop.priceSource} · ${selectedCrop.asOf}` : `बाजारभाव · ${selectedCrop.asOf}`
+                        : isEn ? `AGMARKNET ARCHIVE · ${selectedCrop.asOf}` : isHi ? `संग्रहित भाव · ${selectedCrop.asOf}` : `संग्रहित भाव · ${selectedCrop.asOf}`}
                     </Text>
                   </View>
                 </View>

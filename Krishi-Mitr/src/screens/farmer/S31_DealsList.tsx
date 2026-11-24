@@ -38,7 +38,7 @@ import { ListenButton } from '../../components/ui/ListenButton';
 import { useT } from '../../lib/i18n';
 import { formatNumber, formatPaise, formatQuintal, quintalValuePaise } from '../../lib/money';
 import { formatDateShort } from '../../lib/dates';
-import { getOffers } from '../../lib/api';
+import { getOffers, getTransactions } from '../../lib/api';
 import { USE_FIXTURES } from '../../config';
 import { fxMyOffers } from '../../fixtures/offers';
 import { fxTx } from '../../fixtures/escrow';
@@ -61,6 +61,15 @@ async function fetchOffers(): Promise<OfferDto[]> {
 export default function S31_DealsList({ navigation }: Props) {
   const { t, locale } = useT();
   const [filter, setFilter] = useState<Filter>('agreed');
+
+  // The escrow behind each accepted offer (offer_id → tx), so a row can show its
+  // stage and open S32. Under fixtures the single fixture deal stands in.
+  const { data: txs } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: getTransactions,
+    enabled: !USE_FIXTURES,
+  });
+  const txByOffer = new Map((txs ?? []).map(t => [t.offer_id, t]));
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['offers', 'talks'],
@@ -174,7 +183,7 @@ export default function S31_DealsList({ navigation }: Props) {
              the live API this is null and the row still says so — but under
              fixtures the deal is fully walkable, which is what the flow
              needs to be demonstrable end to end. */
-          const tx = isAgreed && USE_FIXTURES ? fxTx : null;
+          const tx = !isAgreed ? null : USE_FIXTURES ? fxTx : txByOffer.get(o.id) ?? null;
           return (
             <TouchableOpacity
               key={o.id}

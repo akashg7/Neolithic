@@ -56,13 +56,15 @@ class SQLAlchemyOfferRepository(SQLAlchemyBaseRepository[Offer], IOfferRepositor
         return result.scalar_one_or_none()
 
     async def get_offer_thread(self, offer_id: int) -> Sequence[Offer]:
-        current = await self.get_by_id(offer_id)
+        # Eager-load lots on every hop: a lazy load inside async code raises
+        # MissingGreenlet when the DTO reads `offer.lots`.
+        current = await self.get_with_lots(offer_id)
         if not current:
             return []
-        
+
         ancestors = [current]
         while current.parent_offer_id:
-            parent = await self.get_by_id(current.parent_offer_id)
+            parent = await self.get_with_lots(current.parent_offer_id)
             if not parent:
                 break
             ancestors.append(parent)

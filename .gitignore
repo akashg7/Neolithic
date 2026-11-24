@@ -16,3 +16,46 @@ RESUME_EXTRACTION.md
 JUSTIFICATION.md
 AUTHORSHIP.md
 generate_authorship.py
+# ── Data (raw scrapes, exports, dumps) ─────────────────────────────────────
+# The 343 MB Agmarknet scrape stays local. The seed reads the small committed
+# extract below instead, so deploys still get real prices.
+maharashtra/
+data/*
+!data/seed/
+data/seed/*
+!data/seed/agmarknet_maharashtra_demo.csv.gz
+*.csv
+!app/ml/snapshots/*.csv
+*.parquet
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+pgdata/
+
+# ── Test results & tool output ─────────────────────────────────────────────
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit*.xml
+test-results/
+playwright-report/
+.playwright-mcp/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# ── Frontend build / deps ──────────────────────────────────────────────────
+node_modules/
+Krishi-Mitr/dist/
+frontend/dist/
+
+# ── Local env / editor ─────────────────────────────────────────────────────
+.env.*
+!.env.example
+.venv/
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -2,14 +2,23 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, Literal, Any
 from datetime import datetime
 
+from app.utils.id_resolver import slug_of
+
 class LotCreate(BaseModel):
     commodity_id: str
     qty_kg: Optional[int] = None
     quantity_qtl: Optional[int] = None
-    expected_price_paise: int = Field(..., gt=0)
+    # Optional: the app creates the lot at S19 and sets the price at S22 (publish).
+    expected_price_paise: Optional[int] = Field(None, gt=0)
     market_id: Optional[str] = None
     warehouse_id: Optional[str] = None
     self_assay: Optional[dict] = None
+    harvest_date: Optional[str] = None
+    photo_path: Optional[str] = None
+
+
+class LotPublishRequest(BaseModel):
+    expected_price_paise: int = Field(..., gt=0, description="Asking price, paise per quintal")
 
 
 class LotOut(BaseModel):
@@ -34,11 +43,11 @@ class LotOut(BaseModel):
             db_status = {"ACTIVE": "LISTED", "LOCKED": "OFFERED"}.get(db_status, db_status)
             return {
                 "id": str(values.id),
-                "commodity_id": str(values.commodity_id),
+                "commodity_id": slug_of("commodity", values.commodity_id),
                 "qty_kg": values.quantity_qtl * 100,
                 "expected_price_paise": values.expected_price_paise,
                 "status": db_status,
-                "market_id": str(values.market_id) if values.market_id else None,
+                "market_id": slug_of("market", values.market_id) if values.market_id else None,
                 "warehouse_id": str(values.warehouse_id) if values.warehouse_id else None,
                 "grade": str(values.grade) if values.grade else "UNGRADED",
                 "photo_path": values.image_url,
@@ -50,6 +59,24 @@ class LotOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AssayRecordOut(BaseModel):
+    """The stored self-assay of a lot, with the grade derived from it (S20)."""
+    lot_id: str
+    size_uniform: int
+    colour_uniform: int
+    sprouting: int
+    damage_pct: int
+    moisture_feel: int
+    foreign_matter: int
+    score: int
+    grade: str
+    weakest_dimension: str
+    tip_mr: str
+    tip_en: str
+    photo_path: Optional[str] = None
+    created_at: Optional[str] = None
+
 
 class SelfAssayRequest(BaseModel):
     size_uniform: Literal[1, 2, 3]
@@ -77,6 +104,7 @@ class PriceBand(BaseModel):
     min_paise_per_qtl: int
     mid_paise_per_qtl: int
     max_paise_per_qtl: int
+    band_source: Optional[str] = None  # AGMARKNET_SOTA | AGMARKNET_ML | SYNTHETIC | NONE
 
 class SaleWindowInfo(BaseModel):
     recommendation: str  # "SELL" | "HOLD" | "NO_ADVICE"
@@ -90,6 +118,8 @@ class PriceSuggestionResponse(BaseModel):
     lot_id: str
     price_band: PriceBand
     sale_window: SaleWindowInfo
+    market_id: Optional[str] = None     # the mandi the band/window were computed for
+    market_slug: Optional[str] = None
 
     @field_validator("lot_id", mode="before")
     def id_to_str(cls, v):

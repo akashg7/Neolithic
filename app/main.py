@@ -14,7 +14,7 @@ from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.routers import (
     auth, lots, demands, offers,
     transactions, logistics, disputes, fpo, ai, voice,
-    ref, prices, meta, buyers
+    ref, prices, meta, buyers, agent_tools, market
 )
 
 
@@ -29,6 +29,15 @@ async def lifespan(app: FastAPI):
         price_engine.load_models()
     except Exception:
         pass  # Models may not be available yet — that's OK
+    # Reference catalog (slug <-> id) so responses can speak the app's slugs
+    # from the first request. A DB that isn't up yet is retried on first use.
+    try:
+        from app.database import async_session
+        from app.utils.id_resolver import load_catalog
+        async with async_session() as session:
+            await load_catalog(session)
+    except Exception:
+        pass
     yield
     # Shutdown: cleanup
 
@@ -44,7 +53,7 @@ app = FastAPI(
 app.add_middleware(ErrorHandlerMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Lock down in production
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -106,6 +115,8 @@ app.include_router(ref.router, prefix="/api/v1/ref", tags=["Reference"])
 app.include_router(prices.router, prefix="/api/v1/prices", tags=["Prices"])
 app.include_router(meta.router, prefix="/api/v1/meta", tags=["Meta"])
 app.include_router(buyers.router, prefix="/api/v1/buyers", tags=["Buyers"])
+app.include_router(agent_tools.router, prefix="/api/v1/agent/tools", tags=["Agent tools"])
+app.include_router(market.router, prefix="/api/v1/market", tags=["Market"])
 
 
 @app.get("/health", tags=["Health"])
