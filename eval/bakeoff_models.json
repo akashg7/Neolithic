@@ -1,0 +1,13 @@
+{
+  "_note": "Candidates for the Day-2 bake-off. VERIFY every 'model' id in the provider console before running: the plan notes Groq retires models often, and Sarvam's changelog (Aug 2026) says Sarvam-105B is now the only supported Sarvam chat model (the plan's 'Sarvam-30B' is retired). Keys are read from the env var named in api_key_env. Drop a candidate by deleting its entry.",
+  "candidates": [
+    {"name": "groq-gpt-oss-120b", "base_url": "https://api.groq.com/openai/v1", "api_key_env": "GROQ_API_KEY",
+     "model": "openai/gpt-oss-120b", "extra": {"reasoning_effort": "low"}},
+    {"name": "groq-qwen-27b", "base_url": "https://api.groq.com/openai/v1", "api_key_env": "GROQ_API_KEY",
+     "model": "REPLACE_WITH_CURRENT_GROQ_QWEN_ID", "extra": {}},
+    {"name": "gemini-flash", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key_env": "GEMINI_API_KEY",
+     "model": "REPLACE_WITH_CURRENT_GEMINI_FLASH_ID", "extra": {}},
+    {"name": "sarvam-105b", "base_url": "https://api.sarvam.ai/v1", "api_key_env": "SARVAM_API_KEY",
+     "model": "sarvam-105b", "extra": {}}
+  ]
+}

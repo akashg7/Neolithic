@@ -25,3 +25,10 @@ numpy==1.26.4
 pandas==2.2.2
 joblib==1.4.2
 Pillow==10.4.0
+
+# NLP / RAG layer (app/nlp, app/rag) — offline-testable core
+rapidfuzz==3.14.5
+qdrant-client==1.20.0
+# Production retrieval only (BGE-M3 embedder + reranker, ~2 GB model download); not needed for tests or RETRIEVER=stub:
+# FlagEmbedding
+# transformers
