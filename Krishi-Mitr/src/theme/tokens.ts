@@ -60,11 +60,14 @@ export const colors = {
 
   // Semantic — separate from the brand accent, never doubling as it.
   positive: '#047857',
+  /** Solid fill/text for trusted or positive states (badges, escrow steps). */
+  positiveSolid: '#047857',
   positiveContainer: '#B9FFDE',
   onPositive: '#FFFFFF',
   onPositiveContainer: '#00513A',
 
   critical: '#B91C1C',
+  criticalSolid: '#B91C1C',
   criticalContainer: '#FFDAD6',
   onCritical: '#FFFFFF',
   onCriticalContainer: '#93000A',
@@ -85,11 +88,11 @@ import { Platform } from 'react-native';
  * family string per weight. */
 export const fontFamily = Platform.select({
   web: {
-    regular: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
-    medium: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
-    semiBold: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
-    bold: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
-    extraBold: "'Inter', 'Plus Jakarta Sans', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    regular: "'Plus Jakarta Sans', 'Mukta', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    medium: "'Plus Jakarta Sans', 'Mukta', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    semiBold: "'Plus Jakarta Sans', 'Mukta', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    bold: "'Plus Jakarta Sans', 'Mukta', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+    extraBold: "'Plus Jakarta Sans', 'Mukta', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
   },
   default: {
     regular: 'PlusJakartaSans-Regular',

@@ -52,7 +52,7 @@ export function FloatingAssistant() {
         activeOpacity={0.88}
         style={styles.pill}
         accessibilityRole="button"
-        accessibilityLabel={t('chat_title')}>
+        accessibilityLabel={t('agent_title')}>
         <Seal size={44} label={t('chat_fab_seal')} />
         <Text style={styles.word}>{t('chat_fab_label')}</Text>
       </TouchableOpacity>

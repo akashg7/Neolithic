@@ -76,7 +76,7 @@ export function CommoditySelector({
   // Find active district object
   const activeDistObj = STATIC_DISTRICTS.find(
     d => d.name === selectedDistrict || d.name_mr === selectedDistrict || d.name_hi === selectedDistrict
-  ) || STATIC_DISTRICTS[0];
+  ) || STATIC_DISTRICTS[0]!;
 
   // Display labels
   const districtLabel = isMr ? activeDistObj.name_mr : isHi ? activeDistObj.name_hi : activeDistObj.name;

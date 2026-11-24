@@ -81,9 +81,9 @@ function RangeBar({ worst, gain }: { worst: number; gain: number }) {
 function WindowVerdictCard({ d }: { d: WindowVerdictCardData }) {
   const { t, locale } = useT();
   const none = d.action === 'NO_ADVICE';
-  const tone = none ? colors.onSurfaceVariant : d.action === 'HOLD' ? colors.primary : colors.positive;
-  const word = none ? t('chat_verdict_none') : d.action === 'HOLD' ? t('chat_verdict_hold') : t('chat_verdict_sell');
-  const sub = d.action === 'HOLD' && d.hold_days ? t('chat_hold_days', { days: formatNumber(d.hold_days, locale) }) : undefined;
+  const tone = none ? colors.onSurfaceVariant : d.action === 'HOLD' || d.action === 'SPLIT' ? colors.primary : colors.positive;
+  const word = none ? t('chat_verdict_none') : d.action === 'SPLIT' ? t('chat_verdict_split') : d.action === 'HOLD' ? t('chat_verdict_hold') : t('chat_verdict_sell');
+  const sub = (d.action === 'HOLD' || d.action === 'SPLIT') && d.hold_days ? t('chat_hold_days', { days: formatNumber(d.hold_days, locale) }) : undefined;
   const qty = `${formatNumber(d.quantity_kg, locale)} ${t('chat_kg')}`;
 
   return (

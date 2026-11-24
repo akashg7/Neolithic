@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "krishi-mitr-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "Krishi-Mitr", "start"],
+      "port": 8080
+    }
+  ]
+}

@@ -11,6 +11,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import { navigationRef } from '../navigation/navigationRef';
 import { useT } from './i18n';
+import { mandiRef } from './liveMarket';
+import { staticMarketStore } from './staticMarketStore';
 import { sendChatMessage } from './agentClient';
 import { promptsFor } from './chatPrompts';
 import type { AgentChatResponse, ChatMessage, ScreenContext, UiAction } from './agentTypes';
@@ -24,6 +26,7 @@ const TAB_FOR_SCREEN: Record<string, string> = {
   S8_ModelCard: 'Prices',
   S15_MyLots: 'MyLots',
   S19_Quantity: 'MyLots',
+  S22_PricePublish: 'MyLots',
   S31_DealsList: 'Deals',
   S37_Talks: 'Talks',
 };
@@ -51,7 +54,14 @@ const EMPTY_SCREEN: ScreenContext = {
 
 const Ctx = createContext<AgentContextValue | null>(null);
 
-const newSession = () => `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+// ★ A session id is a conversation key, not a credential: the backend must
+//   bind it to the JWT user and reject another user's id (Member 5). Still,
+//   prefer a CSPRNG id where the runtime has one (web, modern Hermes).
+const newSession = () => {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  const id = c?.randomUUID ? c.randomUUID() : `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return `sess_${id}`;
+};
 let seq = 0;
 const mid = () => `m${Date.now().toString(36)}${seq++}`;
 
@@ -59,12 +69,14 @@ function readScreen(): ScreenContext {
   if (!navigationRef.isReady()) return EMPTY_SCREEN;
   const r = navigationRef.getCurrentRoute();
   if (!r) return EMPTY_SCREEN;
+  // Home/Market keep crop and mandi in the market store, not in route params.
+  const m = staticMarketStore.getState();
   const p = (r.params ?? {}) as Record<string, unknown>;
   const s = (k: string) => (typeof p[k] === 'string' ? (p[k] as string) : null);
   return {
     current_screen: r.name,
-    active_commodity_id: s('commodity_id'),
-    active_market_id: s('market_id'),
+    active_commodity_id: s('commodity_id') ?? m.selectedCrop.name,
+    active_market_id: s('market_id') ?? mandiRef(m.selectedMandi),
     active_lot_id: s('lot_id'),
   };
 }
@@ -87,9 +99,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // The container may not be mounted yet when this provider first renders.
     const poll: ReturnType<typeof setInterval> = setInterval(() => navigationRef.isReady() && (sync(), clearInterval(poll)), 250);
     const unsub = navigationRef.addListener('state', sync);
+    const unsubMarket = staticMarketStore.subscribe(sync);
     return () => {
       clearInterval(poll);
       unsub();
+      unsubMarket();
     };
   }, []);
 

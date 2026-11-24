@@ -8,10 +8,9 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { colors, radius, space, type as typography } from '../../theme/tokens';
 import { useT } from '../../lib/i18n';
 import { useAgent } from '../../lib/agentContext';
-import { Icon } from '../ui/Icon';
+import { Icon, IconName } from '../ui/Icon';
 import { nm } from './ChatCards';
 import { Composer } from './Composer';
-import { LedgerPaper } from './LedgerPaper';
 import { MARGIN, MessageRow } from './MessageRow';
 import { Seal } from './Seal';
 import { ThinkingBeads } from './ThinkingBeads';
@@ -23,7 +22,17 @@ const slugToEnglish = (slug: string | null, kind: 'cmd' | 'mkt'): string | null 
   return kind === 'mkt' ? `${cap} APMC` : cap;
 };
 
-export function ChatPanel({ onClose, bare = false }: { onClose?: () => void; bare?: boolean }) {
+const LANG_NAME = { mr: 'मराठी', hi: 'हिन्दी', en: 'English' } as const;
+
+export function ChatPanel({
+  onClose,
+  bare = false,
+  closeIcon = 'chevron-down',
+}: {
+  onClose?: () => void;
+  bare?: boolean;
+  closeIcon?: IconName;
+}) {
   const { t, locale } = useT();
   const { messages, isThinking, screen, starters, send, reset } = useAgent();
   const scroller = useRef<ScrollView>(null);
@@ -46,9 +55,14 @@ export function ChatPanel({ onClose, bare = false }: { onClose?: () => void; bar
       <View style={styles.header}>
         <Seal size={40} label={t('chat_fab_seal')} />
         <View style={styles.headText}>
-          <Text style={styles.title} numberOfLines={1}>
-            {t('chat_title')}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {t('agent_title')}
+            </Text>
+            <View style={styles.langChip}>
+              <Text style={styles.langChipText}>{LANG_NAME[locale]}</Text>
+            </View>
+          </View>
           {context ? (
             <View style={styles.context}>
               <Text style={styles.contextText} numberOfLines={1}>
@@ -64,13 +78,12 @@ export function ChatPanel({ onClose, bare = false }: { onClose?: () => void; bar
         ) : null}
         {onClose ? (
           <TouchableOpacity style={styles.iconBtn} onPress={onClose} accessibilityRole="button" accessibilityLabel={t('chat_close')}>
-            <Icon name="chevron-down" size={24} color={colors.onSurfaceVariant} />
+            <Icon name={closeIcon} size={24} color={colors.onSurfaceVariant} />
           </TouchableOpacity>
         ) : null}
       </View>
 
       <View style={styles.page}>
-        <LedgerPaper />
         <ScrollView
           ref={scroller}
           style={styles.scroll}
@@ -137,7 +150,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   headText: { flex: 1 },
-  title: { ...typography.titleLg, color: colors.onSurface },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  title: { ...typography.titleLg, color: colors.onSurface, flexShrink: 1 },
+  langChip: { backgroundColor: colors.surfaceContainer, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 1 },
+  langChipText: { ...typography.labelSm, fontSize: 12, color: colors.onSurfaceVariant },
   context: {
     alignSelf: 'flex-start',
     marginTop: 3,

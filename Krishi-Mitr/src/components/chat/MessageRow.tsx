@@ -53,7 +53,9 @@ export function MessageRow({ msg }: { msg: ChatMessage }) {
         <Seal size={30} label={t('chat_fab_seal')} ring={false} />
       </View>
       <View style={styles.aiBody}>
-        <Text style={styles.aiText}>{r.reply_text}</Text>
+        <View style={styles.aiBubble}>
+          <Text style={styles.aiText}>{r.reply_text}</Text>
+        </View>
 
         {r.cards.map((c, i) => (
           <CardView key={i} card={c} onConfirmLot={() => runUiAction({ target_screen: 'S15_MyLots' })} />
@@ -93,6 +95,17 @@ const styles = StyleSheet.create({
   aiRow: { flexDirection: 'row', marginBottom: space.xl },
   gutter: { width: MARGIN - 12, alignItems: 'flex-start', paddingTop: 2 },
   aiBody: { flex: 1, paddingLeft: 12 },
+  aiBubble: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderCard,
+    borderRadius: radius.lg,
+    borderTopLeftRadius: 4,
+    paddingHorizontal: space.md,
+    paddingVertical: 12,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
   aiText: { ...typography.bodyLg, color: colors.onSurface },
 
   actions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm },

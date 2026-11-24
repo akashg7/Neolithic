@@ -31,7 +31,7 @@
  */
 
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -49,6 +49,18 @@ const STACK_SCREEN_OPTIONS = {
   headerShown: false,
   contentStyle: { backgroundColor: SCREEN_BG },
 } as const;
+
+/** Website only: forms and detail screens keep a readable column. Section
+ *  roots (full-width pages) are passed through untouched. */
+const PAGES = new Set(['S4_Home', 'PricesIndex', 'S15_MyLots', 'S37_Talks', 'S31_DealsList']);
+function screenLayout({ children, route }: { children: React.ReactElement; route: { name: string } }) {
+  if (Platform.OS !== 'web' || PAGES.has(route.name)) return children;
+  return (
+    <View style={{ flex: 1, alignItems: 'center', backgroundColor: SCREEN_BG }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: 880 }}>{children}</View>
+    </View>
+  );
+}
 
 import S04_Home from '../screens/farmer/S04_Home';
 import S08_ModelCard from '../screens/farmer/S08_ModelCard';
@@ -132,7 +144,7 @@ const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 
 function HomeStackNavigator() {
   return (
-    <HomeStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
+    <HomeStack.Navigator screenOptions={STACK_SCREEN_OPTIONS} screenLayout={screenLayout}>
       <HomeStack.Screen name="S4_Home" component={S04_Home} />
       <HomeStack.Screen name="S9_Verdict" component={S09_Verdict} />
       {/* Stitch 12 is a bottom sheet over the decision screen, not a page. */}
@@ -172,7 +184,7 @@ const PricesStack = createNativeStackNavigator<PricesStackParamList>();
 
 function PricesStackNavigator() {
   return (
-    <PricesStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
+    <PricesStack.Navigator screenOptions={STACK_SCREEN_OPTIONS} screenLayout={screenLayout}>
       <PricesStack.Screen name="PricesIndex" component={PricesIndex} />
       <PricesStack.Screen name="S8_ModelCard" component={S08_ModelCard} />
     </PricesStack.Navigator>
@@ -288,7 +300,7 @@ const DealsStack = createNativeStackNavigator<DealsStackParamList>();
 
 function DealsStackNavigator() {
   return (
-    <DealsStack.Navigator initialRouteName="S31_DealsList" screenOptions={STACK_SCREEN_OPTIONS}>
+    <DealsStack.Navigator initialRouteName="S31_DealsList" screenOptions={STACK_SCREEN_OPTIONS} screenLayout={screenLayout}>
       <DealsStack.Screen name="S31_DealsList" component={S31_DealsList} />
       <DealsStack.Screen name="S32_DealTracking" component={S32_DealTracking} />
       <DealsStack.Screen name="S33_Settled" component={S33_Settled} />
@@ -326,7 +338,7 @@ const TalksStack = createNativeStackNavigator<TalksStackParamList>();
 
 function TalksStackNavigator() {
   return (
-    <TalksStack.Navigator screenOptions={STACK_SCREEN_OPTIONS}>
+    <TalksStack.Navigator screenOptions={STACK_SCREEN_OPTIONS} screenLayout={screenLayout}>
       <TalksStack.Screen name="S37_Talks" component={S37_Talks} />
       <TalksStack.Screen name="S14_CounterOffer" component={S14_CounterOffer} />
       <TalksStack.Screen name="S27_Bargaining" component={S27_Bargaining} />
@@ -346,7 +358,7 @@ const MyLotsStack = createNativeStackNavigator<MyLotsStackParamList>();
 
 function MyLotsStackNavigator() {
   return (
-    <MyLotsStack.Navigator initialRouteName="S15_MyLots" screenOptions={STACK_SCREEN_OPTIONS}>
+    <MyLotsStack.Navigator initialRouteName="S15_MyLots" screenOptions={STACK_SCREEN_OPTIONS} screenLayout={screenLayout}>
       <MyLotsStack.Screen name="S15_MyLots" component={S15_MyLots} />
       <MyLotsStack.Screen name="S17_CameraGuide" component={S17_CameraGuide} />
       <MyLotsStack.Screen name="S18_PhotoReview" component={S18_PhotoReview} />

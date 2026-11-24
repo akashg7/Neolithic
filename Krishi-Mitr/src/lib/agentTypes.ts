@@ -28,7 +28,7 @@ export interface AgentChatRequest {
   include_audio: boolean;
 }
 
-export type WindowAction = 'HOLD' | 'SELL' | 'NO_ADVICE';
+export type WindowAction = 'HOLD' | 'SPLIT' | 'SELL' | 'NO_ADVICE';
 
 export interface WindowVerdictCardData {
   action: WindowAction;
@@ -46,6 +46,8 @@ export interface WindowVerdictCardData {
 export interface PriceSnapshotCardData {
   commodity: string;
   mandi: string;
+  change_bps?: number | null;
+  obs_date?: string;
   /** Integer paise per quintal. */
   modal_price_paise_per_qtl: number;
   /** Last 7 days, oldest first, integer paise per quintal. */
