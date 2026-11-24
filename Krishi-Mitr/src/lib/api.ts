@@ -551,6 +551,24 @@ export const getMarketOverview = async (
 // AI & Forecasts
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** One call to a backend agent tool. Read tools return facts; nothing here writes. */
+export interface AgentToolResult {
+  ok: boolean;
+  tool: string;
+  data?: any;
+  card?: { type: string; data: any } | null;
+  ui_action?: { type: string; target_screen: string; cta_label: string; params?: Record<string, unknown> } | null;
+  citation?: { source: string; as_of?: string; mandi?: string } | null;
+  error?: { code: string; message: string; missing: string[]; candidates: any[] };
+}
+export const runAgentTool = async (
+  name: string,
+  args: Record<string, unknown>,
+  locale: Locale,
+  screen: Record<string, string | null>,
+): Promise<AgentToolResult> =>
+  post<AgentToolResult>(`/agent/tools/${name}`, { args, locale, screen_context: screen }, 20000);
+
 export const getForecast = async (commodityId: string, marketId: string, horizon = 14): Promise<ForecastRes> => {
   if (USE_FIXTURES) return getDynamicForecast(commodityId, marketId, horizon);
   return get<ForecastRes>('/ai/forecast', { commodity_id: commodityId, market_id: marketId, horizon }, 20000);

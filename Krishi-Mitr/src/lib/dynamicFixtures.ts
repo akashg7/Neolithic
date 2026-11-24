@@ -65,7 +65,7 @@ export function getDynamicPriceSeries(
   }
 
   return {
-    latest_obs_date: points[points.length - 1].obs_date,
+    latest_obs_date: points[points.length - 1]!.obs_date,
     source_summary: { AGMARKNET: points.length },
     points,
   };
@@ -158,25 +158,35 @@ export function getDynamicWindowRecommendation(
   const basePaise = info.base * 100;
   const targetGainPaise = Math.round(basePaise * 0.075);
 
+  // The real WindowRes shape: S9 reads these fields, and the old one had
+  // different names, so the verdict rendered blanks in fixture mode.
+  const qtl = (req.qty_kg ?? 1000) / 100;
+  const total = 4200;
   return {
     action: "HOLD",
-    recommended_window: {
-      start_day: 5,
-      end_day: 8,
-      optimal_day: 7,
-    },
-    expected_gain_paise_per_qtl: targetGainPaise,
+    hold_days: 7,
     confidence: "HIGH",
-    reasoning: [
-      "पुढील आठवड्यात आवक १५% ते २०% ने घटण्याचा अंदाज आहे.",
-      "प्रशिक्षित LightGBM मॉडेलनुसार ७ व्या दिवशी सर्वोच्च दर मिळण्याची शक्यता आहे.",
-      "साठवणूक खर्च वजा जाता प्रति क्विंटल निव्वळ नफा जास्त राहील.",
-    ],
+    band_width_bps: 1500,
+    sell_now_net_paise_per_qtl: basePaise,
+    hold_p50_net_paise_per_qtl: basePaise + targetGainPaise - total,
+    hold_p10_net_paise_per_qtl: basePaise - Math.round(basePaise * 0.02),
+    expected_gain_paise: Math.round((targetGainPaise - total) * qtl),
+    worst_case_paise: -Math.round(basePaise * 0.02 * qtl),
     costs: {
+      transport_paise_per_qtl: 0,
+      commission_paise_per_qtl: 0,
+      loading_paise_per_qtl: 0,
       storage_paise_per_qtl: 2800,
-      shrinkage_paise_per_qtl: 1400,
-      total_paise_per_qtl: 4200,
+      spoilage_paise_per_qtl: 1400,
+      total_paise_per_qtl: total,
     },
+    alt_market: null,
+    pledge_quote: null,
+    refusal_reason: null,
+    model_card: { mase: 0.57, coverage_80_bps: 8000 },
+    explain_mr: "७ दिवस थांबा — नमुना माहिती",
+    explain_en: "Hold 7 days — sample data",
+    data_source: "SYNTHETIC",
   };
 }
 
@@ -190,6 +200,7 @@ export function getDynamicLots(): LotDto[] {
       qty_kg: 4000,
       grade: "A",
       harvest_date: "2026-09-24",
+      photo_path: null,
       status: "LISTED",
       created_at: "2026-09-25T10:00:00Z",
     },

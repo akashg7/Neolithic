@@ -47,12 +47,12 @@ function toRows(points: MarketOverview['history']): Row[] {
 }
 
 /** Store keeps Marathi labels; the API accepts either, English is the safer match. */
-function mandiRef(selectedMandi: string): string {
+export function mandiRef(selectedMandi: string): string {
   const m = STATIC_MANDIS.find(x => x.name_mr === selectedMandi || x.name === selectedMandi);
   return m ? m.name : selectedMandi;
 }
 
-function districtRef(selectedDistrict: string): string | undefined {
+export function districtRef(selectedDistrict: string): string | undefined {
   const d = STATIC_DISTRICTS.find(x => x.name_mr === selectedDistrict || x.name === selectedDistrict);
   return d ? d.name : selectedDistrict || undefined;
 }

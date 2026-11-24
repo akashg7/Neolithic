@@ -52,7 +52,17 @@ export type IconName =
   | 'scale'
   | 'share'
   | 'video'
-  | 'external-link';
+  | 'external-link'
+  | 'table'
+  | 'chevron-up'
+  | 'arrow-up-right'
+  | 'arrow-down-right'
+  | 'database'
+  | 'activity'
+  | 'square'
+  | 'play'
+  | 'file-text'
+  | 'navigation';
 
 interface IconProps {
   name: IconName;
@@ -339,6 +349,26 @@ const ICON_PATHS: Record<IconName, (color: string) => React.ReactElement> = {
       <Path d="M15 3h6v6M10 14L21 3" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </G>
   ),
+
+  'table': (c) => (<Path d="M3 5H21V19H3V5ZM3 10H21M3 14.5H21M9 10V19" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'chevron-up': (c) => (<Path d="M6 15L12 9L18 15" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'arrow-up-right': (c) => (<Path d="M7 17L17 7M9 7H17V15" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'arrow-down-right': (c) => (<Path d="M7 7L17 17M17 9V17H9" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'database': (c) => (<Path d="M4 6C4 4.3 7.6 3 12 3C16.4 3 20 4.3 20 6C20 7.7 16.4 9 12 9C7.6 9 4 7.7 4 6ZM4 6V18C4 19.7 7.6 21 12 21C16.4 21 20 19.7 20 18V6M4 12C4 13.7 7.6 15 12 15C16.4 15 20 13.7 20 12" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'activity': (c) => (<Path d="M2 12H6L9 4L15 20L18 12H22" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'square': (c) => (<Path d="M6 6H18V18H6V6Z" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'play': (c) => (<Path d="M7 4L20 12L7 20V4Z" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'file-text': (c) => (<Path d="M14 2H6V22H18V6L14 2ZM14 2V6H18M9 12H15M9 16H15" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
+
+  'navigation': (c) => (<Path d="M3 11L22 2L13 21L11 13L3 11Z" stroke={c} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" fill="none" />),
 };
 
 

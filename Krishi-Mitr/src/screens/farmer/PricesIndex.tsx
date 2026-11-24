@@ -1,11 +1,11 @@
 /**
  * PricesIndex — Full-Bleed Desktop & Mobile APMC Mandi Market Intelligence Hub.
  *
- * ★ Full Width Utilization: Responsive 1440px desktop grid — zero empty gutters.
- * ★ 100% Offline & Static: Zero backend dependency, instantaneous tab switching.
- * ★ 1-Tap Crop Switching: Seamlessly compare all 14 crops across Maharashtra mandis.
- * ★ Real Mandi Imagery: Wholesale APMC yard photography with live badges.
- * ★ Transparent Net-in-Hand Rates: Deducts freight, diesel & market cess.
+ * Full Width Utilization: Responsive 1440px desktop grid — zero empty gutters.
+ * 100% Offline & Static: Zero backend dependency, instantaneous tab switching.
+ * 1-Tap Crop Switching: Seamlessly compare all 14 crops across Maharashtra mandis.
+ * Real Mandi Imagery: Wholesale APMC yard photography with live badges.
+ * Transparent Net-in-Hand Rates: Deducts freight, diesel & market cess.
  */
 
 import React, { useState } from 'react';
@@ -64,7 +64,7 @@ export default function PricesIndex({ navigation }: Props) {
     displayRows.sort((a, b) => b.net_paise_per_qtl - a.net_paise_per_qtl);
   }
 
-  const bestRowId = displayRows.length > 0 ? displayRows[0].id : null;
+  const bestRowId = displayRows.length > 0 ? displayRows[0]!.id : null;
 
   return (
     <View style={styles.root}>
@@ -75,7 +75,7 @@ export default function PricesIndex({ navigation }: Props) {
         <View style={styles.topBarInner}>
           <View style={styles.titleGroup}>
             <Text style={styles.pageTitle}>
-              {isEn ? '🏛️ APMC Mandi Market Intelligence Hub' : isHi ? '🏛️ कृषि उपज मंडी भाव केंद्र' : '🏛️ कृषी उत्पन्न बाजार समिती भाव केंद्र'}
+              {isEn ? 'APMC Mandi Market Intelligence Hub' : isHi ? 'कृषि उपज मंडी भाव केंद्र' : 'कृषी उत्पन्न बाजार समिती भाव केंद्र'}
             </Text>
             <Text style={styles.pageSubtitle}>
               {isEn
@@ -113,7 +113,7 @@ export default function PricesIndex({ navigation }: Props) {
               {/* Mandi Hero Banner with Real Yard Photo */}
               <View style={styles.mandiBannerCard}>
                 <Image
-                  source={{ uri: '/images/mandi.jpg' }}
+                  source={{ uri: '/images/scene/mandi.jpg' }}
                   style={styles.mandiBannerImage}
                   resizeMode="cover"
                 />

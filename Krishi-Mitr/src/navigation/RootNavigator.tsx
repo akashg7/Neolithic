@@ -27,6 +27,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../lib/auth';
 import { useT } from '../lib/i18n';
+import { AgentProvider } from '../lib/agentContext';
+import { FloatingAssistant } from '../components/chat/FloatingAssistant';
+import { ChatDrawer } from '../components/chat/ChatDrawer';
 import { AuthStack } from './AuthStack';
 import { BuyerTabs } from './BuyerTabs';
 import { FarmerTabs } from './FarmerTabs';
@@ -59,6 +62,8 @@ const FarmerRootStack = createNativeStackNavigator<FarmerRootStackParamList>();
 
 function FarmerRoot() {
   return (
+    <AgentProvider>
+    <View style={{ flex: 1 }}>
     <FarmerRootStack.Navigator screenOptions={{ headerShown: false }}>
       <FarmerRootStack.Screen name="FarmerTabs" component={FarmerTabs} />
       <FarmerRootStack.Screen
@@ -75,7 +80,7 @@ function FarmerRoot() {
       <FarmerRootStack.Screen
         name="Assistant"
         component={S28_Assistant}
-        options={{ headerShown: true, title: '' }}
+        options={{ headerShown: false }}
       />
       {/* Stitch 36. Built, fully translated, and reachable from nothing until
           now — the menu's three inline chips were the only way to change
@@ -83,6 +88,12 @@ function FarmerRoot() {
           and preview detail. */}
       <FarmerRootStack.Screen name="LanguageSwitcher" component={S36_LanguageSwitcher} />
     </FarmerRootStack.Navigator>
+    {/* One launcher + one drawer for the whole farmer app; both read the
+        current screen from navigationRef, so no screen knows they exist. */}
+    <FloatingAssistant />
+    <ChatDrawer />
+    </View>
+    </AgentProvider>
   );
 }
 

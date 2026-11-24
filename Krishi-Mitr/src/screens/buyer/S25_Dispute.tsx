@@ -150,7 +150,8 @@ async function raiseDispute(
       created_at: new Date().toISOString(),
     };
   }
-  return createDispute({ tx_id: tx.id, reason_code: reasonCode, description });
+  const res = await createDispute({ tx_id: tx.id, reason: reasonCode, description: description ?? '' });
+  return res.dispute;
 }
 
 export function S25_Dispute({ txId = DEFAULT_TX_ID }: { txId?: string }) {
