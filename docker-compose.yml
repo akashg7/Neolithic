@@ -57,7 +57,7 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:latest
+    image: pgsty/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -82,6 +82,7 @@ services:
       retries: 6
 
   celery_worker:
+    build: .
     image: krishimitr-api
     restart: unless-stopped
     entrypoint: []

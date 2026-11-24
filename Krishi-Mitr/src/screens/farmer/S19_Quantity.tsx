@@ -20,14 +20,16 @@
  *   sent as null.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, fontFamily, radius, space, touch, type as typography } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
-import { createLot } from '../../lib/api';
+import { createLot, getCommodities, getDistricts, getMarkets } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
+import { useStaticMarket } from '../../lib/staticMarketStore';
 import { useT } from '../../lib/i18n';
 import { ListenButton } from '../../components/ui/ListenButton';
 import { formatNumber, toQuintal } from '../../lib/money';
@@ -88,6 +90,35 @@ export default function S19_Quantity({ route, navigation }: Props) {
 
   const [qtyKg, setQtyKg] = useState(DEFAULT_QTY_KG);
 
+  // ── Which crop, at which mandi ──────────────────────────────────────────
+  // Lists come from the server (/ref/*), so a farmer can only pick something
+  // the backend can price. The starting choice is what he last looked at on
+  // Home/Market, in his own district.
+  const { user } = useAuth();
+  const market = useStaticMarket();
+  const { data: commodities = [] } = useQuery({ queryKey: ['ref', 'commodities'], queryFn: getCommodities, staleTime: Infinity });
+  const { data: districts = [] } = useQuery({ queryKey: ['ref', 'districts'], queryFn: getDistricts, staleTime: Infinity });
+  const districtId = useMemo(() => {
+    const sel = districts.find(d => [d.name, (d as { name_mr?: string }).name_mr].includes(market.selectedDistrict));
+    return sel?.id ?? user?.district_id ?? 'dist_nashik';
+  }, [districts, market.selectedDistrict, user?.district_id]);
+  const { data: mandis = [] } = useQuery({ queryKey: ['ref', 'markets', districtId], queryFn: () => getMarkets(districtId), staleTime: Infinity });
+
+  const [commodityId, setCommodityId] = useState<string | null>(null);
+  const [marketId, setMarketId] = useState<string | null>(null);
+  useEffect(() => {
+    if (commodityId || !commodities.length) return;
+    const hit = commodities.find(c => c.name === market.selectedCrop.name);
+    setCommodityId(hit?.id ?? commodities[0]!.id);
+  }, [commodities, commodityId, market.selectedCrop.name]);
+  useEffect(() => {
+    if (!mandis.length) return;
+    if (marketId && mandis.some(m => m.id === marketId)) return;
+    const hit = mandis.find(m => [m.name, (m as { name_mr?: string }).name_mr].includes(market.selectedMandi));
+    setMarketId(hit?.id ?? mandis[0]!.id);
+  }, [mandis, marketId, market.selectedMandi]);
+  const label = (x: { name: string; name_mr?: string }) => (locale === 'en' ? x.name : x.name_mr || x.name);
+
   const { mutate: create, isPending, isError, reset } = useMutation({
     mutationFn: persistLot,
     onSuccess: lot => {
@@ -102,8 +133,8 @@ export default function S19_Quantity({ route, navigation }: Props) {
 
   const onCreate = () =>
     create({
-      commodity_id: DEFAULT_COMMODITY_ID,
-      market_id: DEFAULT_MARKET_ID,
+      commodity_id: commodityId ?? DEFAULT_COMMODITY_ID,
+      market_id: marketId ?? DEFAULT_MARKET_ID,
       qty_kg: qtyKg,
       harvest_date: todayIso(),
       photo_path: photoUri,
@@ -137,6 +168,34 @@ export default function S19_Quantity({ route, navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={styles.pickLabel}>{locale === 'en' ? 'Crop' : locale === 'hi' ? 'फसल' : 'पीक'}</Text>
+        <View style={styles.chips}>
+          {commodities.map(c => (
+            <TouchableOpacity
+              key={c.id}
+              style={[styles.chip, c.id === commodityId && styles.chipOn]}
+              onPress={() => setCommodityId(c.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: c.id === commodityId }}>
+              <Text style={[styles.chipText, c.id === commodityId && styles.chipTextOn]}>{label(c)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.pickLabel}>{locale === 'en' ? 'Mandi where you will sell' : locale === 'hi' ? 'मंडी जहाँ बेचेंगे' : 'विक्रीची बाजार समिती'}</Text>
+        <View style={styles.chips}>
+          {mandis.map(m => (
+            <TouchableOpacity
+              key={m.id}
+              style={[styles.chip, m.id === marketId && styles.chipOn]}
+              onPress={() => setMarketId(m.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: m.id === marketId }}>
+              <Text style={[styles.chipText, m.id === marketId && styles.chipTextOn]}>{label(m)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <View style={styles.dialCard}>
           <Text style={styles.dialUnit}>{t('qs_quintals')}</Text>
 
@@ -182,9 +241,9 @@ export default function S19_Quantity({ route, navigation }: Props) {
 
       <View style={styles.dock}>
         <TouchableOpacity
-          style={[styles.cta, isPending && styles.ctaDisabled]}
+          style={[styles.cta, (isPending || !commodityId || !marketId) && styles.ctaDisabled]}
           onPress={onCreate}
-          disabled={isPending}
+          disabled={isPending || !commodityId || !marketId}
           accessibilityRole="button">
           <Text style={styles.ctaText}>{isPending ? t('qs_creating') : t('qs_create')}</Text>
           {!isPending ? <Icon name="arrow-right" size={18} color={colors.onPrimary} /> : null}
@@ -221,6 +280,20 @@ const styles = StyleSheet.create({
   headerSub: { ...typography.labelSm, color: colors.onSurfaceVariant, fontFamily: fontFamily.medium },
 
   scroll: { padding: space.md, paddingBottom: 140, gap: space.sm },
+  pickLabel: { ...typography.label, color: colors.onSurfaceVariant, marginTop: space.xs },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  chip: {
+    minHeight: 40,
+    paddingHorizontal: space.md,
+    justifyContent: 'center',
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surface,
+  },
+  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { ...typography.body, color: colors.onSurface },
+  chipTextOn: { color: colors.onPrimary, fontFamily: fontFamily.semibold },
 
   dialCard: {
     backgroundColor: colors.surface,

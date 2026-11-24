@@ -40,7 +40,7 @@ import { Icon } from '../../components/ui/Icon';
 import { ListenButton } from '../../components/ui/ListenButton';
 import { useT } from '../../lib/i18n';
 import { formatNumber, formatPaise, formatQuintal, quintalValuePaise } from '../../lib/money';
-import { counterOffer, getOfferThread, getPriceSeries, recommendWindow } from '../../lib/api';
+import { counterOffer, getOfferThread, getPriceSeries, recommendWindow, getLots } from '../../lib/api';
 import {
   DEFAULT_COMMODITY_ID,
   DEFAULT_GRADE,
@@ -67,19 +67,21 @@ async function fetchThread(offerId: string): Promise<OfferDto[]> {
   return getOfferThread(offerId);
 }
 
-async function fetchSeries(): Promise<PriceSeriesRes> {
+type LotRef = { id: string; commodity_id: string; market_id: string; qty_kg: number };
+
+async function fetchSeries(lot: LotRef | null): Promise<PriceSeriesRes> {
   if (USE_FIXTURES) return fxPriceHistory;
-  return getPriceSeries(DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, 180);
+  return getPriceSeries(lot?.commodity_id ?? DEFAULT_COMMODITY_ID, lot?.market_id ?? DEFAULT_MARKET_ID, 180);
 }
 
-async function fetchWindow(): Promise<WindowRes> {
+async function fetchWindow(lot: LotRef | null): Promise<WindowRes> {
   if (USE_FIXTURES) return fxHold;
   return recommendWindow({
-    commodity_id: DEFAULT_COMMODITY_ID,
-    market_id: DEFAULT_MARKET_ID,
-    qty_kg: DEFAULT_QTY_KG,
+    commodity_id: lot?.commodity_id ?? DEFAULT_COMMODITY_ID,
+    market_id: lot?.market_id ?? DEFAULT_MARKET_ID,
+    qty_kg: lot?.qty_kg ?? DEFAULT_QTY_KG,
     grade: DEFAULT_GRADE,
-    lot_id: null,
+    lot_id: lot?.id ?? null,
     horizon_days: DEFAULT_HORIZON_DAYS,
   });
 }
@@ -93,17 +95,24 @@ export default function S28_CounterOffer({ navigation, route }: Props) {
     queryKey: ['offers', offerId, 'thread'],
     queryFn: () => fetchThread(offerId),
   });
-  const seriesQuery = useQuery({
-    queryKey: ['prices', 'series', '180', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID],
-    queryFn: fetchSeries,
-  });
-  const windowQuery = useQuery({
-    queryKey: ['ai', 'window', 'recommend', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, DEFAULT_QTY_KG],
-    queryFn: fetchWindow,
-  });
-
   const thread = threadQuery.data ?? [];
   const latest = thread.length > 0 ? thread[thread.length - 1]! : null;
+
+  // Judge the counter against this offer's own lot (crop, mandi, quantity).
+  const lotsQuery = useQuery({ queryKey: ['lots'], queryFn: getLots, enabled: !USE_FIXTURES });
+  const offerLotId = latest?.lots[0]?.lot_id ?? null;
+  const lot = ((lotsQuery.data ?? []).find(l => l.id === offerLotId) ?? null) as LotRef | null;
+  const ready = USE_FIXTURES || lot !== null;
+  const seriesQuery = useQuery({
+    queryKey: ['prices', 'series', '180', lot?.commodity_id, lot?.market_id],
+    queryFn: () => fetchSeries(lot),
+    enabled: ready,
+  });
+  const windowQuery = useQuery({
+    queryKey: ['ai', 'window', 'recommend', lot?.commodity_id, lot?.market_id, lot?.qty_kg],
+    queryFn: () => fetchWindow(lot),
+    enabled: ready,
+  });
   const buyerBid = useMemo(
     () => [...thread].reverse().find(o => o.initiator === 'BUYER') ?? null,
     [thread],

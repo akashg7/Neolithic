@@ -106,7 +106,7 @@ export default function S04_Home({ navigation }: { navigation: any }) {
               ) : null}
               <p className="km-note" style={{ marginTop: 12 }}>{s(`${n(v.quantity_kg / 100)} क्विंटलसाठी, सर्व खर्च वजा करून`, `${n(v.quantity_kg / 100)} क्विंटल के लिए, सारे खर्च घटाकर`, `For ${n(v.quantity_kg / 100)} quintals, after all costs`)}</p>
               <div className="km-row">
-                <button className="km-btn" onClick={() => navigation.navigate('S9_Verdict')}>{s('सल्ला असा का?', 'सलाह ऐसी क्यों?', 'See why')}</button>
+                <button className="km-btn" onClick={() => navigation.navigate('S9_Verdict', { commodity_id: o!.commodity.slug, market_id: o!.market.slug, qty_kg: v.quantity_kg })}>{s('सल्ला असा का?', 'सलाह ऐसी क्यों?', 'See why')}</button>
                 <ListenButton text={spoken} />
               </div>
               {costs ? (

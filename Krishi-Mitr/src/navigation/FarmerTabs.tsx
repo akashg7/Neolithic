@@ -130,8 +130,9 @@ export type FarmerTabParamList = {
  */
 export type HomeStackParamList = {
   S4_Home: undefined;
-  S9_Verdict: undefined;
-  S10_CostBreakdown: undefined;
+  /** Optional: the crop/mandi/qty to decide for. Absent → the farmer's current selection. */
+  S9_Verdict: { commodity_id?: string; market_id?: string; qty_kg?: number } | undefined;
+  S10_CostBreakdown: { commodity_id?: string; market_id?: string; qty_kg?: number } | undefined;
   /** Stitch 13. Reached from the pledge card on the verdict, which only
    * renders when a quote exists at all (I13) — so this route is only ever
    * offered on the branch where there is something to show. */
