@@ -20,7 +20,7 @@ export default function S15_MyLots({ navigation }: { navigation: any }) {
     <div className="km km-page">
       <Banner scene="store" title={t('mp_title')} sub={lots?.length ? total : undefined}>
         <button className="km-btn" onClick={add}><Ic name="plus" />{s('शेतमाल नोंदवा', 'उपज जोड़ें', 'Add produce')}</button>
-        <ListenButton text={lots?.length ? total : t('mp_empty_title')} />
+        <ListenButton text={lots?.length ? total : t('produce_empty_heading')} />
       </Banner>
       <section className="km-wrap km-sec">
         {isLoading ? <div className="km-lots">{[0, 1, 2].map(i => <Skel key={i} h={340} />)}</div>
