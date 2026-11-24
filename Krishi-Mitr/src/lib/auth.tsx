@@ -107,6 +107,7 @@ export function clearPendingAuth(): void {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({ status: 'loading', user: null });
   const [hasLocale, setHasLocale] = useState(false);
 
@@ -157,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // A 401 means the 72-hour token really is spent — sign out for real.
         if (err instanceof ApiError && err.status === 401) {
           queryClient.clear();
-    await clearToken();
+          await clearToken();
           if (!cancelled) setState({ status: 'signed-out', user: null });
           return;
         }
@@ -180,7 +181,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const queryClient = useQueryClient();
   const signIn = useCallback(async (res: AuthRes) => {
     if (typeof window !== 'undefined') {
       try {
@@ -202,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('auth.user');
       } catch {}
     }
+    queryClient.clear();
     await clearToken();
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
