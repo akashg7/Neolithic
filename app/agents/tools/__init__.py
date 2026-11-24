@@ -10,4 +10,4 @@ open_screen.
 from app.agents.tools.base import (  # noqa: F401
     TOOL_REGISTRY, Tool, ToolContext, ToolFailure, ToolResult, run_tool, tool_schemas,
 )
-from app.agents.tools import market, decision, lots, navigation  # noqa: F401,E402  (registers)
+from app.agents.tools import market, decision, lots, navigation, knowledge, portfolio  # noqa: F401,E402  (registers)

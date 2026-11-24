@@ -200,6 +200,74 @@ async def run_turn(client: httpx.AsyncClient, cand: dict, row: EvalRow) -> TurnR
     return res
 
 
+async def run_turn_agent_loop(cand: dict, row: EvalRow) -> TurnResult:
+    """Run one bake-off row using Person A's real system prompt, context builder,
+    canonical tool schemas, and `OpenAICompatibleLLMClient`."""
+    from app.agents.context import build_context_messages
+    from app.agents.llm_client import OpenAICompatibleLLMClient, ProviderConfig
+    from app.agents.tool_bridge import agent_tool_schemas
+    from app.schemas.agent import ScreenContext
+
+    res = TurnResult(row.id)
+    hints = extract_hints(row.turns_original[0])
+    messages = build_context_messages(
+        profile_block=PROFILE,
+        history_turns=[],
+        screen_context=ScreenContext(
+            current_screen=(row.screen_context or {}).get("current_screen") or "home",
+            active_commodity_id=(row.screen_context or {}).get("active_commodity_id"),
+            active_market_id=(row.screen_context or {}).get("active_market_id"),
+            active_lot_id=(row.screen_context or {}).get("active_lot_id"),
+        ),
+        model_input_text=row.turns_english[-1],
+        hints=hints,
+        pivot_on=True,
+        target_lang="en",
+    )
+    cfg = ProviderConfig(
+        name=cand["name"],
+        base_url=cand["base_url"],
+        api_key=os.getenv(cand["api_key_env"], ""),
+        model=cand["model"],
+        extra=dict(cand.get("extra") or {}),
+    )
+    llm = OpenAICompatibleLLMClient([cfg])
+    tools = agent_tool_schemas()
+    tool_choice = cand.get("tool_choice", "required")
+    try:
+        for step in range(3):
+            resp = await llm.complete(messages, tools=tools, temperature=0.2, tool_choice=tool_choice)
+            res.calls += 1
+            res.call_ms.append(resp.latency_ms)
+            calls = resp.tool_calls
+            if not calls:
+                break
+            if step == 0:
+                res.parallel_attempt = len(calls) > 1
+                name = calls[0].name
+                res.first_tool = name
+                res.tool_ok = name == row.expected_tool
+                if res.tool_ok:
+                    exp = expected_normalised(row)
+                    res.args_ok_hints = args_correct(exp, normalise_args(name, calls[0].arguments, hints))
+                    res.args_ok_nohints = args_correct(exp, normalise_args(name, calls[0].arguments, None))
+            if calls[0].name == "final_answer":
+                break
+            messages.append({
+                "role": "assistant",
+                "content": resp.content,
+                "tool_calls": [
+                    {"id": c.id, "type": "function", "function": {"name": c.name, "arguments": c.raw_arguments}}
+                    for c in calls
+                ],
+            })
+            for c in calls:
+                messages.append({"role": "tool", "tool_call_id": c.id, "content": STUB_RESULT})
+    except Exception as e:
+        res.error = f"{type(e).__name__}: {str(e)[:160]}"
+    return res
+
+
 # ---------------------------------------------------------------------------- scoring + decision
 def pct(xs: list[bool]) -> float:
     return round(100 * sum(xs) / len(xs), 1) if xs else 0.0
@@ -260,7 +328,10 @@ async def main_async(a: argparse.Namespace) -> None:
     async with httpx.AsyncClient() as client:
         for cand in cands:
             print(f"== {cand['name']} ({cand['model']})", flush=True)
-            results = [await run_turn(client, cand, row) for row in rows]  # sequential: fair latency
+            if getattr(a, "loop", False):
+                results = [await run_turn_agent_loop(cand, row) for row in rows]
+            else:
+                results = [await run_turn(client, cand, row) for row in rows]  # sequential: fair latency
             summaries.append(summarise(cand, rows, results, a.p95_budget_ms))
     winner = decide(summaries)
     out_dir = ROOT / "eval/results"
@@ -277,6 +348,7 @@ def main() -> None:
     ap.add_argument("--models", default=str(ROOT / "eval/bakeoff_models.json"))
     ap.add_argument("--data", default=str(ROOT / "eval/data/bakeoff_40.jsonl"))
     ap.add_argument("--p95-budget-ms", type=float, default=1100.0)
+    ap.add_argument("--loop", action="store_true", help="Run via Person A's real agent context, tool schemas, and OpenAI-SDK client.")
     asyncio.run(main_async(ap.parse_args()))
 
 

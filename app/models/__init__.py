@@ -11,6 +11,7 @@ from app.models.voice import CallSession, VoiceInteraction
 from app.models.reference import District, Commodity, Warehouse, LogisticsCostRoute
 from app.models.pledge import PledgeQuoteRecord
 from app.models.otp import OtpCode
+from app.models.agent_turn import AgentTurnLog
 
 __all__ = [
     "User", "Farmer", "Buyer",
@@ -26,4 +27,5 @@ __all__ = [
     "District", "Commodity", "Warehouse", "LogisticsCostRoute",
     "PledgeQuoteRecord",
     "OtpCode",
+    "AgentTurnLog",
 ]

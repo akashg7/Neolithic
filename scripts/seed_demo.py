@@ -57,7 +57,7 @@ from app.models.transaction import EscrowEvent, Transaction  # noqa: E402
 from app.models.user import Buyer, Farmer, User  # noqa: E402
 from app.utils import id_resolver  # noqa: E402
 
-ALEMBIC_HEAD = "002_otp_and_reference"
+ALEMBIC_HEAD = "003_agent_turns"
 # Full export if present locally; otherwise the committed extract (same rows,
 # only the app's crops × mandis, gzipped) so the seed also works on a fresh server.
 _FULL_CSV = ROOT / "maharashtra" / "agmarknet_maharashtra_full_1year.csv"
