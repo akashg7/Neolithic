@@ -9,8 +9,8 @@ name: Deploy to EC2
 #   EC2_SSH_KEY   private key for that user
 #   EC2_APP_DIR   (optional) checkout path on the server, default ~/Neolithic
 #
-# The server needs: Docker + compose plugin, git access to this repo (deploy
-# key), and a filled-in .env in the checkout (never committed). The workflow
+# The server needs: Docker + compose plugin and a filled-in .env in the app
+# dir (never committed). Code is fetched with the job token, no deploy key. The workflow
 # never writes secrets to the server; .env is managed there by hand.
 
 on:
@@ -22,6 +22,9 @@ on:
         description: "Reset data to the demo story (also refreshes price dates)"
         type: boolean
         default: false
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-ec2
@@ -54,20 +57,26 @@ jobs:
           RESEED: ${{ inputs.reseed && '--reseed' || '' }}
           APP_DIR: ${{ secrets.EC2_APP_DIR }}
           REPO: ${{ github.repository }}
+          # Short-lived (job-scoped) token so the server can fetch the repo
+          # without a deploy key. Used only on the fetch command line, never
+          # written into the server's git config.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: BRANCH,RESEED,APP_DIR,REPO
+          envs: BRANCH,RESEED,APP_DIR,REPO,GH_TOKEN
           command_timeout: 30m
           script: |
             set -euo pipefail
             APP_DIR="${APP_DIR:-$HOME/Neolithic}"
+            URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
             if [ ! -d "$APP_DIR/.git" ]; then
-              git clone "git@github.com:${REPO}.git" "$APP_DIR"
+              git init -q "$APP_DIR"
+              git -C "$APP_DIR" remote add origin "https://github.com/${REPO}.git"
             fi
             cd "$APP_DIR"
-            git fetch --prune origin "$BRANCH"
+            git fetch --prune "$URL" "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git reset --hard "origin/$BRANCH"
             chmod +x deploy/deploy.sh
