@@ -4,7 +4,17 @@
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
-    { "source": "/video", "destination": "/video.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://REPLACE_WITH_API_HOST/api/v1/:path*"
+    },
+    {
+      "source": "/video",
+      "destination": "/video.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

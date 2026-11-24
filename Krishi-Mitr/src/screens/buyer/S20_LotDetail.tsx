@@ -52,7 +52,7 @@ import { Badge, type BadgeType } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
-import { ApiError, getLot, getLotAssay } from '../../lib/api';
+import { ApiError, getLot, getLotAssay, refLabel } from '../../lib/api';
 import { formatDate } from '../../lib/dates';
 import { getLocale } from '../../lib/locale';
 import { translate } from '../../lib/i18n';
@@ -247,7 +247,7 @@ export function S20_LotDetail({
       <Card style={styles.mainCard}>
         <View style={styles.badgeRow}>
           <Badge
-            label={commodityKey ? translate(commodityKey, locale) : lot.commodity_id}
+            label={commodityKey ? translate(commodityKey, locale) : refLabel(lot.commodity_id, locale)}
             type="INFO"
           />
           <Badge
@@ -278,7 +278,7 @@ export function S20_LotDetail({
 
         <Text style={styles.metaText}>
           {translate('lot_detail_market_line', locale, {
-            market: marketKey ? translate(marketKey, locale) : lot.market_id,
+            market: marketKey ? translate(marketKey, locale) : refLabel(lot.market_id, locale),
           })}
         </Text>
         <Text style={styles.metaText}>

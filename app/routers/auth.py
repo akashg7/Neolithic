@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
     BuyerProfileOut,
+    DemoLoginRequest,
     FarmerProfileOut,
     LocaleUpdateRequest,
     MeResponse,
@@ -39,6 +40,12 @@ async def verify_otp(payload: OtpVerifyReq, service: AuthService = Depends(get_a
 async def register(payload: RegisterRequest, service: AuthService = Depends(get_auth_service)):
     """Register a new user (User + role profile via UserFactory) after verifying OTP."""
     return await service.register(payload)
+
+
+@router.post("/demo-login", response_model=AuthResponse)
+async def demo_login(payload: DemoLoginRequest, service: AuthService = Depends(get_auth_service)):
+    """One-tap sign-in as the seeded demo farmer or buyer (DEMO_MODE only; 404 otherwise)."""
+    return await service.demo_login(payload.role)
 
 
 @router.get("/me", response_model=MeResponse)

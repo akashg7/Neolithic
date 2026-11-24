@@ -68,6 +68,7 @@ class OfferDto(BaseModel):
     created_at: Optional[datetime] = None
     lots: List[OfferLotItem] = []
     note: Optional[str] = None
+    tx_id: Optional[str] = None  # set once the offer is ACCEPTED and escrow exists
 
     class Config:
         from_attributes = True

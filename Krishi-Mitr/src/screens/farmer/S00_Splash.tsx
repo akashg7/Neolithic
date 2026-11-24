@@ -27,7 +27,7 @@ import { ListenButton } from '../../components/ui/ListenButton';
 import { Logo } from '../../components/ui/Logo';
 import { SpeakingFace } from '../../components/ui/SpeakingFace';
 import { useAuth } from '../../lib/auth';
-import { fxAuthRegistered } from '../../fixtures/auth';
+import { enterDashboard } from '../../lib/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'S0_Splash'>;
 
@@ -218,7 +218,7 @@ export default function S00_Splash({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Direct Demo Login"
           onPress={async () => {
-            await signIn(fxAuthRegistered);
+            await signIn(await enterDashboard()).catch(() => undefined);
           }}>
           <Icon name="zap" size={13} color={colors.primary} />
           <Text style={styles.directLoginText}>

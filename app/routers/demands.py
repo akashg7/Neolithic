@@ -27,12 +27,15 @@ async def create_demand(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new buyer demand."""
+    from app.utils.id_resolver import resolve_or_404
+    commodity_db_id = (await resolve_or_404(db, "commodity", payload.commodity_id, "commodity_id")).id
+    market_db_id = (await resolve_or_404(db, "market", payload.market_id, "market_id")).id if payload.market_id else None
     demand = BuyerDemand(
         buyer_id=user.id,
-        commodity_id=payload.commodity_id,
+        commodity_id=commodity_db_id,
         quantity_qtl=payload.quantity_qtl,
         expected_price_paise=payload.expected_price_paise,
-        market_id=payload.market_id,
+        market_id=market_db_id,
         warehouse_id=payload.warehouse_id,
         desired_grade=payload.desired_grade,
         lat=user.lat,

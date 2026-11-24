@@ -16,6 +16,8 @@ from app.engines.grading_engine import grade as compute_grade
 from app.engines.price_engine import price_engine
 from app.engines.window_engine import compute_sale_window
 from app.utils.haversine import haversine_km
+from app.utils.id_resolver import resolve_or_404, load_catalog
+from app.services.window_service import sale_window, NoPriceDataError
 from app.schemas.lot import (
     LotCreate, LotOut, SelfAssayRequest, SelfAssayResponse,
     PriceSuggestionResponse, PriceBand, SaleWindowInfo,
@@ -38,9 +40,10 @@ async def _find_nearest_mandi(db: AsyncSession, lat: float, lng: float) -> Optio
 async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut:
     """Create a new lot."""
     qty_qtl = payload.quantity_qtl if payload.quantity_qtl is not None else (payload.qty_kg // 100 if payload.qty_kg else 10)
-    comm_id = int(payload.commodity_id)
-    mkt_id = int(payload.market_id) if payload.market_id else None
-    wh_id = int(payload.warehouse_id) if payload.warehouse_id else None
+    # Accept the app's slugs ("cmd_onion", "mkt_lasalgaon") as well as integer ids.
+    comm_id = (await resolve_or_404(db, "commodity", payload.commodity_id, "commodity_id")).id
+    mkt_id = (await resolve_or_404(db, "market", payload.market_id, "market_id")).id if payload.market_id else None
+    wh_id = int(payload.warehouse_id) if payload.warehouse_id and str(payload.warehouse_id).isdigit() else None
 
     lot = Lot(
         farmer_id=user.id,
@@ -51,6 +54,7 @@ async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut
         warehouse_id=wh_id,
         lat=user.lat,
         lng=user.lng,
+        image_url=payload.photo_path,
         status="active",
     )
 
@@ -67,8 +71,12 @@ async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut
     await db.commit()
     await db.refresh(lot)
 
-    # Trigger async matching in background
-    run_matching_engine_for_lot.delay(lot.id)
+    # Trigger async matching in background. Best effort: a broker outage must
+    # not fail a lot the farmer has already saved (the task is a no-op today).
+    try:
+        run_matching_engine_for_lot.delay(lot.id)
+    except Exception:
+        pass
 
     return LotOut.model_validate(lot)
 
@@ -142,70 +150,119 @@ async def submit_self_assay(
 
 
 async def get_price_suggestion(db: AsyncSession, user: User, lot_id: int) -> PriceSuggestionResponse:
-    """Get price band + sale window recommendation for a lot."""
-    result = await db.execute(select(Lot).where(Lot.id == lot_id))
-    lot = result.scalar_one_or_none()
+    """Price band + sale-window recommendation for a lot.
 
+    The mandi is the lot's own market, else the mandi nearest the lot, else the
+    mandi nearest the farmer's profile location. With none of those there is no
+    honest answer, so the window says NO_ADVICE (no Delhi/Azadpur fallback).
+    """
+    lot = (await db.execute(select(Lot).where(Lot.id == lot_id))).scalar_one_or_none()
     if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lot not found")
 
-    # Get commodity name
-    comm_result = await db.execute(select(Commodity).where(Commodity.id == lot.commodity_id))
-    commodity = comm_result.scalar_one_or_none()
-    crop_name = commodity.name if commodity else "Unknown"
+    catalog = await load_catalog(db)
+    commodity = catalog.get("commodity", lot.commodity_id)
+    market = catalog.get("market", lot.market_id) if lot.market_id else None
+    if market is None:
+        lat = lot.lat if lot.lat is not None else user.lat
+        lng = lot.lng if lot.lng is not None else user.lng
+        if lat is not None and lng is not None:
+            nearest = await _find_nearest_mandi(db, lat, lng)
+            market = catalog.get("market", nearest.id) if nearest else None
 
-    lot_lat = lot.lat or 28.6139
-    lot_lng = lot.lng or 77.2090
-
-    nearest_mandi = await _find_nearest_mandi(db, lot_lat, lot_lng)
-    mandi_name = nearest_mandi.name if nearest_mandi else "Azadpur"
-    mandi_lat = nearest_mandi.lat if nearest_mandi else 28.7041
-    mandi_lng = nearest_mandi.lng if nearest_mandi else 77.1025
-
-    try:
-        prediction = price_engine.predict(mandi_name, crop_name, datetime.now().isoformat())
-        price_band = PriceBand(
-            min_paise_per_qtl=prediction["p10_paise"],
-            mid_paise_per_qtl=prediction["p50_paise"],
-            max_paise_per_qtl=prediction["p90_paise"],
+    no_band = PriceBand(min_paise_per_qtl=0, mid_paise_per_qtl=0, max_paise_per_qtl=0, band_source="NONE")
+    if commodity is None or market is None:
+        return PriceSuggestionResponse(
+            lot_id=str(lot.id), price_band=no_band,
+            sale_window=SaleWindowInfo(recommendation="NO_ADVICE",
+                                       reason="Lot has no mandi and no location to find one."),
         )
-    except Exception:
-        price_band = PriceBand(min_paise_per_qtl=0, mid_paise_per_qtl=0, max_paise_per_qtl=0)
 
-    distance_km = haversine_km(lot_lat, lot_lng, mandi_lat, mandi_lng)
+    # Band = tomorrow's p10/p50/p90 from the model, anchored on today's observed
+    # mandi price (the unanchored engine starts from a crop default instead).
+    from app.services import price_service
+    latest = await price_service.latest_price(db, commodity.id, market.id)
+    fc = price_service.forecast(commodity.name, market.name, 1,
+                                current_price_paise=latest["modal_paise_per_qtl"] if latest else None)
+    if fc["is_model"] and latest:
+        p0 = fc["points"][0]
+        price_band = PriceBand(min_paise_per_qtl=p0["p10_paise_per_qtl"],
+                               mid_paise_per_qtl=p0["p50_paise_per_qtl"],
+                               max_paise_per_qtl=p0["p90_paise_per_qtl"],
+                               band_source=fc["source"])
+    else:
+        price_band = no_band
 
     try:
-        window_result = compute_sale_window(
-            crop=crop_name,
-            mandi=mandi_name,
+        window_result = await sale_window(
+            db,
+            commodity_ref=commodity.id,
+            market_ref=market.id,
             quantity_kg=lot.quantity_qtl * 100,
-            current_price_mid_paise=lot.expected_price_paise or price_band.mid_paise_per_qtl or 200000,
-            distance_km=distance_km,
+            grade=lot.grade if lot.grade in ("A", "B", "C") else None,
+            user=user,
+            current_price_paise=lot.expected_price_paise,
+            lat=lot.lat, lng=lot.lng,
         )
+    except NoPriceDataError:
+        window_result = {"recommendation": "NO_ADVICE",
+                         "reason": "No recent price for this crop at this mandi."}
     except Exception:
-        window_result = {
-            "recommendation": "NO_ADVICE",
-            "reason": "Unable to compute sale window at this time."
-        }
+        window_result = {"recommendation": "NO_ADVICE",
+                         "reason": "Unable to compute sale window at this time."}
 
     hold_until = None
     if window_result.get("hold_days"):
         hold_until = (datetime.now() + timedelta(days=window_result["hold_days"])).strftime("%Y-%m-%d")
 
-    sale_window = SaleWindowInfo(
+    sale_window_info = SaleWindowInfo(
         recommendation=window_result.get("recommendation", "NO_ADVICE"),
         expected_gain_paise=window_result.get("expected_gain_paise"),
         worst_case_paise=window_result.get("worst_case_paise"),
         itemised_costs=window_result.get("itemised_costs"),
         hold_until_date=hold_until,
-        reason=window_result.get("reason"),
+        reason=window_result.get("reason") or window_result.get("refusal_reason"),
     )
 
     return PriceSuggestionResponse(
         lot_id=str(lot.id),
         price_band=price_band,
-        sale_window=sale_window,
+        sale_window=sale_window_info,
+        market_id=market.slug,
+        market_slug=market.slug,
     )
+
+
+async def get_lot_assay(db: AsyncSession, user: User, lot_id: int) -> dict:
+    """Stored self-assay answers + the grade they produce. Same access rule as get_lot."""
+    await get_lot(db, user, lot_id)  # 404 unless owner or buyer-with-offer
+    lot = await db.get(Lot, lot_id)
+    answers = lot.self_assay_answers or {}
+    required = ("size_uniform", "colour_uniform", "sprouting", "damage_pct", "moisture_feel", "foreign_matter")
+    if not all(k in answers for k in required):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lot has no assay yet")
+    g = compute_grade(answers)
+    return {
+        "lot_id": str(lot.id), **{k: int(answers[k]) for k in required},
+        "score": g["score"], "grade": g["grade"], "weakest_dimension": g["weakest_dimension"],
+        "tip_mr": g["tip_mr"], "tip_en": g["tip_en"],
+        "photo_path": lot.image_url,
+        "created_at": lot.created_at.isoformat() if lot.created_at else None,
+    }
+
+
+async def publish_lot(db: AsyncSession, user: User, lot_id: int, price_paise: int) -> LotOut:
+    """Set the asking price and (re)list the lot. Owner only; sold/pooled lots can't be relisted."""
+    lot = await db.get(Lot, lot_id)
+    if lot is None or lot.farmer_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lot not found")
+    if (lot.status or "active").lower() != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"Lot is {lot.status}; only an active lot can be published")
+    lot.expected_price_paise = price_paise
+    await db.commit()
+    await db.refresh(lot)
+    return LotOut.model_validate(lot)
 
 
 async def get_lot_matches(db: AsyncSession, user: User, lot_id: int) -> dict:

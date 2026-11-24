@@ -509,11 +509,15 @@ async def test_full_escrow_api_pipeline_and_invalid_state_transitions(api_client
     assert offer_data["status"] == "OPEN"
     offer_id = int(offer_data["id"])
 
-    # 2. POST /api/v1/offers/{id}/counter — Counter offer
+    # 2. POST /api/v1/offers/{id}/counter — the FARMER counters (a party may
+    #    not accept their own offer, so the counter must come from the other side)
+    overrides = client._transport.app.dependency_overrides
+    overrides[get_current_user] = lambda: farmer
     res = await client.post(
         f"/api/v1/offers/{offer_id}/counter",
         json={"counter_price_paise": 235000},
     )
+    overrides[get_current_user] = lambda: buyer
     assert res.status_code == 200
     counter_data = res.json()
     assert counter_data["round"] == 2

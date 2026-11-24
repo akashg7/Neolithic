@@ -38,6 +38,7 @@ import {
   getToken,
   setCachedUser,
   setToken,
+  setUnauthorizedHandler,
 } from './api';
 import { USE_FIXTURES } from '../config';
 import { fxAuthRegistered } from '../fixtures/auth';
@@ -204,6 +205,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     setState({ status: 'signed-out', user: null });
   }, []);
+
+  // A 401 from any API call (expired/invalid token) signs the user out.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      void signOut();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [signOut]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ status: state.status, user: state.user, hasLocale, signIn, signOut }),

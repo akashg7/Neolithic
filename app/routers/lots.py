@@ -11,6 +11,7 @@ from app.models.lot import Lot
 from app.schemas.lot import (
     LotCreate, LotOut, SelfAssayRequest, SelfAssayResponse,
     PriceSuggestionResponse, GradeRequest, GradeResultOut,
+    AssayRecordOut, LotPublishRequest,
 )
 from app.services.lot_grading_service import LotGradingService
 from app.schemas.matches import MatchesRes
@@ -20,6 +21,13 @@ import io
 from PIL import Image
 
 router = APIRouter()
+
+
+def _lot_pk(lot_id: str) -> int:
+    """Lot ids are integers; anything else is simply a lot that doesn't exist."""
+    if not str(lot_id).isdigit():
+        raise HTTPException(status_code=404, detail="Lot not found")
+    return int(lot_id)
 
 
 @router.post("", response_model=LotOut, status_code=status.HTTP_201_CREATED)
@@ -49,7 +57,28 @@ async def get_lot(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single lot. Checks ownership or buyer-has-offer access."""
-    return await lot_service.get_lot(db, user, int(lot_id))
+    return await lot_service.get_lot(db, user, _lot_pk(lot_id))
+
+
+@router.get("/{lot_id}/assay", response_model=AssayRecordOut)
+async def get_lot_assay(
+    lot_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The lot's stored self-assay answers + derived grade. Owner, or a buyer with an offer on it."""
+    return await lot_service.get_lot_assay(db, user, _lot_pk(lot_id))
+
+
+@router.post("/{lot_id}/publish", response_model=LotOut)
+async def publish_lot(
+    lot_id: str,
+    payload: LotPublishRequest,
+    user: User = Depends(require_role("FARMER", "FPO_ADMIN")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set the asking price and list the lot to buyers. Owner only."""
+    return await lot_service.publish_lot(db, user, _lot_pk(lot_id), payload.expected_price_paise)
 
 
 @router.post("/{lot_id}/assay", response_model=SelfAssayResponse)
@@ -60,7 +89,7 @@ async def submit_self_assay(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit self-assay quality answers for a lot. Returns computed grade."""
-    return await lot_service.submit_self_assay(db, user, int(lot_id), payload)
+    return await lot_service.submit_self_assay(db, user, _lot_pk(lot_id), payload)
 
 
 @router.post("/{lot_id}/grade", response_model=GradeResultOut)
@@ -82,7 +111,7 @@ async def get_price_suggestion(
     db: AsyncSession = Depends(get_db),
 ):
     """Get price band + SELL/HOLD/NO_ADVICE recommendation for a lot."""
-    return await lot_service.get_price_suggestion(db, user, int(lot_id))
+    return await lot_service.get_price_suggestion(db, user, _lot_pk(lot_id))
 
 
 @router.get("/{lot_id}/matches", response_model=MatchesRes)
@@ -92,7 +121,7 @@ async def get_lot_matches(
     db: AsyncSession = Depends(get_db),
 ):
     """Find matching buyer demands for a lot."""
-    return await lot_service.get_lot_matches(db, user, int(lot_id))
+    return await lot_service.get_lot_matches(db, user, _lot_pk(lot_id))
 
 @router.post("/{lot_id}/photo")
 async def upload_lot_photo(
@@ -103,7 +132,7 @@ async def upload_lot_photo(
 ):
     """Upload lot photo, strip EXIF GPS, and save."""
     # Ensure lot exists and belongs to user (owner only; buyers can't upload)
-    lot = await db.get(Lot, int(lot_id))
+    lot = await db.get(Lot, _lot_pk(lot_id))
     if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=404, detail="Lot not found")
 

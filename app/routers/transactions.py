@@ -1,6 +1,8 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.dependencies.auth import get_current_user
+from app.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.schemas.transaction import (
     TransactionOut,
@@ -15,6 +17,26 @@ from app.dependencies.escrow import get_transaction_service
 from app.services.transaction_service import TransactionService
 
 router = APIRouter()
+
+
+@router.get("", response_model=List[TransactionOut])
+async def list_my_transactions(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The caller's deals (as buyer or farmer), newest first. Identity from the JWT only."""
+    from sqlalchemy import or_, select as _select
+    from app.models.transaction import Transaction
+    rows = (await db.execute(
+        _select(Transaction)
+        .where(or_(Transaction.buyer_id == user.id, Transaction.farmer_id == user.id))
+        .order_by(Transaction.created_at.desc())
+    )).scalars().all()
+    return [TransactionOut.model_validate({
+        "id": t.id, "offer_id": t.offer_id, "buyer_id": t.buyer_id, "farmer_id": t.farmer_id,
+        "amount_paise": t.amount_paise, "razorpay_order_id": t.razorpay_order_id,
+        "status": t.status, "created_at": t.created_at, "events": [],
+    }) for t in rows]
 
 
 @router.get("/{transaction_id}", response_model=TransactionOut)

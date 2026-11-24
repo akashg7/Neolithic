@@ -1,0 +1,24 @@
+# Keep the API image small: no frontend, no raw data, no local state.
+.git
+.github
+.env
+.env.*
+!.env.example
+**/__pycache__
+**/*.pyc
+venv/
+.venv/
+.pytest_cache/
+.playwright-mcp/
+Krishi-Mitr/
+frontend/
+maharashtra/
+Details/
+LLD_Plan/
+Frontend_Doubts/
+complete_solution_context/
+*.pptx
+*.pdf
+*.log
+tests/
+deploy/
