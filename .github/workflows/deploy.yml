@@ -1,6 +1,6 @@
 name: Deploy to EC2
 
-# Pushing to `main` or `integrated` deploys that branch to the EC2 host.
+# Pushing to `main` deploys it to the EC2 host (backend changes only).
 # "Run workflow" in the Actions tab deploys any branch, optionally reseeding.
 #
 # Repository secrets:
@@ -18,7 +18,14 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [main, integrated]
+    # main only: pushing integrated and main together used to redeploy the
+    # server twice in a row. Frontend-only changes don't redeploy the server
+    # (krishimitr.in's frontend is served by Vercel), so they cause no downtime.
+    branches: [main]
+    paths-ignore:
+      - "Krishi-Mitr/**"
+      - "**/*.md"
+      - "design-samples/**"
   workflow_dispatch:
     inputs:
       reseed:

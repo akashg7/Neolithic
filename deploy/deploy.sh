@@ -52,7 +52,10 @@ DOMAIN="$(envval DOMAIN || true)"
 CERT_EMAIL="$(envval CERT_EMAIL || true)"
 
 echo "=== 1/4 Building and starting containers ==="
-docker compose up -d --build --remove-orphans
+# Build first while the old containers keep serving; then swap. The API is
+# only unavailable for its restart, not for the whole image build.
+docker compose build
+docker compose up -d --remove-orphans
 
 echo "=== 2/4 Waiting for the API (first boot seeds the database) ==="
 for i in $(seq 1 90); do
