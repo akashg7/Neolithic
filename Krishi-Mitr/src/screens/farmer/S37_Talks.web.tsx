@@ -27,7 +27,9 @@ export default function S37_Talks({ navigation }: { navigation: any }) {
     ? s(`${n(k)} बोली तुमच्या उत्तराची वाट पाहत आहेत. सर्वात जास्त ${rs(best.price_paise_per_qtl)} प्रति क्विंटल.`, `${n(k)} बोली आपके जवाब के इंतज़ार में। सबसे ऊँची ${rs(best.price_paise_per_qtl)} प्रति क्विंटल।`, `${n(k)} ${k === 1 ? 'offer is' : 'offers are'} waiting for your reply. The highest is ${rs(best.price_paise_per_qtl)} per quintal.`)
     : open.length
       ? s('तुमचे उत्तर खरेदीदाराकडे आहे.', 'आपका जवाब खरीदार के पास है।', 'Your replies are with the buyers.')
-      : t('chat_empty_title');
+      : all.length
+        ? s('सध्या कोणतीही बोली उत्तराच्या प्रतीक्षेत नाही.', 'अभी कोई बोली जवाब के इंतज़ार में नहीं है।', 'No offers are waiting on you right now.')
+        : t('chat_empty_title');
 
   return (
     <div className="km km-page">

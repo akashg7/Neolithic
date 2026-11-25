@@ -1,4 +1,7 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getLotAssay } from '../../lib/api';
+import { Skel } from '../../web/kit';
 import { Empty, useSay } from '../../web/kit';
 import { Split } from '../../web/Split';
 import type { AssayReq, AssayRes } from '../../types/api';
@@ -7,7 +10,15 @@ const Q = ['size_uniform', 'colour_uniform', 'sprouting', 'moisture_feel', 'fore
 
 export default function S21_GradeReveal({ route, navigation }: { route: any; navigation: any }) {
   const { t, n, s } = useSay();
-  const { result, answers, lot_id } = (route.params ?? {}) as { result?: AssayRes; answers?: AssayReq; lot_id?: string };
+  const p = (route.params ?? {}) as { result?: AssayRes | string; answers?: AssayReq | string; lot_id?: string };
+  const lot_id = p.lot_id;
+  // Params carry the result only within one visit; a reload or a shared link
+  // has just the lot id, so read the stored assessment from the server.
+  const handed = typeof p.result === 'object' && typeof p.answers === 'object';
+  const q = useQuery({ queryKey: ['lots', lot_id, 'assay'], queryFn: () => getLotAssay(lot_id!), enabled: !handed && !!lot_id });
+  const result = (handed ? p.result : q.data) as AssayRes | undefined;
+  const answers = (handed ? p.answers : q.data) as AssayReq | undefined;
+  if (!handed && q.isLoading) return <div className="km km-page"><div className="km-wrap km-sec"><Skel h={320} /></div></div>;
   if (!result || !answers) return <div className="km km-page"><div className="km-wrap km-sec"><Empty title={t('self_assay_error')} action={<button className="km-btn" onClick={() => navigation.navigate('S15_MyLots')}>{t('mp_title')}</button>} /></div></div>;
   const perfect = result.score >= 1000;
   const weak = result.weakest_dimension;

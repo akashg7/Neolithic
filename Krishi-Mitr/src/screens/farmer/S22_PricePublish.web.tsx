@@ -21,7 +21,8 @@ export default function S22_PricePublish({ route, navigation }: { route: any; na
   const lo = Math.floor((modal * 0.6) / 1000) * 1000, hi = Math.ceil((modal * 1.4) / 1000) * 1000;
   const cost = o?.verdict.itemised_costs;
   // Selling now: no storage or spoilage.
-  const perQtl = cost ? (cost.transport_paise_per_qtl ?? 0) + (cost.commission_paise_per_qtl ?? 0) + (cost.loading_paise_per_qtl ?? 0) : null;
+  // Whole rupees per quintal, so "₹X/quintal × qtl = deductions" and gross − deductions = net add up on screen.
+  const perQtl = cost ? Math.round(((cost.transport_paise_per_qtl ?? 0) + (cost.commission_paise_per_qtl ?? 0) + (cost.loading_paise_per_qtl ?? 0)) / 100) * 100 : null;
   const gross = lot ? quintalValuePaise(ask, lot.qty_kg) : 0;
   const ded = lot && perQtl != null ? quintalValuePaise(perQtl, lot.qty_kg) : null;
   const pub = useMutation({

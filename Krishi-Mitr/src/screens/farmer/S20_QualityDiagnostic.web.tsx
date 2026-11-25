@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { getLot, submitAssay } from '../../lib/api';
 import { formatQuintal } from '../../lib/money';
 import { cropLabel, Empty, heroSrc, Skel, useSay } from '../../web/kit';
@@ -14,7 +14,8 @@ export default function S20_QualityDiagnostic({ route, navigation }: { route: an
   const { data: lot, isLoading, refetch } = useQuery({ queryKey: ['lots', id], queryFn: () => getLot(id!), enabled: !!id });
   const [a, setA] = useState<Partial<AssayReq>>({});
   const [i, setI] = useState(0);
-  const save = useMutation({ mutationFn: (b: AssayReq) => submitAssay(id!, b), onSuccess: (result, answers) => navigation.navigate('S21_GradeReveal', { result, answers, lot_id: id }) });
+  const qc = useQueryClient();
+  const save = useMutation({ mutationFn: (b: AssayReq) => submitAssay(id!, b), onSuccess: (result, answers) => { void qc.invalidateQueries({ queryKey: ['lots'] }); navigation.navigate('S21_GradeReveal', { result, answers, lot_id: id }); } });
   const back = () => (i > 0 ? setI(i - 1) : navigation.canGoBack() ? navigation.goBack() : navigation.navigate('S15_MyLots'));
   const key = Q[i];
   const pick = (v: 1 | 2 | 3) => { setA(x => ({ ...x, [key!]: v })); setI(i + 1); };

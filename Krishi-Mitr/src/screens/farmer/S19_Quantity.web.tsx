@@ -1,18 +1,29 @@
 /** What and how much. Saves the crop and market chosen here (it used to save onion at Lasalgaon for everyone). */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createLot } from '../../lib/api';
-import { STATIC_CROPS } from '../../lib/staticMarketData';
-import { cropName, heroSrc, PlacePickers, tileSrc, useMarket, useSay } from '../../web/kit';
+import { cropName, heroSrc, PlacePickers, tileSrc, useKnownCrops, useMarket, useSay } from '../../web/kit';
 import { mandiRef } from '../../lib/liveMarket';
 import { Split } from '../../web/Split';
 
 export default function S19_Quantity({ route, navigation }: { route: any; navigation: any }) {
   const { t, s, n, locale } = useSay();
   const qc = useQueryClient();
-  const { crop, setSelectedCrop, selectedMandi } = useMarket();
+  const { crop, setSelectedCrop, selectedMandi, setSelectedMandi } = useMarket();
+  const crops = useKnownCrops(); // only crops the server can price — a lot for anything else would be refused
   const photo: string | null = route.params?.photoUri ?? null;
-  const [kg, setKg] = useState(1000);
+  // The assistant's lot draft arrives as params (commodity, market, qty_kg): start from it.
+  const draft = (route.params ?? {}) as { commodity?: string; market?: string; qty_kg?: number };
+  const [kg, setKg] = useState(draft.qty_kg && draft.qty_kg >= 100 ? Math.round(draft.qty_kg / 100) * 100 : 1000);
+  useEffect(() => {
+    const c = draft.commodity && crops.find(x => x.name.toLowerCase() === draft.commodity!.toLowerCase());
+    if (c) setSelectedCrop(c);
+    if (draft.market) setSelectedMandi(draft.market);
+    // Once, on arrival with a draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.commodity, draft.market]);
+  // A crop the server can't price (e.g. one picked on Home before the list loaded) can't be saved.
+  const cropOk = crops.some(x => x.id === crop.id);
   const { mutate, isPending, isError } = useMutation({
     // A browser blob URL means nothing to a buyer's device and there is no upload endpoint yet, so it is not stored.
     mutationFn: () => createLot({ commodity_id: crop.name, market_id: mandiRef(selectedMandi), qty_kg: kg, harvest_date: new Date().toISOString().slice(0, 10) }),
@@ -24,7 +35,7 @@ export default function S19_Quantity({ route, navigation }: { route: any; naviga
       onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('S17_CameraGuide'))}>
       <div className="km-form">
         <div className="km-field"><b>{s('पीक', 'फसल', 'Crop')}</b>
-          <div className="km-strip" style={{ marginTop: 0 }}><ul>{STATIC_CROPS.map(c => <li key={c.id}><button className="km-tile" style={{ width: 106, height: 118 }} aria-pressed={c.id === crop.id} onClick={() => setSelectedCrop(c)}><img src={tileSrc(c.name)} alt="" /><span>{cropName(c, locale)}</span></button></li>)}</ul></div>
+          <div className="km-strip" style={{ marginTop: 0 }}><ul>{crops.map(c => <li key={c.id}><button className="km-tile" style={{ width: 106, height: 118 }} aria-pressed={c.id === crop.id} onClick={() => setSelectedCrop(c)}><img src={tileSrc(c.name)} alt="" /><span>{cropName(c, locale)}</span></button></li>)}</ul></div>
         </div>
         <div className="km-field"><b>{s('बाजार', 'मंडी', 'Market')}</b><div className="km-row" style={{ marginTop: 0 }}><PlacePickers light /></div></div>
         <div className="km-field"><b>{s('वजन', 'वज़न', 'Quantity')}</b>
@@ -33,7 +44,7 @@ export default function S19_Quantity({ route, navigation }: { route: any; naviga
         </div>
         {photo ? <p className="km-note">{s('फोटो अजून अपलोड होत नाही. खरेदीदाराला दिसणार नाही.', 'फोटो अभी अपलोड नहीं होती। खरीदार को नहीं दिखेगी।', 'Photo upload isn’t connected yet, so buyers won’t see it.')}</p> : null}
         {isError ? <p className="km-err" role="alert">{t('lot_create_error')}</p> : null}
-        <button className="km-btn" style={{ minHeight: 60, fontSize: 18 }} disabled={isPending} onClick={() => mutate()}>{isPending ? t('qs_creating') : t('qs_create')}</button>
+        <button className="km-btn" style={{ minHeight: 60, fontSize: 18 }} disabled={isPending || !cropOk} onClick={() => mutate()}>{isPending ? t('qs_creating') : t('qs_create')}</button>
       </div>
     </Split>
   );

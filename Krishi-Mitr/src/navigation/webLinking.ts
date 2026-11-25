@@ -64,6 +64,8 @@ const config = {
             S17_CameraGuide: 'new',
             S19_Quantity: 'new/quantity',
             S20_QualityDiagnostic: 'grade/:lot_id',
+            // The result objects stay in memory; on reload the screen re-reads the stored assay.
+            S21_GradeReveal: { path: 'grade/:lot_id/result', stringify: { result: () => '', answers: () => '' } },
             S22_PricePublish: 'price/:lot_id',
             S23_PublishedRadar: 'published',
             S24_LotDetail: 'detail/:lot_id',

@@ -46,7 +46,7 @@ export default function S09_Verdict({ navigation }: { navigation: any }) {
                 )}
               </div>
               <div className="km-sheet"><div className="km-charthead"><h3>{s('भाव कुठे चालला आहे', 'भाव किधर जा रहा है', 'Where the rate is heading')}</h3></div><PriceChart o={o} days={14} />
-                <p className="km-note" style={{ marginTop: 14 }}>{t('vd_accuracy_note', { mase: v.model_card?.mase?.toFixed(2) ?? '–', coverage: v.model_card ? `${n(Math.round(v.model_card.coverage_80_bps / 100))}%` : '–' })}</p></div>
+                <p className="km-note" style={{ marginTop: 14 }}>{t('vd_accuracy_note', { mase: v.model_card?.mase?.toFixed(2) ?? '–', coverage: v.model_card ? n(Math.round(v.model_card.coverage_80_bps / 100)) : '–' })}</p></div>
             </div>
             <div style={{ display: 'grid', gap: 28 }} className="km-stick">
               <div className="km-sheet">

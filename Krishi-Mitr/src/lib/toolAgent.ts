@@ -16,7 +16,7 @@ const has = (s: string, w: string[]) => w.some(x => s.includes(x));
 const ALIASES: Record<string, string[]> = {
   Onion: ['onion', 'kanda', 'pyaz', 'pyaaz', 'कांद', 'कांदा', 'प्याज', 'प्याज़'],
   Soyabean: ['soya', 'सोया'], Cotton: ['cotton', 'kapas', 'कापूस', 'कापस', 'कपास'], Wheat: ['wheat', 'gehu', 'गहू', 'गव्ह', 'गेहू', 'गेहूँ'],
-  Tomato: ['tomato', 'टोमॅटो', 'टोमैटो', 'टमाटर'], 'Bengal Gram': ['gram', 'chana', 'हरभर', 'चना', 'चने'],
+  Tomato: ['tomato', 'टोमॅटो', 'टोमैटो', 'टमाटर'], 'Bengal Gram': ['gram', 'chana', 'harbhara', 'हरभर', 'हरभऱ', 'हरबर', 'चना', 'चने', 'चण'],
   Maize: ['maize', 'corn', 'मका', 'मक्क'], 'Green Chilli': ['chilli', 'mirch', 'मिरच', 'मिर्च'], Turmeric: ['turmeric', 'haldi', 'हळद', 'हळदी', 'हल्दी'],
   Groundnut: ['groundnut', 'peanut', 'भुईमूग', 'भुईमुग', 'मूंगफली'], Pomegranate: ['pomegranate', 'डाळिंब', 'अनार'],
   Grapes: ['grape', 'द्राक्ष', 'अंगूर'], Sugarcane: ['sugarcane', 'ऊस', 'उस ', 'गन्ना', 'गन्ने'], Potato: ['potato', 'aloo', 'बटाट', 'आलू'],
@@ -47,13 +47,22 @@ const FAQ: [string, string[]][] = [
   ['help_a_counter', ['counter', 'bargain', 'घासाघीस', 'मोलभाव']],
 ];
 
+const MEMO = new Map<string, { crop?: string; mandi?: string; awaitingQty?: boolean }>();
+
 export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatResponse> {
   const l = req.locale;
   const m = ` ${req.message.toLowerCase()} `;
   const p = (mr: string, hi: string, en: string) => (l === 'mr' ? mr : l === 'hi' ? hi : en);
   const rs = (v: number | null | undefined) => formatPaise(v ?? 0, l);
   const screen = { ...req.screen_context } as unknown as Record<string, string | null>;
-  const crop = findCrop(m), mandi = findMandi(m), qty = findQty(m);
+  // Short memory per conversation: a follow-up like "20 quintal" or "and at
+  // Pimpalgaon?" keeps the crop/mandi already named, and finishes a timing
+  // question that was only waiting for the quantity.
+  const prev = MEMO.get(req.session_id) ?? {};
+  const qty = findQty(m);
+  const crop = findCrop(m) ?? prev.crop, mandi = findMandi(m) ?? prev.mandi;
+  const followUpQty = !!qty && !!prev.awaitingQty && !findCrop(m);
+  MEMO.set(req.session_id, { crop, mandi });
   const args: Record<string, unknown> = { ...(crop ? { crop } : {}), ...(mandi ? { mandi } : {}) };
   // Name a crop and the mandi on screen may not trade it, but it is still the farmer's market.
   const run = (name: string, extra: Record<string, unknown> = {}) => runAgentTool(name, { ...args, ...extra }, l, screen);
@@ -74,6 +83,10 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
   const askPrice = p('आजचा भाव काय?', 'आज का भाव क्या है?', 'What is today’s rate?');
   const failed = (r: AgentToolResult) => {
     const code = r.error?.code;
+    // Ask for exactly what the server said is missing (e.g. only the quantity).
+    const missing = ((r.error as { missing?: string[] } | undefined)?.missing ?? []).map(x => x.toLowerCase());
+    if (code === 'NEEDS_INPUT' && missing.length && missing.every(x => x.includes('quantity') || x.includes('qty')))
+      return (MEMO.set(req.session_id, { crop, mandi, awaitingQty: true }), reply('UNKNOWN', p('किती क्विंटल आहे ते सांगा, उदा. "२० क्विंटल".', 'कितने क्विंटल हैं, बताइए, जैसे "20 क्विंटल"।', 'How many quintals do you have? For example, "20 quintal".'), null, [], []));
     if (code === 'NEEDS_INPUT' || code === 'AMBIGUOUS') return reply('UNKNOWN', p('कोणते पीक आणि कोणता बाजार ते सांगा.', 'कौन सी फसल और कौन सी मंडी, बताइए।', 'Tell me which crop and which market.'), null, [], []);
     return reply('UNKNOWN', p('या पिकाची या बाजारातली अलीकडची माहिती माझ्याकडे नाही, त्यामुळे अंदाज सांगत नाही. दुसरा बाजार विचारून पहा.', 'इस फसल का इस मंडी का हाल का डेटा मेरे पास नहीं है, इसलिए अंदाज़ा नहीं बताऊँगा। दूसरी मंडी पूछें।', 'I have no recent data for this crop in this market, so I won’t guess. Try another market.'), null, [], [askPrice]);
   };
@@ -177,7 +190,7 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
   }
 
   // 2. When to sell (before price: "भाव कधी वाढेल" is a timing question)
-  if (has(m, ['when', 'wait', 'hold', 'sell', 'कधी', 'थांब', 'कब', 'रुक', 'विकू', 'बेचूँ', 'बेचू', 'सल्ला', 'सलाह'])) {
+  if (followUpQty || has(m, ['when', 'wait', 'hold', 'sell', 'कधी', 'थांब', 'कब', 'रुक', 'विकू', 'बेचूँ', 'बेचू', 'सल्ला', 'सलाह'])) {
     if (!has(m, ['सल्ला का', 'सलाह क्यों'])) {
       let r = await run('get_sale_window', qty ?? {});
       if (!r.ok && crop) r = (await elsewhere('get_sale_window', qty ?? {})) ?? r;

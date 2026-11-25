@@ -35,7 +35,8 @@ export default function S31_DealsList({ navigation }: { navigation: any }) {
             const tx = txs?.find(x => x.offer_id === o.id);
             const at = tx ? ORDER.indexOf(tx.status) : -1;
             return (
-              <OfferRow key={o.id} offer={o} lots={lots} state={t(f === 'agreed' ? 'dl_status_agreed' : 'chat_status_open')}>
+              // Badge names the stage the deal has reached (from the escrow status), not just "Agreed".
+              <OfferRow key={o.id} offer={o} lots={lots} state={f !== 'agreed' ? t('chat_status_open') : tx && at >= 0 ? t(KEYS[at]!) : t('dl_status_agreed')}>
                 {f === 'agreed' ? tx ? (
                   <>
                     {['DISPUTED', 'REFUNDED', 'CANCELLED'].includes(tx.status)

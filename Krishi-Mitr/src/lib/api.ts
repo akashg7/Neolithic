@@ -432,6 +432,12 @@ export const getCommodities = async (): Promise<Commodity[]> => {
   return get<Commodity[]>('/ref/commodities');
 };
 
+/** Every mandi the server knows (all districts). */
+export const getAllMarkets = async (): Promise<Market[]> => {
+  if (USE_FIXTURES) return [];
+  return get<Market[]>('/ref/markets');
+};
+
 export const getMarkets = async (districtId: string): Promise<Market[]> => {
   if (USE_FIXTURES) return fxMarketsFor(districtId);
   return get<Market[]>('/ref/markets', { district_id: districtId });
