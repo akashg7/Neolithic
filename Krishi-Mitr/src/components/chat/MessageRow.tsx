@@ -62,7 +62,7 @@ export function MessageRow({ msg }: { msg: ChatMessage }) {
         ))}
 
         <View style={styles.actions}>
-          <ListenButton text={r.reply_text} />
+          <ListenButton text={r.reply_text} audioBase64={r.audio_base64} />
           {r.ui_action ? (
             <TouchableOpacity
               style={styles.cta}

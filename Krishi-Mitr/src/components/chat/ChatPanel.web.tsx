@@ -102,7 +102,7 @@ function Turn({ m }: { m: ChatMessage }) {
       {r.cards.map((c, i) => <Card key={i} card={c} />)}
       <div className="km-acts">
         {r.ui_action ? <button className="km-btn ghost" onClick={() => runUiAction(r.ui_action!)}>{r.ui_action.cta_label}</button> : null}
-        <ListenButton text={r.reply_text} />
+        <ListenButton text={r.reply_text} audioBase64={r.audio_base64} />
       </div>
       {r.citations.length ? <p className="km-note" style={{ marginTop: 8 }}>{s('स्रोत', 'स्रोत', 'Source')}: {r.citations.map(c => c.title).join(', ')}</p> : null}
     </div>
@@ -111,7 +111,7 @@ function Turn({ m }: { m: ChatMessage }) {
 
 export function ChatPanel({ onClose, bare }: { onClose?: () => void; bare?: boolean; closeIcon?: unknown }) {
   const { t, s, locale } = useSay();
-  const { messages, isThinking, starters, send, reset } = useAgent();
+  const { messages, isThinking, starters, send, sendVoice, reset } = useAgent();
   const { selectedCrop } = useStaticMarket();
   const [text, setText] = useState('');
   const [mic, setMic] = useState<'idle' | 'live' | 'busy'>('idle');
@@ -131,8 +131,7 @@ export function ChatPanel({ onClose, bare }: { onClose?: () => void; bare?: bool
       if (mic === 'idle') { await rec.current.startRecorder(); setMic('live'); return; }
       setMic('busy');
       const uri = await rec.current.stopRecorder();
-      const { transcript } = await transcribeAudio(uri, locale);
-      if (transcript.trim()) void send(transcript);
+      await sendVoice(uri, async () => (await transcribeAudio(uri, locale)).transcript);
     } catch { setMicErr(true); }
     setMic('idle');
   };

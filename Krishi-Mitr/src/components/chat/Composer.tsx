@@ -33,7 +33,15 @@ async function micPermission(): Promise<boolean> {
   return r === PermissionsAndroid.RESULTS.GRANTED;
 }
 
-export function Composer({ onSend, busy }: { onSend: (text: string) => void; busy: boolean }) {
+export function Composer({
+  onSend,
+  onSendVoice,
+  busy,
+}: {
+  onSend: (text: string) => void;
+  onSendVoice?: (audioUri: string, transcribeFallback: () => Promise<string>) => Promise<void>;
+  busy: boolean;
+}) {
   const { t, locale } = useT();
   const [text, setText] = useState('');
   const [mic, setMic] = useState<Mic>('idle');
@@ -65,8 +73,12 @@ export function Composer({ onSend, busy }: { onSend: (text: string) => void; bus
     try {
       const uri = await recorder.stopRecorder();
       recorder.removeRecordBackListener();
-      const { transcript } = await transcribeAudio(uri, locale);
-      if (transcript.trim()) onSend(transcript);
+      if (onSendVoice) {
+        await onSendVoice(uri, async () => (await transcribeAudio(uri, locale)).transcript);
+      } else {
+        const { transcript } = await transcribeAudio(uri, locale);
+        if (transcript.trim()) onSend(transcript);
+      }
     } catch {
       setMicError(true);
     } finally {

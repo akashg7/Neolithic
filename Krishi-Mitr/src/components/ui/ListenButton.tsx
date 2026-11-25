@@ -39,10 +39,13 @@ import {
 export function ListenButton({
   text,
   label,
+  audioBase64,
   large = false,
 }: {
   text: string;
   label?: string;
+  /** Pre-synthesized base64 WAV from `/agent/voice-chat` or `/agent/chat` to avoid extra TTS calls. */
+  audioBase64?: string | null;
   /** A bigger target and bigger text. For the first speaker a farmer meets,
    *  which has to be findable without being looked for. */
   large?: boolean;
@@ -91,7 +94,7 @@ export function ListenButton({
       // where it is not — and always in the language the farmer chose.
       // `speakSmart` stops whatever was playing first, which moves the
       // generation; claim the new one so we can tell when someone supersedes us.
-      const started = speakSmart(text, locale);
+      const started = speakSmart(text, locale, audioBase64);
       genRef.current = currentSpeechGeneration();
       await started;
     } catch {
@@ -118,10 +121,10 @@ export function ListenButton({
    *   has to outlast the slowest thing that can still change the wording.
    */
   useEffect(() => {
-    if (text.trim().length === 0) return;
+    if (audioBase64 || text.trim().length === 0) return;
     const id = setTimeout(() => void prefetchNarration(text, locale), 1500);
     return () => clearTimeout(id);
-  }, [text, locale]);
+  }, [text, locale, audioBase64]);
 
   /**
    * ★ Someone else started talking — another button, or a screen tearing down.

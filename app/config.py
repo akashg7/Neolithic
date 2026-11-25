@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings
 
 
@@ -98,3 +100,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Propagate `.env` values loaded by Pydantic Settings into `os.environ` so
+# helpers using `os.getenv(...)` (app/nlp, app/rag) see `.env` config locally.
+for _env_key in (
+    "SARVAM_API_KEY",
+    "TRANSLATE_BACKEND",
+    "TRANSLATE_PIVOT",
+    "RETRIEVER",
+    "QDRANT_URL",
+    "QDRANT_API_KEY",
+    "QDRANT_COLLECTION",
+    "EMBEDDING_MODEL",
+    "LLM_PROVIDER",
+    "LLM_FALLBACK_CHAIN",
+    "GROQ_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENAI_API_KEY",
+):
+    if _env_key in settings.model_fields_set:
+        _val = getattr(settings, _env_key, "")
+        if _val != "":
+            os.environ.setdefault(_env_key, str(_val))

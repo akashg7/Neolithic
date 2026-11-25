@@ -516,7 +516,11 @@ export async function speakText(text: string, locale: Locale = 'mr'): Promise<vo
  *   *no* network, and it does — the fallback is on-device and offline. This
  *   only spends a round trip when there is one to spend.
  */
-export async function speakSmart(text: string, locale: Locale = 'mr'): Promise<void> {
+export async function speakSmart(
+  text: string,
+  locale: Locale = 'mr',
+  preSynthesizedAudioBase64?: string | null,
+): Promise<void> {
   await stopSpeaking();
   const generation = speechGeneration;
 
@@ -535,7 +539,11 @@ export async function speakSmart(text: string, locale: Locale = 'mr'): Promise<v
   }
 
   try {
-    await speakViaSarvam(text, locale, generation);
+    if (preSynthesizedAudioBase64) {
+      await playSarvamClip(preSynthesizedAudioBase64, generation);
+    } else {
+      await speakViaSarvam(text, locale, generation);
+    }
   } catch (err) {
     // The farmer pressed stop while the clip was still coming down; do not
     // start the fallback on top of a deliberate silence.
