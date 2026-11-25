@@ -14,7 +14,7 @@ from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.routers import (
     auth, lots, demands, offers,
     transactions, logistics, disputes, fpo, ai, voice,
-    ref, prices, meta, buyers, agent_tools, market, agent
+    ref, prices, meta, buyers, agent_tools, market, agent, chats
 )
 
 
@@ -118,6 +118,7 @@ app.include_router(buyers.router, prefix="/api/v1/buyers", tags=["Buyers"])
 app.include_router(agent_tools.router, prefix="/api/v1/agent/tools", tags=["Agent tools"])
 app.include_router(agent.router, prefix="/api/v1/agent", tags=["Agent"])
 app.include_router(market.router, prefix="/api/v1/market", tags=["Market"])
+app.include_router(chats.router, prefix="/api/v1/chats", tags=["Chats"])
 
 
 @app.get("/health", tags=["Health"])

@@ -12,6 +12,7 @@ from app.models.reference import District, Commodity, Warehouse, LogisticsCostRo
 from app.models.pledge import PledgeQuoteRecord
 from app.models.otp import OtpCode
 from app.models.agent_turn import AgentTurnLog
+from app.models.chat import ThreadMessage
 
 __all__ = [
     "User", "Farmer", "Buyer",
@@ -28,4 +29,5 @@ __all__ = [
     "PledgeQuoteRecord",
     "OtpCode",
     "AgentTurnLog",
+    "ThreadMessage",
 ]

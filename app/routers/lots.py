@@ -16,9 +16,15 @@ from app.schemas.lot import (
 from app.services.lot_grading_service import LotGradingService
 from app.schemas.matches import MatchesRes
 from app.services import lot_service
-from fastapi import UploadFile, File, HTTPException
+from fastapi import UploadFile, File, HTTPException, Response
 import io
+import logging
+from pathlib import Path
 from PIL import Image
+from app.utils import s3 as s3_utils
+
+logger = logging.getLogger("krishi.lots.router")
+_LOCAL_UPLOAD_ROOT = Path(__file__).resolve().parents[2] / "data" / "uploads"
 
 router = APIRouter()
 
@@ -130,29 +136,55 @@ async def upload_lot_photo(
     user: User = Depends(require_role("FARMER", "FPO_ADMIN")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload lot photo, strip EXIF GPS, and save."""
-    # Ensure lot exists and belongs to user (owner only; buyers can't upload)
-    lot = await db.get(Lot, _lot_pk(lot_id))
+    """Upload lot photo, strip EXIF metadata, store in MinIO/S3 (with local fallback), and link on Lot."""
+    pk = _lot_pk(lot_id)
+    lot = await db.get(Lot, pk)
     if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=404, detail="Lot not found")
 
     content = await file.read()
-    
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty image upload")
+
     try:
-        # Open image using Pillow to strip EXIF
         image = Image.open(io.BytesIO(content))
-        
-        # Strip EXIF by re-saving without the exif data
         output_io = io.BytesIO()
-        image.convert("RGB").save(output_io, format="JPEG")
-        
-        # Mock upload to MinIO
-        photo_path = f"lots/{lot_id}/photo.jpg"
-        
-        # Save on the DB row (LotOut exposes image_url as photo_path)
-        lot.image_url = photo_path
-        await db.commit()
-        
-        return {"photo_path": photo_path}
-    except Exception as e:
+        image.convert("RGB").save(output_io, format="JPEG", quality=88)
+        jpeg_bytes = output_io.getvalue()
+    except Exception:
         raise HTTPException(status_code=400, detail="Invalid image file")
+
+    storage_key = f"lots/{pk}/photo.jpg"
+    local_file = _LOCAL_UPLOAD_ROOT / storage_key
+    local_file.parent.mkdir(parents=True, exist_ok=True)
+    local_file.write_bytes(jpeg_bytes)
+
+    try:
+        await s3_utils.upload_file(jpeg_bytes, storage_key, content_type="image/jpeg")
+    except Exception as exc:
+        logger.warning("MinIO upload failed for %s (%s); serving via local cache", storage_key, exc)
+
+    photo_path = f"/api/v1/lots/{pk}/photo"
+    lot.image_url = photo_path
+    await db.commit()
+
+    return {"photo_path": photo_path}
+
+
+@router.get("/{lot_id}/photo")
+async def get_lot_photo(lot_id: str):
+    """Serve an uploaded lot photo from MinIO/S3 or local fallback."""
+    pk = _lot_pk(lot_id)
+    storage_key = f"lots/{pk}/photo.jpg"
+    data = await s3_utils.download_file(storage_key)
+    if data is None:
+        local_file = _LOCAL_UPLOAD_ROOT / storage_key
+        if local_file.is_file():
+            data = local_file.read_bytes()
+    if data is None:
+        raise HTTPException(status_code=404, detail="Lot photo not found")
+    return Response(
+        content=data,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
