@@ -13,7 +13,7 @@ import { navigationRef } from '../navigation/navigationRef';
 import { useT } from './i18n';
 import { mandiRef } from './liveMarket';
 import { staticMarketStore } from './staticMarketStore';
-import { sendChatMessage } from './agentClient';
+import { sendChatMessage, resetAgentSession } from './agentClient';
 import { promptsFor } from './chatPrompts';
 import type { AgentChatResponse, ChatMessage, ScreenContext, UiAction } from './agentTypes';
 
@@ -152,6 +152,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   );
 
   const reset = useCallback(() => {
+    const prev = sessionRef.current;
+    void resetAgentSession(prev);
     epochRef.current += 1;
     sessionRef.current = newSession();
     setMessages([]);

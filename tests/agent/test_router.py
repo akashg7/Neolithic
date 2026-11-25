@@ -154,3 +154,90 @@ def test_alembic_head_includes_agent_turns():
         "001_ml_pledge",
         "2c47b09fff3c",
     ]
+
+
+@pytest.mark.asyncio
+async def test_compute_turn_metrics_and_get_metrics_endpoint():
+    from types import SimpleNamespace
+
+    sample_rows = [
+        SimpleNamespace(
+            turn_id="t1",
+            session_id="s1",
+            channel="text",
+            locale="mr",
+            intent_detected="PRICE",
+            error_code=None,
+            latency_ms=420,
+            original_text="कांदा भाव काय?",
+        ),
+        SimpleNamespace(
+            turn_id="t2",
+            session_id="s1",
+            channel="voice",
+            locale="hi",
+            intent_detected="WINDOW",
+            error_code="NO_ADVICE",
+            latency_ms=1380,
+            original_text="कब बेचूं?",
+        ),
+        SimpleNamespace(
+            turn_id="t3",
+            session_id="s2",
+            channel="text",
+            locale="en",
+            intent_detected="SMALLTALK",
+            error_code="CHEMICAL_ADVICE_REFUSED",
+            latency_ms=310,
+            original_text="which spray for thrips?",
+        ),
+        SimpleNamespace(
+            turn_id="t4",
+            session_id="s3",
+            channel="voice",
+            locale="mr",
+            intent_detected=None,
+            error_code="LLM_UNAVAILABLE",
+            latency_ms=2450,
+            original_text="मदत करा",
+        ),
+    ]
+
+    summary = agent_log_service.compute_turn_metrics(sample_rows)
+    assert summary["total_turns"] == 4
+    assert summary["refusal_count"] == 2
+    assert summary["by_channel"] == {"text": 2, "voice": 2}
+    assert summary["error_counts"] == {"NO_ADVICE": 1, "CHEMICAL_ADVICE_REFUSED": 1, "LLM_UNAVAILABLE": 1}
+    assert summary["latency_ms"]["text"]["n"] == 2
+    assert summary["latency_ms"]["voice"]["n"] == 2
+    assert len(summary["recent_failures"]) == 1
+    assert summary["recent_failures"][0]["error_code"] == "LLM_UNAVAILABLE"
+
+    class FakeScalars:
+        def all(self):
+            return sample_rows
+
+    class FakeExecResult:
+        def scalars(self):
+            return FakeScalars()
+
+    class FakeMetricsDB:
+        async def execute(self, stmt):
+            return FakeExecResult()
+
+    async def _fake_metrics_db():
+        yield FakeMetricsDB()
+
+    app.dependency_overrides[get_db] = _fake_metrics_db
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            res = await client.get("/api/v1/agent/metrics?hours=24&limit=100")
+            assert res.status_code == 200
+            body = res.json()
+            assert body["total_turns"] == 4
+            assert body["refusal_count"] == 2
+            assert body["by_intent"]["PRICE"] == 1
+            assert body["latency_ms"]["overall"]["max_ms"] == 2450.0
+    finally:
+        app.dependency_overrides.clear()

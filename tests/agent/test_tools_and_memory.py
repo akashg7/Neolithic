@@ -313,3 +313,98 @@ async def test_context_builder_orders_prefix_for_prompt_cache(farmer, fake_redis
     assert msgs[2]["role"] == "user" and msgs[2]["content"] == "Hello"
     assert msgs[3]["role"] == "assistant"
     assert msgs[4]["role"] == "user" and "Hints from the farmer's original words: commodity=cmd_onion, quantity_kg=1000" in msgs[4]["content"]
+
+
+@pytest.mark.asyncio
+async def test_card_enrichments_for_frontend_compatibility(monkeypatch, farmer):
+    # 1. WINDOW_VERDICT carries rounded uncertainty_pct = band_width_bps / 100
+    async def fake_sale_window(db, **kw):
+        return {
+            "action": "NO_ADVICE",
+            "recommendation": "NO_ADVICE",
+            "confidence": "LOW",
+            "hold_days": None,
+            "band_width_bps": 4200,
+            "expected_gain_paise": 0,
+            "worst_case_paise": 0,
+            "sell_now_net_paise_per_qtl": 205000,
+            "itemised_costs": {"total_paise_per_qtl": 9000},
+            "pledge_quote": None,
+            "refusal_reason": "Volatility too high",
+            "explain_mr": "सल्ला नाही",
+            "explain_en": "No advice",
+            "data_source": "AGMARKNET_ML",
+            "inputs": {
+                "commodity": {"slug": "cmd_onion", "name": "Onion", "name_mr": "कांदा", "id": 1},
+                "market": {"slug": "mkt_lasalgaon", "name": "Lasalgaon APMC", "name_mr": "लासलगाव", "id": 1},
+                "quantity_kg": kw["quantity_kg"],
+                "transport_included": True,
+                "spot_price_source": "AGMARKNET",
+                "spot_price_date": "2026-11-24",
+            },
+        }
+
+    monkeypatch.setattr(decision_mod, "sale_window", fake_sale_window)
+    w_res = await execute_agent_tool(
+        "compute_sale_window",
+        _ctx(user=farmer, db=None),
+        {"commodity": "onion", "mandi": "lasalgaon", "quantity": 10, "unit": "qtl"},
+    )
+    assert w_res.envelope.card["type"] == "WINDOW_VERDICT"
+    assert w_res.envelope.card["data"]["uncertainty_pct"] == 42
+
+    # 2. PRICE_SNAPSHOT carries modal_price_paise_per_qtl & 7-day series_paise_per_qtl
+    snap = {
+        "commodity": {"id": 1, "name": "Onion"},
+        "market": {"id": 1, "name": "Lasalgaon APMC"},
+        "obs_date": "2026-04-14",
+        "min_paise_per_qtl": 200000,
+        "max_paise_per_qtl": 230000,
+        "modal_paise_per_qtl": 215000,
+        "arrivals_qtl": 1200,
+        "prev_obs_date": "2026-04-07",
+        "prev_modal_paise_per_qtl": 210000,
+        "change_paise_per_qtl": 5000,
+        "change_bps": 238,
+        "source": "AGMARKNET",
+    }
+
+    async def fake_snap(*a, **kw):
+        return dict(snap)
+
+    async def fake_latest_price(*a, **kw):
+        return dict(snap)
+
+    async def fake_price_series(db, comm_id, mkt_id, days=14):
+        return {"points": [{"modal_paise_per_qtl": 205000 + i * 1000} for i in range(10)]}
+
+    pts = [{"target_date": "2026-04-15", "p10_paise_per_qtl": 195000, "p50_paise_per_qtl": 220000, "p90_paise_per_qtl": 245000}]
+    monkeypatch.setattr(price_service, "mandi_snapshot", fake_snap)
+    monkeypatch.setattr(price_service, "latest_price", fake_latest_price)
+    monkeypatch.setattr(price_service, "price_series", fake_price_series)
+    monkeypatch.setattr(price_service, "forecast", lambda *a, **k: {"points": pts, "source": "AGMARKNET_SOTA", "is_model": True})
+
+    p_no_db = await execute_agent_tool(
+        "get_price_forecast",
+        _ctx(user=farmer, db=None),
+        {"commodity": "onion", "mandi": "lasalgaon"},
+    )
+    assert p_no_db.envelope.card["data"]["modal_price_paise_per_qtl"] == 215000
+    assert p_no_db.envelope.card["data"]["series_paise_per_qtl"] == [215000]
+
+    p_with_db = await execute_agent_tool(
+        "get_price_forecast",
+        _ctx(user=farmer, db=object()),
+        {"commodity": "onion", "mandi": "lasalgaon"},
+    )
+    assert len(p_with_db.envelope.card["data"]["series_paise_per_qtl"]) == 7
+    assert p_with_db.envelope.card["data"]["series_paise_per_qtl"][-1] == 214000
+
+    # 3. LOT_DRAFT normalizes None mandi -> "" for Krishi-Mitr ChatCards/ChatPanel.web
+    l_res = await execute_agent_tool(
+        "create_lot_draft",
+        _ctx(user=farmer, db=None),
+        {"commodity": "onion", "quantity": 1000, "unit": "kg"},
+    )
+    assert l_res.envelope.card["type"] == "LOT_DRAFT"
+    assert l_res.envelope.card["data"]["mandi"] == ""

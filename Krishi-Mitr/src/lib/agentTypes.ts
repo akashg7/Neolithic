@@ -11,7 +11,17 @@ export type AgentIntent =
   | 'CREATE_LOT'
   | 'REGISTER'
   | 'KNOWLEDGE'
-  | 'UNKNOWN';
+  | 'UNKNOWN'
+  | 'PRICE'
+  | 'WINDOW'
+  | 'LOT'
+  | 'GRADE'
+  | 'PORTFOLIO'
+  | 'RAG'
+  | 'ONBOARD'
+  | 'NAVIGATE'
+  | 'SMALLTALK'
+  | 'OUT_OF_SCOPE';
 
 export interface ScreenContext {
   current_screen: string;
@@ -67,7 +77,7 @@ export type AgentCard =
   | { type: 'LOT_DRAFT'; data: LotDraftCardData };
 
 export interface UiAction {
-  type: 'OFFER_NAVIGATION';
+  type: 'OFFER_NAVIGATION' | 'PREFILL';
   target_screen: string;
   cta_label: string;
   params?: Record<string, unknown>;
@@ -76,10 +86,14 @@ export interface UiAction {
 export interface Citation {
   source: string;
   title: string;
+  as_of?: string | null;
+  chunk_id?: string | null;
+  section_title?: string | null;
 }
 
 export interface AgentChatResponse {
   session_id: string;
+  turn_id?: string;
   transcript: string | null;
   intent_detected: AgentIntent;
   reply_text: string;
@@ -88,6 +102,7 @@ export interface AgentChatResponse {
   ui_action: UiAction | null;
   citations: Citation[];
   quick_replies: string[];
+  error_code?: string | null;
 }
 
 /** A turn as the UI stores it. Client-side only. */

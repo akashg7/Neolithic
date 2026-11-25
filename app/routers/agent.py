@@ -6,7 +6,7 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.voice_provider import IVoiceProvider, VoiceEngineError
@@ -23,6 +23,7 @@ from app.schemas.agent import (
     ScreenContext,
     SessionDeleteResponse,
 )
+from app.services.agent_log_service import summarize_turn_logs
 
 logger = logging.getLogger("krishi.agent.router")
 
@@ -211,3 +212,13 @@ async def clear_agent_session(
     """Clear Redis conversation memory for a session."""
     cleared = await memory.clear_session(session_id)
     return SessionDeleteResponse(ok=True, session_id=session_id, cleared=cleared)
+
+
+@router.get("/metrics")
+async def get_agent_metrics(
+    hours: int = Query(24, ge=1, le=720),
+    limit: int = Query(500, ge=1, le=5000),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Summarize recent `AgentTurnLog` metrics (intents, errors, p50/p95 latency)."""
+    return await summarize_turn_logs(db, hours=hours, limit=limit)

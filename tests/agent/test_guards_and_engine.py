@@ -395,3 +395,228 @@ async def test_translate_pivot_off_skips_translation_and_enforces_devanagari(mon
     )
     assert len(llm.calls) == 2
     assert resp.reply_text == "नमस्कार, मी तुम्हाला कशी मदत करू शकतो?"
+
+
+@pytest.mark.asyncio
+async def test_strict_max_steps_forces_final_answer_without_extra_domain_call(monkeypatch, fake_redis, farmer):
+    monkeypatch.setenv("TRANSLATE_BACKEND", "stub")
+
+    async def fake_sale_window(db, **kw):
+        return _window_result("HOLD")
+
+    monkeypatch.setattr(decision_mod, "sale_window", fake_sale_window)
+
+    tool_schemas_seen: list[list[str]] = []
+
+    class RecordingLLM(ILLMClient):
+        def __init__(self):
+            self.step = 0
+
+        async def complete(self, messages, tools=None, *, temperature=0.2, tool_choice="auto", max_tokens=None):
+            tool_schemas_seen.append([t["function"]["name"] for t in (tools or [])])
+            idx = self.step
+            self.step += 1
+            if idx == 0:
+                return LLMResponse(
+                    content=None,
+                    tool_calls=[_tc("compute_sale_window", {"commodity": "onion", "mandi": "lasalgaon", "quantity": 20, "unit": "bori"}, "c0")],
+                )
+            if idx == 1:
+                return LLMResponse(
+                    content=None,
+                    tool_calls=[_tc("get_farmer_portfolio", {}, "c1")],
+                )
+            # Step 2 (the 3rd call when max_steps=3): only final_answer must be offered.
+            return LLMResponse(
+                content=None,
+                tool_calls=[_tc("final_answer", {"reply_text": "Hold 5 days for Rs 1850 gain.", "intent": "WINDOW"}, "c2")],
+            )
+
+    llm = RecordingLLM()
+    engine = AgentEngine(llm_client=llm, memory=SessionMemoryStore(fake_redis), max_steps=3)
+    resp = await engine.run_turn(
+        db=None,
+        user=farmer,
+        session_id="s_cap",
+        locale="en",
+        text="Should I sell 20 bags of onion at Lasalgaon?",
+        persist_log=False,
+    )
+    assert len(tool_schemas_seen) == 3
+    assert "compute_sale_window" in tool_schemas_seen[0]
+    assert tool_schemas_seen[2] == ["final_answer"]
+    assert "Hold 5 days" in resp.reply_text
+
+
+def test_lakh_crore_rag_number_grounding():
+    rag_exec = ExecutedToolCall(
+        tool_name="search_agri_knowledge",
+        envelope=ToolResult(
+            ok=True,
+            source="rag_kb_v1",
+            data={
+                "chunks": [
+                    {
+                        "source": "schemes_finance/kcc.md",
+                        "section_title": "Limit",
+                        "text": "Under KCC, collateral-free loans go up to Rs 2 lakh, backed by a Rs 1,000 crore interest subvention pool.",
+                        "as_of": "2026-04-01",
+                    }
+                ]
+            },
+        ),
+    )
+    assert check_numbers_against_tools("KCC offers collateral-free loans up to Rs 200,000.", [rag_exec]) is None
+    assert check_numbers_against_tools("The subvention pool is Rs 10000000000.", [rag_exec]) is None
+    fail = check_numbers_against_tools("KCC offers collateral-free loans up to Rs 500,000.", [rag_exec])
+    assert fail is not None and fail.guard == "number_check"
+
+
+@pytest.mark.asyncio
+async def test_multi_turn_redis_memory_continuity(monkeypatch, fake_redis, farmer):
+    monkeypatch.setenv("TRANSLATE_BACKEND", "stub")
+
+    async def fake_sale_window(db, **kw):
+        return _window_result("HOLD")
+
+    monkeypatch.setattr(decision_mod, "sale_window", fake_sale_window)
+
+    mem = SessionMemoryStore(fake_redis)
+    llm1 = ScriptedLLM(
+        [
+            LLMResponse(content=None, tool_calls=[_tc("compute_sale_window", {"commodity": "onion", "mandi": "lasalgaon", "quantity": 20, "unit": "bori"}, "t1a")]),
+            LLMResponse(content=None, tool_calls=[_tc("final_answer", {"reply_text": "Hold 5 days for Rs 1850 expected gain.", "intent": "WINDOW"}, "t1b")]),
+        ]
+    )
+    eng1 = AgentEngine(llm_client=llm1, memory=mem)
+    await eng1.run_turn(
+        db=None,
+        user=farmer,
+        session_id="s_multi",
+        locale="en",
+        text="Should I sell 20 bags of onion at Lasalgaon?",
+        persist_log=False,
+    )
+
+    llm2 = ScriptedLLM(
+        [
+            LLMResponse(content=None, tool_calls=[_tc("final_answer", {"reply_text": "You can check prices again on the home screen.", "intent": "SMALLTALK"}, "t2a")]),
+        ]
+    )
+    eng2 = AgentEngine(llm_client=llm2, memory=mem)
+    resp2 = await eng2.run_turn(
+        db=None,
+        user=farmer,
+        session_id="s_multi",
+        locale="en",
+        text="Okay thanks, what next?",
+        persist_log=False,
+    )
+    assert resp2.reply_text == "You can check prices again on the home screen."
+    history_roles = [(m["role"], m["content"]) for m in llm2.calls[0]]
+    assert any(r == "user" and "Lasalgaon" in c for r, c in history_roles)
+    assert any(r == "assistant" and "Hold 5 days" in c for r, c in history_roles)
+    assert len(await mem.load_turns("s_multi")) == 2
+
+
+@pytest.mark.asyncio
+async def test_engine_real_rag_qdrant_e2e_citation_and_guard(monkeypatch, fake_redis, farmer):
+    import importlib.util
+    import sys
+    from pathlib import Path
+    from app.rag import store
+    from app.rag.chunker import approx_token_counter
+    from app.rag.embedder import FakeEmbedder
+    from app.rag.qdrant_retriever import Retriever, set_retriever
+
+    root = Path(__file__).resolve().parents[2]
+    corpus = root / "data" / "rag_corpus"
+    spec = importlib.util.spec_from_file_location("ingest_rag_day5", root / "scripts/ingest_rag.py")
+    ingest_mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("ingest_rag_day5", ingest_mod)
+    spec.loader.exec_module(ingest_mod)
+
+    emb = FakeEmbedder()
+    client = store.connect(":memory:")
+    store.ensure_collection(client, "t_agent_kb", emb.dense_dim)
+    ingest_mod.ingest(corpus, client, "t_agent_kb", emb, approx_token_counter)
+    retriever = Retriever(client=client, collection="t_agent_kb", embedder=emb, reranker=None)
+    set_retriever(retriever)
+
+    monkeypatch.setenv("RETRIEVER", "real")
+    monkeypatch.setenv("TRANSLATE_BACKEND", "stub")
+
+    try:
+        class GroundedRagLLM(ILLMClient):
+            async def complete(self, messages, tools=None, *, temperature=0.2, tool_choice="auto", max_tokens=None):
+                tool_msgs = [m for m in messages if m.get("role") == "tool"]
+                if not tool_msgs:
+                    return LLMResponse(
+                        content=None,
+                        tool_calls=[
+                            _tc(
+                                "search_agri_knowledge",
+                                {"query": "KCC collateral free loan interest", "category": "schemes_finance"},
+                                "r1",
+                            )
+                        ],
+                    )
+                payload = json.loads(tool_msgs[-1]["content"])
+                chunks = (payload.get("data") or {}).get("chunks") or []
+                assert len(chunks) >= 1, f"Expected real Qdrant chunks from data/rag_corpus, got {payload}"
+                top_source = chunks[0]["source_doc"]
+                return LLMResponse(
+                    content=None,
+                    tool_calls=[
+                        _tc(
+                            "final_answer",
+                            {
+                                "reply_text": f"According to {top_source}, check your local bank branch for KCC eligibility and scheme rules.",
+                                "intent": "RAG",
+                            },
+                            "r2",
+                        )
+                    ],
+                )
+
+        engine = AgentEngine(llm_client=GroundedRagLLM(), memory=SessionMemoryStore(fake_redis))
+        resp = await engine.run_turn(
+            db=None,
+            user=farmer,
+            session_id="s_real_rag",
+            locale="en",
+            text="Tell me about KCC loan eligibility",
+            persist_log=False,
+        )
+        assert resp.intent_detected == Intent.RAG
+        assert len(resp.citations) >= 1
+        assert any((c.source or "").startswith("schemes_finance/") for c in resp.citations)
+        assert any(c.type == "RAG_CITATION" for c in resp.cards)
+    finally:
+        set_retriever(None)
+
+
+@pytest.mark.asyncio
+async def test_all_frozen_intents_supported_by_engine(monkeypatch, fake_redis):
+    monkeypatch.setenv("TRANSLATE_BACKEND", "stub")
+    mem = SessionMemoryStore(fake_redis)
+    for intent in Intent:
+        llm = ScriptedLLM(
+            [
+                LLMResponse(
+                    content=None,
+                    tool_calls=[_tc("final_answer", {"reply_text": f"Handled {intent.value}.", "intent": intent.value}, f"c_{intent.value}")],
+                )
+            ]
+        )
+        engine = AgentEngine(llm_client=llm, memory=mem)
+        resp = await engine.run_turn(
+            db=None,
+            user=None,
+            session_id=f"s_int_{intent.value}",
+            locale="en",
+            text=f"test {intent.value}",
+            persist_log=False,
+        )
+        assert resp.intent_detected == intent
+        assert f"Handled {intent.value}." in resp.reply_text

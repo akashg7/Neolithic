@@ -138,6 +138,10 @@ def _add_scaled_values(key: str, num: float, allowed: set[float]) -> None:
         allowed.add(float(int(num // 100)))
 
 
+_LAKH_NUM = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:lakh|lac)s?\b", re.IGNORECASE)
+_CRORE_NUM = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*crores?\b", re.IGNORECASE)
+
+
 def _collect_allowed_numbers(obj: Any, allowed: set[float], parent_key: str = "") -> None:
     if isinstance(obj, bool) or obj is None:
         return
@@ -147,6 +151,10 @@ def _collect_allowed_numbers(obj: Any, allowed: set[float], parent_key: str = ""
     if isinstance(obj, str):
         for n in extract_numbers(obj):
             allowed.add(n)
+        for m in _LAKH_NUM.finditer(obj):
+            allowed.add(float(m.group(1).replace(",", "")) * 100_000.0)
+        for m in _CRORE_NUM.finditer(obj):
+            allowed.add(float(m.group(1).replace(",", "")) * 10_000_000.0)
         return
     if isinstance(obj, dict):
         for k, v in obj.items():

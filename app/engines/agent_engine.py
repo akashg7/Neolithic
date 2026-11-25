@@ -12,6 +12,7 @@ Executes one conversational or voice turn:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -358,11 +359,13 @@ class AgentEngine:
             )
             return resp
 
-        # ── 2. Build context (profile + Redis last 8 turns + screen + hints) ─
+        # ── 2. Build context (profile + Redis last 8 turns concurrently) ─────
         pivot = pivot_enabled()
         model_user_input = translated.english if pivot else translated.original
-        profile_block = await build_farmer_profile_block(db, user)
-        history_turns = await self.memory.load_turns(session_id)
+        profile_block, history_turns = await asyncio.gather(
+            build_farmer_profile_block(db, user),
+            self.memory.load_turns(session_id),
+        )
         messages = build_context_messages(
             profile_block=profile_block,
             history_turns=history_turns,
@@ -375,6 +378,7 @@ class AgentEngine:
 
         include_onboarding = (screen.current_screen or "") in _ONBOARD_SCREENS
         schemas = agent_tool_schemas(include_onboarding=include_onboarding)
+        final_only_schemas = [s for s in schemas if s["function"]["name"] == "final_answer"]
         tool_ctx = ToolContext(
             db=db,
             user=user,
@@ -389,21 +393,22 @@ class AgentEngine:
         error_code: Optional[str] = None
 
         try:
-            step = 0
-            total_calls = 0
-            max_calls_with_retry = self.max_steps + 1
-            while total_calls < max_calls_with_retry:
-                if step >= self.max_steps and final_args is not None:
-                    break
-                choice = "required" if step == 0 else "auto"
+            normal_steps = 0
+            force_final_retry = False
+            while normal_steps < self.max_steps or force_final_retry:
+                is_last_normal = (normal_steps == self.max_steps - 1) and bool(executed)
+                active_tools = final_only_schemas if (force_final_retry or is_last_normal) else schemas
+                choice = "required" if (normal_steps == 0 or force_final_retry or is_last_normal) else "auto"
                 llm_resp = await self.llm.complete(
                     messages,
-                    tools=schemas,
+                    tools=active_tools,
                     temperature=self.temperature,
                     tool_choice=choice,
                 )
-                total_calls += 1
-                step += 1
+                if force_final_retry:
+                    force_final_retry = False
+                else:
+                    normal_steps += 1
 
                 calls = llm_resp.tool_calls
                 if not calls:
@@ -424,8 +429,9 @@ class AgentEngine:
                         user_english_text=translated.english,
                         hints=translated.hints,
                     )
-                    if failure is not None and not guard_retried and total_calls < max_calls_with_retry:
+                    if failure is not None and not guard_retried:
                         guard_retried = True
+                        force_final_retry = True
                         messages.append({"role": "assistant", "content": candidate_reply})
                         messages.append(
                             {
@@ -475,8 +481,9 @@ class AgentEngine:
                             }
                             error_code = "NO_ADVICE"
                             break
-                        if not guard_retried and total_calls < max_calls_with_retry:
+                        if not guard_retried:
                             guard_retried = True
+                            force_final_retry = True
                             messages.append(
                                 {
                                     "role": "tool",
@@ -518,10 +525,6 @@ class AgentEngine:
                             ),
                         }
                     )
-
-                # If reached max_steps without calling final_answer, force one last final_answer
-                if step >= self.max_steps and final_args is None and total_calls < max_calls_with_retry:
-                    continue
         except LLMUnavailableError as exc:
             logger.error("LLM unavailable on turn %s: %s", turn_id, exc)
             cards = build_cards(executed)

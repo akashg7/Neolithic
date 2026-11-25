@@ -366,6 +366,11 @@ async def execute_agent_tool(
         }
         mapped = {k: v for k, v in mapped.items() if v is not None}
         raw = await run_tool("get_sale_window", ctx, mapped)
+        if raw.get("ok") and isinstance(raw.get("card"), dict):
+            cdata = raw["card"].setdefault("data", {})
+            bw = (raw.get("data") or {}).get("band_width_bps")
+            if bw is not None and "uncertainty_pct" not in cdata:
+                cdata["uncertainty_pct"] = int(round(int(bw) / 100))
         env = _tool_result_from_raw(raw, "window_engine_v1")
         return ExecutedToolCall(
             tool_name=name,
@@ -422,6 +427,22 @@ async def execute_agent_tool(
                 )
             }
             card = snap_raw.get("card")
+            if isinstance(card, dict) and isinstance(card.get("data"), dict):
+                cdata = card["data"]
+                modal = cdata.get("modal_paise_per_qtl") or 0
+                cdata.setdefault("modal_price_paise_per_qtl", modal)
+                series_pts: list[int] = []
+                comm_id = (sdata.get("commodity") or {}).get("id")
+                mkt_id = (sdata.get("market") or {}).get("id")
+                if ctx.db is not None and comm_id and mkt_id:
+                    try:
+                        ser = await price_service.price_series(ctx.db, int(comm_id), int(mkt_id), days=14)
+                        series_pts = [int(p["modal_paise_per_qtl"]) for p in (ser.get("points") or [])[-7:]]
+                    except Exception:
+                        series_pts = []
+                if not series_pts and modal:
+                    series_pts = [int(modal)]
+                cdata.setdefault("series_paise_per_qtl", series_pts)
             ui_action = snap_raw.get("ui_action")
             citations.extend(_citations_from_raw(snap_raw, "AGMARKNET"))
 
@@ -483,6 +504,10 @@ async def execute_agent_tool(
         mapped = {k: v for k, v in mapped.items() if v is not None}
         inner_name = "create_lot" if want_confirm else "draft_lot"
         raw = await run_tool(inner_name, ctx, mapped)
+        if raw.get("ok") and isinstance(raw.get("card"), dict) and raw["card"].get("type") == "LOT_DRAFT":
+            cdata = raw["card"].setdefault("data", {})
+            if cdata.get("mandi") is None:
+                cdata["mandi"] = ""
         env = _tool_result_from_raw(raw, "lot_service_v1")
         return ExecutedToolCall(
             tool_name=name,
