@@ -22,12 +22,19 @@ only ever talks to us. On-device TTS (`speakText`) remains the offline fallback
 on the device when this route is unreachable.
 """
 
+import logging
+import os
+
+import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 
+from app.adapters.voice_adapter import SarvamVoiceAdapter
 from app.adapters.voice_provider import IVoiceProvider, VoiceEngineError
+from app.config import settings
 from app.dependencies.voice import get_voice_provider
 from app.schemas.voice import NarrateRequest, NarrateResponse, TranscribeResponse
 
+logger = logging.getLogger("krishi.voice.router")
 router = APIRouter()
 
 # Locale → Sarvam BCP-47 language code. The app's default is Marathi; the two
@@ -112,15 +119,59 @@ async def transcribe(
         raise HTTPException(status_code=413, detail="Audio clip too large (max 25MB)")
 
 
-    if not provider.configured:
-        raise HTTPException(status_code=503, detail="Voice transcription is not configured (SARVAM_API_KEY)")
-
     language_code = _LOCALE_TO_SARVAM.get(locale, "mr-IN")
+    base_provider = getattr(provider, "wrapped", provider)
 
+    if provider.configured:
+        try:
+            result = await provider.speech_to_text(raw, filename=upload_filename, language_code=language_code)
+            return TranscribeResponse(**result)
+        except VoiceEngineError as exc:
+            if isinstance(base_provider, SarvamVoiceAdapter):
+                fallback = await _groq_whisper_transcribe(raw, filename=upload_filename, locale=locale)
+                if fallback is not None:
+                    return fallback
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    if isinstance(base_provider, SarvamVoiceAdapter):
+        fallback = await _groq_whisper_transcribe(raw, filename=upload_filename, locale=locale)
+        if fallback is not None:
+            return fallback
+
+    raise HTTPException(status_code=503, detail="Voice transcription is not configured (SARVAM_API_KEY)")
+
+
+async def _groq_whisper_transcribe(raw: bytes, *, filename: str | None, locale: str) -> TranscribeResponse | None:
+    """Fallback STT via Groq Whisper (`whisper-large-v3-turbo`) when Sarvam is unconfigured or out of credits."""
+    groq_key = (os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", "") or "").strip()
+    if not groq_key or groq_key.startswith("#"):
+        return None
+    fn = (filename or "").lower()
+    if fn.endswith(".webm"):
+        up_name, mime = "clip.webm", "audio/webm"
+    elif fn.endswith(".wav") or raw.startswith(b"RIFF"):
+        up_name, mime = "clip.wav", "audio/wav"
+    elif fn.endswith(".m4a") or b"ftyp" in raw[:16]:
+        up_name, mime = "clip.m4a", "audio/mp4"
+    elif fn.endswith(".ogg") or raw.startswith(b"OggS"):
+        up_name, mime = "clip.ogg", "audio/ogg"
+    else:
+        up_name, mime = "clip.webm", "audio/webm"
+
+    lang = locale if locale in ("mr", "hi", "en") else "mr"
     try:
-        result = await provider.speech_to_text(raw, filename=upload_filename, language_code=language_code)
-    except VoiceEngineError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    return TranscribeResponse(**result)
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            r = await client.post(
+                f"{getattr(settings, 'GROQ_BASE_URL', 'https://api.groq.com/openai/v1').rstrip('/')}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {groq_key}"},
+                data={"model": "whisper-large-v3-turbo", "language": lang},
+                files={"file": (up_name, raw, mime)},
+            )
+        if r.status_code == 200:
+            txt = (r.json().get("text") or "").strip()
+            return TranscribeResponse(transcript=txt, language_code=_LOCALE_TO_SARVAM.get(lang, "mr-IN"))
+        logger.warning("Groq Whisper STT fallback HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        logger.warning("Groq Whisper STT fallback failed: %s", exc)
+    return None
 
