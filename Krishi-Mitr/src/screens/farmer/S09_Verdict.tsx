@@ -48,29 +48,31 @@ import { VerdictCard } from '../../components/farmer/VerdictCard';
 import { PledgeCard } from '../../components/farmer/PledgeCard';
 import { StaleBanner } from '../../components/farmer/StaleBanner';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
+import { useFocusRefs, type FocusRefs } from '../../lib/liveMarket';
 import type { HomeStackParamList } from '../../navigation/FarmerTabs';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'S9_Verdict'>;
 
-async function fetchVerdict() {
+async function fetchVerdict(f: FocusRefs) {
   if (USE_FIXTURES) return fxHold;
   return recommendWindow({
-    commodity_id: DEFAULT_COMMODITY_ID,
-    market_id: DEFAULT_MARKET_ID,
-    qty_kg: DEFAULT_QTY_KG,
+    commodity_id: f.commodity_id,
+    market_id: f.market_id,
+    qty_kg: f.qty_kg,
     grade: DEFAULT_GRADE,
     lot_id: null,
     horizon_days: DEFAULT_HORIZON_DAYS,
   });
 }
 
-export default function S09_Verdict({ navigation }: Props) {
+export default function S09_Verdict({ navigation, route }: Props) {
+  const focus = useFocusRefs(route.params);
   const { t, locale } = useT();
   const { user } = useAuth();
 
   const { data, dataUpdatedAt, isLoading, error, refetch } = useQuery({
-    queryKey: ['ai', 'window', 'recommend', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, DEFAULT_QTY_KG],
-    queryFn: fetchVerdict,
+    queryKey: ['ai', 'window', 'recommend', focus.commodity_id, focus.market_id, focus.qty_kg],
+    queryFn: () => fetchVerdict(focus),
   });
 
   // The sale-window voice agent: speak the verdict + pledge narration once,
@@ -158,9 +160,9 @@ export default function S09_Verdict({ navigation }: Props) {
 
         <VerdictCard
           data={data}
-          qtyKg={DEFAULT_QTY_KG}
+          qtyKg={focus.qty_kg}
           locale={locale}
-          onSeeCosts={() => navigation.navigate('S10_CostBreakdown')}
+          onSeeCosts={() => navigation.navigate('S10_CostBreakdown', focus)}
         />
 
         {/*

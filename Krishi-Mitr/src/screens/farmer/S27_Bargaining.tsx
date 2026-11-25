@@ -72,9 +72,9 @@ async function fetchLots(): Promise<LotDto[]> {
   return getLots();
 }
 
-async function fetchSeries(): Promise<PriceSeriesRes> {
+async function fetchSeries(commodityId: string, marketId: string): Promise<PriceSeriesRes> {
   if (USE_FIXTURES) return fxPriceHistory;
-  return getPriceSeries(DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, 180);
+  return getPriceSeries(commodityId, marketId, 180);
 }
 
 export default function S27_Bargaining({ navigation, route }: Props) {
@@ -87,11 +87,6 @@ export default function S27_Bargaining({ navigation, route }: Props) {
     queryFn: () => fetchThread(offerId),
   });
   const lotsQuery = useQuery({ queryKey: ['lots'], queryFn: fetchLots });
-  const seriesQuery = useQuery({
-    queryKey: ['prices', 'series', '180', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID],
-    queryFn: fetchSeries,
-  });
-
   const thread = threadQuery.data ?? [];
   /** Oldest first by contract, so the last entry is the live one. */
   const latest = thread.length > 0 ? thread[thread.length - 1]! : null;
@@ -103,6 +98,16 @@ export default function S27_Bargaining({ navigation, route }: Props) {
 
   const lotId = latest?.lots[0]?.lot_id ?? null;
   const lot = (lotsQuery.data ?? []).find(l => l.id === lotId) ?? null;
+
+  // The mandi rate the offer is judged against: this lot's crop at this lot's
+  // mandi (it used to be onion at Lasalgaon for every offer).
+  const seriesCommodity = lot?.commodity_id ?? DEFAULT_COMMODITY_ID;
+  const seriesMarket = lot?.market_id ?? DEFAULT_MARKET_ID;
+  const seriesQuery = useQuery({
+    queryKey: ['prices', 'series', '180', seriesCommodity, seriesMarket],
+    queryFn: () => fetchSeries(seriesCommodity, seriesMarket),
+    enabled: USE_FIXTURES || lot !== null,
+  });
 
   const points = seriesQuery.data?.points ?? [];
   const mandiModal = points.length > 0 ? points[points.length - 1]!.modal_paise_per_qtl : null;

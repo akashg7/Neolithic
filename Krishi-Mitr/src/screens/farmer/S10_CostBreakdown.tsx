@@ -46,6 +46,7 @@ import {
 } from '../../config';
 import { fxHold } from '../../fixtures/window';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
+import { useFocusRefs, type FocusRefs } from '../../lib/liveMarket';
 import type { HomeStackParamList } from '../../navigation/FarmerTabs';
 import type { WindowCosts } from '../../types/api';
 
@@ -65,25 +66,26 @@ const LINES: Array<{
   { key: 'loading_paise_per_qtl', labelKey: 'cost_loading', descKey: 'cb_desc_loading', icon: 'scale', whenHolding: false },
 ];
 
-async function fetchVerdict() {
+async function fetchVerdict(f: FocusRefs) {
   if (USE_FIXTURES) return fxHold;
   return recommendWindow({
-    commodity_id: DEFAULT_COMMODITY_ID,
-    market_id: DEFAULT_MARKET_ID,
-    qty_kg: DEFAULT_QTY_KG,
+    commodity_id: f.commodity_id,
+    market_id: f.market_id,
+    qty_kg: f.qty_kg,
     grade: DEFAULT_GRADE,
     lot_id: null,
     horizon_days: DEFAULT_HORIZON_DAYS,
   });
 }
 
-export default function S10_CostBreakdown({ navigation }: Props) {
+export default function S10_CostBreakdown({ navigation, route }: Props) {
+  const focus = useFocusRefs(route.params);
   const { t, locale } = useT();
-  const qtyQtl = toQuintal(DEFAULT_QTY_KG);
+  const qtyQtl = toQuintal(focus.qty_kg);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['ai', 'window', 'recommend', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, DEFAULT_QTY_KG],
-    queryFn: fetchVerdict,
+    queryKey: ['ai', 'window', 'recommend', focus.commodity_id, focus.market_id, focus.qty_kg],
+    queryFn: () => fetchVerdict(focus),
   });
 
   const close = () => navigation.canGoBack() && navigation.goBack();

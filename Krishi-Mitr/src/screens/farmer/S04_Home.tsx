@@ -1,11 +1,11 @@
 /**
  * S04_Home — Full-Bleed Desktop & Mobile Agricultural Intelligence Dashboard.
  *
- * ★ Full Width Utilization: Responsive 1440px desktop grid — zero empty side gutters.
- * ★ Zero Horizontal Drift: Strict overflow-x containment prevents any left-right sliding.
- * ★ 100% Language Specific: Full English when in EN, authentic Marathi in MR, Hindi in HI.
- * ★ Authentic Market Dynamics: Natural price volatility curves — zero straight "y = x" lines.
- * ★ 100% Offline & Static: Instantaneous data switching across all 14 crops.
+ * Full Width Utilization: Responsive 1440px desktop grid — zero empty side gutters.
+ * Zero Horizontal Drift: Strict overflow-x containment prevents any left-right sliding.
+ * 100% Language Specific: Full English when in EN, authentic Marathi in MR, Hindi in HI.
+ * Authentic Market Dynamics: Natural price volatility curves — zero straight "y = x" lines.
+ * 100% Offline & Static: Instantaneous data switching across all 14 crops.
  */
 
 import React, { useState } from 'react';
@@ -321,7 +321,7 @@ function ForecastCorridorChart({
       {/* Milestone Nodes & Badges */}
       {milestones.map((m, i) => {
         const cx = getX(m.idx);
-        const cy = getY(m.price);
+        const cy = getY(m.price ?? 0);
         return (
           <React.Fragment key={i}>
             <Circle cx={cx} cy={cy} r={6} fill="#FFFFFF" stroke={mainColor} strokeWidth={3} />
@@ -853,7 +853,7 @@ export default function S04_Home({ navigation }: Props) {
                         )}
                       </View>
                       <Text style={styles.mandiDistance}>
-                        {mandi.distance_km} km {isEn ? 'away' : 'अंतरावर'} · 🚛 ₹{transportRs} {isEn ? 'freight/qtl' : 'वाहतूक/क्विंटल'}
+                        {mandi.distance_km} km {isEn ? 'away' : 'अंतरावर'} · ₹{transportRs} {isEn ? 'freight/qtl' : 'वाहतूक/क्विंटल'}
                       </Text>
                     </View>
 
@@ -873,7 +873,7 @@ export default function S04_Home({ navigation }: Props) {
           {/* ── 5. Akash's Active Produce Lots Section ── */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              {isEn ? '📦 My Active Produce Lots' : isHi ? '📦 मेरी सक्रिय फसल लॉट' : '📦 माझे नोंदणीकृत शेतीमाल लॉट'}
+              {isEn ? 'My Active Produce Lots' : isHi ? 'मेरी सक्रिय फसल लॉट' : 'माझे नोंदणीकृत शेतीमाल लॉट'}
             </Text>
             <TouchableOpacity
               style={styles.sectionAction}

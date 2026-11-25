@@ -52,7 +52,9 @@ import { getModelCard } from '../../lib/api';
 import { getLocale } from '../../lib/locale';
 import { devNum, translate } from '../../lib/i18n';
 import { formatBps, formatNumber } from '../../lib/money';
-import { DEFAULT_COMMODITY_ID, USE_FIXTURES } from '../../config';
+import { USE_FIXTURES } from '../../config';
+import { useFocusRefs } from '../../lib/liveMarket';
+import { useStaticMarket } from '../../lib/staticMarketStore';
 import { fxModelCard } from '../../fixtures/modelCard';
 import { StaleBanner } from '../../components/farmer/StaleBanner';
 import { EmptyState, ErrorState, Skeleton } from '../../components/farmer/States';
@@ -67,8 +69,8 @@ const NOMINAL_COVERAGE_BPS = 8000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-async function fetchModelCard() {
-  return USE_FIXTURES ? fxModelCard : getModelCard(DEFAULT_COMMODITY_ID);
+async function fetchModelCard(commodityId: string) {
+  return USE_FIXTURES ? fxModelCard : getModelCard(commodityId);
 }
 
 /** `2026-09-05` -> `५ सप्टेंबर २०२५`-style. One name table per locale, since
@@ -119,6 +121,8 @@ function Row({ label, value, testID }: { label: string; value: string; testID?: 
 }
 
 export default function S08_ModelCard() {
+  const { commodity_id: focusCommodity } = useFocusRefs();
+  const { selectedCrop } = useStaticMarket();
   const [locale, setLocale] = useState<Locale>('mr');
   useFocusEffect(
     useCallback(() => {
@@ -127,8 +131,8 @@ export default function S08_ModelCard() {
   );
 
   const { data, dataUpdatedAt, isLoading, error, refetch } = useQuery({
-    queryKey: ['ai', 'model-card', DEFAULT_COMMODITY_ID],
-    queryFn: fetchModelCard,
+    queryKey: ['ai', 'model-card', focusCommodity],
+    queryFn: () => fetchModelCard(focusCommodity),
   });
 
   // Keyed on the timestamp, not read at render — see the header note.
@@ -173,7 +177,7 @@ export default function S08_ModelCard() {
       <Text style={styles.title}>{translate('model_card_title', locale)}</Text>
       <Text style={styles.subtitle}>
         {translate('model_card_subtitle', locale, {
-          commodity: translate('demo_commodity_name', locale),
+          commodity: locale === 'en' ? selectedCrop.name : locale === 'hi' ? selectedCrop.name_hi : selectedCrop.name_mr,
           days: formatNumber(card.horizon_days, locale),
         })}
       </Text>

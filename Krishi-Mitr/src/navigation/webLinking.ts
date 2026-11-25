@@ -54,8 +54,32 @@ const config = {
           path: 'prices',
           screens: { PricesIndex: '', S8_ModelCard: 'model' },
         },
-        MyLots: { path: 'lots', screens: { S15_MyLots: '' } },
-        Talks: { path: 'talks', screens: { S37_Talks: '' } },
+        // Every screen whose params fit in a URL gets one, so a refresh or a
+        // shared link lands on the same screen instead of falling back to
+        // Home. (S18/S21/S30 carry objects in params and are mid-flow only.)
+        MyLots: {
+          path: 'lots',
+          screens: {
+            S15_MyLots: '',
+            S17_CameraGuide: 'new',
+            S19_Quantity: 'new/quantity',
+            S20_QualityDiagnostic: 'quality',
+            S22_PricePublish: 'price',
+            S23_PublishedRadar: 'published',
+            S24_LotDetail: 'lot',
+            S16_PoolSplit: 'pool',
+          },
+        },
+        Talks: {
+          path: 'talks',
+          screens: {
+            S37_Talks: '',
+            S27_Bargaining: 'offer',
+            S28_CounterOffer: 'counter',
+            S32_DealTracking: 'tracking',
+            S33_Settled: 'settled',
+          },
+        },
         Deals: {
           path: 'deals',
           screens: { S31_DealsList: '', S32_DealTracking: 'tracking', S33_Settled: 'settled' },

@@ -26,13 +26,13 @@
 
 import React, { useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, fontFamily, radius, space, touch, type as typography } from '../../theme/tokens';
 import { Icon } from '../../components/ui/Icon';
 import { ListenButton } from '../../components/ui/ListenButton';
-import { getLot, submitAssay } from '../../lib/api';
+import { getLot, loadRefNames, submitAssay, refLabel } from '../../lib/api';
 import { translate, useT } from '../../lib/i18n';
 import { formatNumber, toQuintal } from '../../lib/money';
 import { computeGrade } from '../../lib/grading';
@@ -160,6 +160,10 @@ async function persistAssay(lotId: string, body: AssayReq): Promise<AssayRes> {
 
 export default function S20_QualityDiagnostic({ route, navigation }: Props) {
   const { t, locale } = useT();
+  // Crop names for the header; re-renders once /ref has loaded (the lot itself
+  // may come from cache, which does not trigger that load).
+  const queryClient = useQueryClient();
+  const { data: namesReady } = useQuery({ queryKey: ['ref', 'names'], queryFn: () => loadRefNames().then(() => true), staleTime: Infinity });
   const lotId = route.params?.lot_id ?? DEFAULT_LOT_ID;
 
   const { data: lot, isLoading, error, refetch } = useQuery({
@@ -172,6 +176,9 @@ export default function S20_QualityDiagnostic({ route, navigation }: Props) {
   const { mutate: submit, isPending: submitting, isError: submitFailed } = useMutation({
     mutationFn: (body: AssayReq) => persistAssay(lotId, body),
     onSuccess: (result, body) => {
+      // The lot's grade changed on the server; drop cached copies so the
+      // price screen and My Produce show it (and the advice uses it).
+      queryClient.invalidateQueries({ queryKey: ['lots'] });
       navigation.navigate('S21_GradeReveal', { result, answers: body, lot_id: lotId });
     },
   });
@@ -242,7 +249,7 @@ export default function S20_QualityDiagnostic({ route, navigation }: Props) {
           <Text style={styles.headerSub}>
             {t('qd_subtitle', {
               qty: formatNumber(toQuintal(lot.qty_kg), locale),
-              commodity: t('demo_commodity_name'),
+              commodity: (namesReady && refLabel(lot.commodity_id, locale)) || '',
             })}
           </Text>
         ) : null}

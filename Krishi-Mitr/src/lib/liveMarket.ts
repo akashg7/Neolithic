@@ -15,7 +15,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { USE_FIXTURES } from '../config';
+import { DEFAULT_QTY_KG, USE_FIXTURES } from '../config';
+import { useStaticMarket } from './staticMarketStore';
 import { getMarketOverview, MarketOverview } from './api';
 import { STATIC_DISTRICTS, STATIC_MANDIS, StaticCrop } from './staticMarketData';
 
@@ -47,12 +48,12 @@ function toRows(points: MarketOverview['history']): Row[] {
 }
 
 /** Store keeps Marathi labels; the API accepts either, English is the safer match. */
-function mandiRef(selectedMandi: string): string {
+export function mandiRef(selectedMandi: string): string {
   const m = STATIC_MANDIS.find(x => x.name_mr === selectedMandi || x.name === selectedMandi);
   return m ? m.name : selectedMandi;
 }
 
-function districtRef(selectedDistrict: string): string | undefined {
+export function districtRef(selectedDistrict: string): string | undefined {
   const d = STATIC_DISTRICTS.find(x => x.name_mr === selectedDistrict || x.name === selectedDistrict);
   return d ? d.name : selectedDistrict || undefined;
 }
@@ -154,4 +155,19 @@ export function useLiveCrop(base: StaticCrop, selectedMandi: string, selectedDis
   }, [base, selectedMandi, selectedDistrict]);
 
   return state;
+}
+
+/**
+ * The crop/mandi a decision screen should be about. Route params win (Home and
+ * the chatbot pass exactly what they showed); otherwise the crop and mandi the
+ * farmer last picked on Home/Market. The API accepts slugs or names for both.
+ */
+export type FocusRefs = { commodity_id: string; market_id: string; qty_kg: number };
+export function useFocusRefs(params?: Partial<FocusRefs> | null): FocusRefs {
+  const { selectedCrop, selectedMandi } = useStaticMarket();
+  return {
+    commodity_id: params?.commodity_id ?? selectedCrop.name,
+    market_id: params?.market_id ?? mandiRef(selectedMandi),
+    qty_kg: params?.qty_kg ?? DEFAULT_QTY_KG,
+  };
 }

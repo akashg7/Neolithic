@@ -46,7 +46,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, fontFamily, radius, space, touch, type as typography } from '../../theme/tokens';
@@ -54,7 +54,7 @@ import { Icon } from '../../components/ui/Icon';
 import { ListenButton } from '../../components/ui/ListenButton';
 import { useT } from '../../lib/i18n';
 import { formatNumber, formatPaise, toQuintal } from '../../lib/money';
-import { getLot, getPriceSeries, recommendWindow } from '../../lib/api';
+import { ApiError, getLot, getPriceSeries, publishLot, recommendWindow } from '../../lib/api';
 import {
   DEFAULT_COMMODITY_ID,
   DEFAULT_GRADE,
@@ -80,18 +80,22 @@ async function fetchLot(lotId: string) {
   if (USE_FIXTURES) return fxLotListed;
   return getLot(lotId);
 }
-async function fetchSeries() {
+type LotRef = { commodity_id: string; market_id: string; qty_kg: number; grade?: string | null };
+
+// The lot's own crop and mandi. These used to be the app defaults (onion at
+// Lasalgaon), so a tomato lot was priced against onion.
+async function fetchSeries(lot: LotRef) {
   if (USE_FIXTURES) return fxPriceHistory;
-  return getPriceSeries(DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, 180);
+  return getPriceSeries(lot.commodity_id, lot.market_id, 180);
 }
-async function fetchVerdict() {
+async function fetchVerdict(lot: LotRef, lotId: string) {
   if (USE_FIXTURES) return fxHold;
   return recommendWindow({
-    commodity_id: DEFAULT_COMMODITY_ID,
-    market_id: DEFAULT_MARKET_ID,
-    qty_kg: DEFAULT_QTY_KG,
-    grade: DEFAULT_GRADE,
-    lot_id: null,
+    commodity_id: lot.commodity_id,
+    market_id: lot.market_id,
+    qty_kg: lot.qty_kg,
+    grade: (lot.grade as typeof DEFAULT_GRADE) ?? DEFAULT_GRADE,
+    lot_id: lotId,
     horizon_days: DEFAULT_HORIZON_DAYS,
   });
 }
@@ -101,14 +105,28 @@ export default function S22_PricePublish({ route, navigation }: Props) {
   const lotId = route.params?.lot_id ?? DEFAULT_LOT_ID;
 
   const lotQuery = useQuery({ queryKey: ['lots', lotId], queryFn: () => fetchLot(lotId) });
+  const lotRef = lotQuery.data as LotRef | undefined;
   const seriesQuery = useQuery({
-    queryKey: ['prices', 'series', '180', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID],
-    queryFn: fetchSeries,
+    queryKey: ['prices', 'series', '180', lotRef?.commodity_id, lotRef?.market_id],
+    queryFn: () => fetchSeries(lotRef!),
+    enabled: !!lotRef,
   });
-  // Same key as S9/S10, so the deduction total here is the one they show.
+  // Same key shape as S9/S10, so the deduction total here is the one they show.
   const windowQuery = useQuery({
-    queryKey: ['ai', 'window', 'recommend', DEFAULT_COMMODITY_ID, DEFAULT_MARKET_ID, DEFAULT_QTY_KG],
-    queryFn: fetchVerdict,
+    queryKey: ['ai', 'window', 'recommend', lotRef?.commodity_id, lotRef?.market_id, lotRef?.qty_kg],
+    queryFn: () => fetchVerdict(lotRef!, lotId),
+    enabled: !!lotRef,
+  });
+
+  // Publishing lists the lot at the asking price on the server (DRAFT/GRADED
+  // → LISTED). The button used to only navigate, so nothing was ever listed.
+  const queryClient = useQueryClient();
+  const publish = useMutation({
+    mutationFn: (paise: number) => (USE_FIXTURES ? Promise.resolve(null) : publishLot(lotId, paise)),
+    onSuccess: (_lot, paise) => {
+      queryClient.invalidateQueries({ queryKey: ['lots'] });
+      navigation.navigate('S23_PublishedRadar', { lot_id: lotId, asking_paise: paise });
+    },
   });
 
   const points = seriesQuery.data?.points ?? [];
@@ -484,14 +502,15 @@ export default function S22_PricePublish({ route, navigation }: Props) {
       </ScrollView>
 
       <View style={styles.dock}>
+        {publish.isError ? (
+          <Text style={styles.publishError}>
+            {publish.error instanceof ApiError ? publish.error.message : t('network_error_generic')}
+          </Text>
+        ) : null}
         <TouchableOpacity
-          style={styles.publishBtn}
-          onPress={() =>
-            navigation.navigate('S23_PublishedRadar', {
-              ...(route.params?.lot_id ? { lot_id: route.params.lot_id } : {}),
-              asking_paise: asking,
-            })
-          }
+          style={[styles.publishBtn, publish.isPending && { opacity: 0.6 }]}
+          onPress={() => publish.mutate(asking)}
+          disabled={publish.isPending}
           accessibilityRole="button">
           <Icon name="check-circle" size={18} color={colors.onPrimary} />
           <Text style={styles.publishBtnText} numberOfLines={1}>
@@ -505,6 +524,7 @@ export default function S22_PricePublish({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  publishError: { color: colors.primary, textAlign: 'center', marginBottom: space.xs },
   root: { flex: 1, backgroundColor: colors.background },
 
   header: {

@@ -19,7 +19,7 @@ interface MarketState {
 const STORAGE_KEY = 'krishi_mitra_static_selection_v2';
 
 function loadInitialState(): MarketState {
-  const defaultCrop = STATIC_CROPS[0]; // Onion (कांदा)
+  const defaultCrop = STATIC_CROPS[0]!; // Onion (कांदा)
   const defaultDistrict = 'नाशिक';
   const defaultMandi = 'लासलगाव मुख्य बाजार समिती';
 

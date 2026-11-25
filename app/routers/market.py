@@ -87,8 +87,11 @@ async def market_overview(
         "requested_market": requested_market.as_dict(),
         "market_substituted": market.id != requested_market.id,
         "latest": latest,
-        "min_30d_paise_per_qtl": min(p["min_paise_per_qtl"] for p in points),
-        "max_30d_paise_per_qtl": max(p["max_paise_per_qtl"] for p in points),
+        # Range of the daily *modal* rate, same basis as the average. The
+        # per-day min/max are single outlier trades (e.g. a damaged lot at
+        # ₹600 on a ₹4,600 day) and would mislead as a "30-day low".
+        "min_30d_paise_per_qtl": min(modal_30),
+        "max_30d_paise_per_qtl": max(modal_30),
         "avg_30d_paise_per_qtl": sum(modal_30) // len(modal_30),
         "change_7d_paise_per_qtl": snap.get("change_paise_per_qtl"),
         "change_7d_bps": snap.get("change_bps"),

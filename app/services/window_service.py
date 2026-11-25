@@ -127,6 +127,12 @@ async def sale_window(
         distance_km = 0.0
         distance_source = "unknown"  # transport not included — said, not hidden
 
+    # Only A/B/C mean something to the engine. A lot that hasn't been graded
+    # yet arrives as "UNGRADED" (or nothing) and is priced as a B — the
+    # mandi's middle grade — instead of failing the whole request.
+    g = (grade or "").strip().upper()
+    grade_used = g if g in ("A", "B", "C") else "B"
+
     quantiles, model_source = anchored_quantiles(commodity.name, market.name, spot)
     result = compute_sale_window(
         crop=commodity.name,
@@ -135,7 +141,7 @@ async def sale_window(
         current_price_mid_paise=spot,
         distance_km=distance_km,
         horizon_days=horizon_days,
-        grade=(grade or "B").upper(),
+        grade=grade_used,
         quantiles=quantiles,
     )
     # The badge the app shows is about the *price data* the decision rests on.
@@ -147,7 +153,7 @@ async def sale_window(
         "commodity": commodity.as_dict(),
         "market": market.as_dict(),
         "quantity_kg": int(quantity_kg),
-        "grade": (grade or "B").upper(),
+        "grade": grade_used,
         "spot_price_paise_per_qtl": spot,
         "spot_price_source": spot_source,
         "spot_price_date": spot_date,
