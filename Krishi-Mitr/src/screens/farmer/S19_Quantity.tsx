@@ -88,7 +88,10 @@ export default function S19_Quantity({ route, navigation }: Props) {
   const queryClient = useQueryClient();
   const photoUri = route.params?.photoUri ?? null;
 
-  const [qtyKg, setQtyKg] = useState(DEFAULT_QTY_KG);
+  const draft = route.params ?? {};
+  const [qtyKg, setQtyKg] = useState(
+    draft.qty_kg && draft.qty_kg > 0 ? Math.max(QTY_STEP_KG, Math.round(draft.qty_kg / QTY_STEP_KG) * QTY_STEP_KG) : DEFAULT_QTY_KG,
+  );
 
   // ── Which crop, at which mandi ──────────────────────────────────────────
   // Lists come from the server (/ref/*), so a farmer can only pick something
@@ -108,13 +111,16 @@ export default function S19_Quantity({ route, navigation }: Props) {
   const [marketId, setMarketId] = useState<string | null>(null);
   useEffect(() => {
     if (commodityId || !commodities.length) return;
-    const hit = commodities.find(c => c.name === market.selectedCrop.name);
+    const want = draft.commodity ?? market.selectedCrop.name;
+    const hit = commodities.find(c => c.id === want || c.name === want) ?? commodities.find(c => c.name === market.selectedCrop.name);
     setCommodityId(hit?.id ?? commodities[0]!.id);
   }, [commodities, commodityId, market.selectedCrop.name]);
   useEffect(() => {
     if (!mandis.length) return;
     if (marketId && mandis.some(m => m.id === marketId)) return;
-    const hit = mandis.find(m => [m.name, (m as { name_mr?: string }).name_mr].includes(market.selectedMandi));
+    const want = draft.market ?? market.selectedMandi;
+    const hit = mandis.find(m => [m.id, m.name, (m as { name_mr?: string }).name_mr].includes(want))
+      ?? mandis.find(m => [m.name, (m as { name_mr?: string }).name_mr].includes(market.selectedMandi));
     setMarketId(hit?.id ?? mandis[0]!.id);
   }, [mandis, marketId, market.selectedMandi]);
   const label = (x: { name: string; name_mr?: string }) => (locale === 'en' ? x.name : x.name_mr || x.name);

@@ -20,8 +20,16 @@ export default function S37_Talks({ navigation }: { navigation: any }) {
   const sets = { all, yours: all.filter(mine), theirs: all.filter(o => o.status === 'OPEN' && !mine(o)), new: all.filter(o => o.status === 'OPEN' && o.round === 1) };
   const rows = [...sets[f]].sort((a, b) => Number(mine(b)) - Number(mine(a)) || b.created_at.localeCompare(a.created_at));
   const open = all.filter(o => o.status === 'OPEN');
-  const best = [...open].sort((a, b) => b.price_paise_per_qtl - a.price_paise_per_qtl)[0];
-  const sub = best ? s(`${n(sets.yours.length)} बोली तुमच्या उत्तराची वाट पाहत आहेत. सर्वात जास्त ${rs(best.price_paise_per_qtl)} प्रति क्विंटल.`, `${n(sets.yours.length)} बोली आपके जवाब के इंतज़ार में। सबसे ऊँची ${rs(best.price_paise_per_qtl)} प्रति क्विंटल।`, `${n(sets.yours.length)} offers are waiting for your reply. The highest is ${rs(best.price_paise_per_qtl)} per quintal.`) : t('chat_empty_title');
+  // "Best" is the best *buyer* bid waiting on him — never his own counter.
+  const best = [...sets.yours].sort((a, b) => b.price_paise_per_qtl - a.price_paise_per_qtl)[0];
+  const k = sets.yours.length;
+  const sub = best
+    ? s(`${n(k)} बोली तुमच्या उत्तराची वाट पाहत आहेत. सर्वात जास्त ${rs(best.price_paise_per_qtl)} प्रति क्विंटल.`, `${n(k)} बोली आपके जवाब के इंतज़ार में। सबसे ऊँची ${rs(best.price_paise_per_qtl)} प्रति क्विंटल।`, `${n(k)} ${k === 1 ? 'offer is' : 'offers are'} waiting for your reply. The highest is ${rs(best.price_paise_per_qtl)} per quintal.`)
+    : open.length
+      ? s('तुमचे उत्तर खरेदीदाराकडे आहे.', 'आपका जवाब खरीदार के पास है।', 'Your replies are with the buyers.')
+      : all.length
+        ? s('सध्या कोणतीही बोली उत्तराच्या प्रतीक्षेत नाही.', 'अभी कोई बोली जवाब के इंतज़ार में नहीं है।', 'No offers are waiting on you right now.')
+        : t('chat_empty_title');
 
   return (
     <div className="km km-page">
@@ -39,7 +47,7 @@ export default function S37_Talks({ navigation }: { navigation: any }) {
               ) : null}
             </OfferRow>
           ))}
-        {open.length > 1 ? <p className="km-note" style={{ marginTop: 20 }}>{s(`सर्वात चांगली बोली स्वीकारल्यास ${formatQuintal(best!.qty_kg, locale)} क्विंटलचे ${rs(quintalValuePaise(best!.price_paise_per_qtl, best!.qty_kg))}.`, `सबसे अच्छी बोली मानने पर ${formatQuintal(best!.qty_kg, locale)} क्विंटल के ${rs(quintalValuePaise(best!.price_paise_per_qtl, best!.qty_kg))}।`, `Accepting the best offer pays ${rs(quintalValuePaise(best!.price_paise_per_qtl, best!.qty_kg))} for ${formatQuintal(best!.qty_kg, locale)} quintals.`)}</p> : null}
+        {sets.yours.length > 1 ? <p className="km-note" style={{ marginTop: 20 }}>{s(`सर्वात चांगली बोली स्वीकारल्यास ${formatQuintal(best!.qty_kg, locale)} क्विंटलचे ${rs(quintalValuePaise(best!.price_paise_per_qtl, best!.qty_kg))}.`, `सबसे अच्छी बोली मानने पर ${formatQuintal(best!.qty_kg, locale)} क्विंटल के ${rs(quintalValuePaise(best!.price_paise_per_qtl, best!.qty_kg))}।`, `Accepting the best offer pays ${rs(quintalValuePaise(best!.price_paise_per_qtl, best!.qty_kg))} for ${formatQuintal(best!.qty_kg, locale)} quintals.`)}</p> : null}
       </section>
       <WebFooter />
     </div>

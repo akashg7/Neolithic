@@ -114,6 +114,18 @@ async def sale_window(
     commodity = await resolve(db, "commodity", commodity_ref)
     market = await resolve(db, "market", market_ref)
 
+    # If this crop isn't traded at that mandi (no recent price), advise for the
+    # nearest mandi that does trade it — the same rule as /market/overview —
+    # rather than a model guess for a market that never sees the crop. The
+    # reply names the mandi it used (`inputs.market`, `market_substituted`).
+    requested_market = market
+    if not current_price_paise and await price_service.latest_price(db, commodity.id, market.id) is None:
+        cat = await load_catalog(db)
+        traded = [cat.get("market", mid) for mid in await price_service.latest_prices_by_market(db, commodity.id)]
+        traded = [m for m in traded if m is not None and m.lat is not None]
+        if traded and market.lat is not None:
+            market = min(traded, key=lambda m: haversine_km(market.lat, market.lng, m.lat, m.lng))
+
     if current_price_paise:
         spot, spot_source, spot_date = int(current_price_paise), "REQUEST", None
     else:
@@ -152,6 +164,8 @@ async def sale_window(
     result["inputs"] = {
         "commodity": commodity.as_dict(),
         "market": market.as_dict(),
+        "requested_market": requested_market.as_dict(),
+        "market_substituted": market.id != requested_market.id,
         "quantity_kg": int(quantity_kg),
         "grade": grade_used,
         "spot_price_paise_per_qtl": spot,

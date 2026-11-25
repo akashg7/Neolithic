@@ -14,13 +14,13 @@ export default function S15_MyLots({ navigation }: { navigation: any }) {
   const { data: lots, isLoading, error, refetch } = useQuery({ queryKey: ['lots'], queryFn: getLots });
   const add = () => navigation.navigate('S17_CameraGuide');
   const kg = (lots ?? []).reduce((a, l) => a + l.qty_kg, 0);
-  const total = s(`${n(lots?.length ?? 0)} लॉट, एकूण ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} गोण्या)`, `${n(lots?.length ?? 0)} लॉट, कुल ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} बोरी)`, `${n(lots?.length ?? 0)} lots, ${formatQuintal(kg, locale)} quintals in all (${n(Math.floor(kg / 50))} bags)`);
+  const total = s(`${n(lots?.length ?? 0)} लॉट, एकूण ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} गोण्या)`, `${n(lots?.length ?? 0)} लॉट, कुल ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} बोरी)`, `${n(lots?.length ?? 0)} ${(lots?.length ?? 0) === 1 ? 'lot' : 'lots'}, ${formatQuintal(kg, locale)} quintals in all (${n(Math.floor(kg / 50))} bags)`);
 
   return (
     <div className="km km-page">
       <Banner scene="store" title={t('mp_title')} sub={lots?.length ? total : undefined}>
         <button className="km-btn" onClick={add}><Ic name="plus" />{s('शेतमाल नोंदवा', 'उपज जोड़ें', 'Add produce')}</button>
-        <ListenButton text={lots?.length ? total : t('mp_empty_title')} />
+        <ListenButton text={lots?.length ? total : t('produce_empty_heading')} />
       </Banner>
       <section className="km-wrap km-sec">
         {isLoading ? <div className="km-lots">{[0, 1, 2].map(i => <Skel key={i} h={340} />)}</div>

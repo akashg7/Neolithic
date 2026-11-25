@@ -81,7 +81,7 @@ function Card({ card }: { card: AgentCard }) {
           <div><dt>{s('वजन', 'वज़न', 'Quantity')}</dt><dd>{w.quantity_kg ? `${n(w.quantity_kg)} ${s('किलो', 'किलो', 'kg')}` : s('पुढे भरा', 'आगे भरें', 'Fill in next')}</dd></div>
           {w.mandi ? <div><dt>{s('बाजार', 'मंडी', 'Market')}</dt><dd>{nm.place(w.mandi)}</dd></div> : null}
         </dl>
-        <button className="km-btn" style={{ width: '100%', marginTop: 14 }} onClick={() => runUiAction({ target_screen: 'S19_Quantity' })}>{s('लॉट पूर्ण करा', 'लॉट पूरा करें', 'Finish the lot')}</button>
+        <button className="km-btn" style={{ width: '100%', marginTop: 14 }} onClick={() => runUiAction({ target_screen: 'S19_Quantity', params: { commodity: w.commodity, market: w.mandi, ...(w.quantity_kg ? { qty_kg: w.quantity_kg } : {}) } })}>{s('लॉट पूर्ण करा', 'लॉट पूरा करें', 'Finish the lot')}</button>
         <p className="km-note" style={{ marginTop: 8 }}>{s('अजून काहीही नोंदवले नाही.', 'अभी कुछ दर्ज नहीं हुआ।', 'Nothing is saved yet.')}</p>
       </div>
     </div>

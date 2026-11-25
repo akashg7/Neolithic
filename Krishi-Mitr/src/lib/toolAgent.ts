@@ -8,7 +8,7 @@
 import { translate } from './i18n';
 import { formatNumber, formatPaise } from './money';
 import { STATIC_CROPS, STATIC_MANDIS } from './staticMarketData';
-import { getMarketOverview, getPriceSeries, runAgentTool, AgentToolResult } from './api';
+import { getLots, getMarketOverview, getOffers, getPriceSeries, getTransactions, refLabel, runAgentTool, AgentToolResult } from './api';
 import type { AgentCard, AgentChatRequest, AgentChatResponse, AgentIntent } from './agentTypes';
 import type { Locale } from '../types/api';
 
@@ -16,7 +16,7 @@ const has = (s: string, w: string[]) => w.some(x => s.includes(x));
 const ALIASES: Record<string, string[]> = {
   Onion: ['onion', 'kanda', 'pyaz', 'pyaaz', 'कांद', 'कांदा', 'प्याज', 'प्याज़'],
   Soyabean: ['soya', 'सोया'], Cotton: ['cotton', 'kapas', 'कापूस', 'कापस', 'कपास'], Wheat: ['wheat', 'gehu', 'गहू', 'गव्ह', 'गेहू', 'गेहूँ'],
-  Tomato: ['tomato', 'टोमॅटो', 'टोमैटो', 'टमाटर'], 'Bengal Gram': ['gram', 'chana', 'हरभर', 'चना', 'चने'],
+  Tomato: ['tomato', 'टोमॅटो', 'टोमैटो', 'टमाटर'], 'Bengal Gram': ['gram', 'chana', 'harbhara', 'हरभर', 'हरभऱ', 'हरबर', 'चना', 'चने', 'चण'],
   Maize: ['maize', 'corn', 'मका', 'मक्क'], 'Green Chilli': ['chilli', 'mirch', 'मिरच', 'मिर्च'], Turmeric: ['turmeric', 'haldi', 'हळद', 'हळदी', 'हल्दी'],
   Groundnut: ['groundnut', 'peanut', 'भुईमूग', 'भुईमुग', 'मूंगफली'], Pomegranate: ['pomegranate', 'डाळिंब', 'अनार'],
   Grapes: ['grape', 'द्राक्ष', 'अंगूर'], Sugarcane: ['sugarcane', 'ऊस', 'उस ', 'गन्ना', 'गन्ने'], Potato: ['potato', 'aloo', 'बटाट', 'आलू'],
@@ -47,13 +47,22 @@ const FAQ: [string, string[]][] = [
   ['help_a_counter', ['counter', 'bargain', 'घासाघीस', 'मोलभाव']],
 ];
 
+const MEMO = new Map<string, { crop?: string; mandi?: string; awaitingQty?: boolean }>();
+
 export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatResponse> {
   const l = req.locale;
   const m = ` ${req.message.toLowerCase()} `;
   const p = (mr: string, hi: string, en: string) => (l === 'mr' ? mr : l === 'hi' ? hi : en);
   const rs = (v: number | null | undefined) => formatPaise(v ?? 0, l);
   const screen = { ...req.screen_context } as unknown as Record<string, string | null>;
-  const crop = findCrop(m), mandi = findMandi(m), qty = findQty(m);
+  // Short memory per conversation: a follow-up like "20 quintal" or "and at
+  // Pimpalgaon?" keeps the crop/mandi already named, and finishes a timing
+  // question that was only waiting for the quantity.
+  const prev = MEMO.get(req.session_id) ?? {};
+  const qty = findQty(m);
+  const crop = findCrop(m) ?? prev.crop, mandi = findMandi(m) ?? prev.mandi;
+  const followUpQty = !!qty && !!prev.awaitingQty && !findCrop(m);
+  MEMO.set(req.session_id, { crop, mandi });
   const args: Record<string, unknown> = { ...(crop ? { crop } : {}), ...(mandi ? { mandi } : {}) };
   // Name a crop and the mandi on screen may not trade it, but it is still the farmer's market.
   const run = (name: string, extra: Record<string, unknown> = {}) => runAgentTool(name, { ...args, ...extra }, l, screen);
@@ -74,6 +83,10 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
   const askPrice = p('आजचा भाव काय?', 'आज का भाव क्या है?', 'What is today’s rate?');
   const failed = (r: AgentToolResult) => {
     const code = r.error?.code;
+    // Ask for exactly what the server said is missing (e.g. only the quantity).
+    const missing = ((r.error as { missing?: string[] } | undefined)?.missing ?? []).map(x => x.toLowerCase());
+    if (code === 'NEEDS_INPUT' && missing.length && missing.every(x => x.includes('quantity') || x.includes('qty')))
+      return (MEMO.set(req.session_id, { crop, mandi, awaitingQty: true }), reply('UNKNOWN', p('किती क्विंटल आहे ते सांगा, उदा. "२० क्विंटल".', 'कितने क्विंटल हैं, बताइए, जैसे "20 क्विंटल"।', 'How many quintals do you have? For example, "20 quintal".'), null, [], []));
     if (code === 'NEEDS_INPUT' || code === 'AMBIGUOUS') return reply('UNKNOWN', p('कोणते पीक आणि कोणता बाजार ते सांगा.', 'कौन सी फसल और कौन सी मंडी, बताइए।', 'Tell me which crop and which market.'), null, [], []);
     return reply('UNKNOWN', p('या पिकाची या बाजारातली अलीकडची माहिती माझ्याकडे नाही, त्यामुळे अंदाज सांगत नाही. दुसरा बाजार विचारून पहा.', 'इस फसल का इस मंडी का हाल का डेटा मेरे पास नहीं है, इसलिए अंदाज़ा नहीं बताऊँगा। दूसरी मंडी पूछें।', 'I have no recent data for this crop in this market, so I won’t guess. Try another market.'), null, [], [askPrice]);
   };
@@ -87,6 +100,86 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
     } catch { return null; }
   };
 
+  // A one-tap button to the screen that shows the full list.
+  const goto = (target_screen: string, cta_label: string) =>
+    ({ ok: true, data: {}, ui_action: { target_screen, cta_label } } as unknown as AgentToolResult);
+  // "Show my lots" asks what he has; anything with a quantity or "list/add/new"
+  // is a new lot and goes to the draft below.
+  const isLotQuestion = has(m, ['my lot', 'my produce', 'माझे लॉट', 'माझा माल', 'मेरे लॉट', 'मेरा माल', 'show my', 'how many lot'])
+    && !qty && !has(m, ['list my lot:', 'list a', 'new lot', 'add', 'create', 'नवीन', 'नया', 'विकायच', 'बेचना']);
+
+  // 0a. His offers (buyer bids waiting on him)
+  if (has(m, ['offer', 'bid', 'बोली', 'ऑफर', 'खरेदीदार', 'खरीदार', 'buyer'])) {
+    const offers = await getOffers().catch(() => null);
+    if (!offers) return failed({ ok: false } as AgentToolResult);
+    const waiting = offers.filter(o => o.status === 'OPEN' && o.initiator !== 'FARMER')
+      .sort((a, b) => b.price_paise_per_qtl - a.price_paise_per_qtl);
+    const withBuyer = offers.filter(o => o.status === 'OPEN' && o.initiator === 'FARMER').length;
+    const best = waiting[0];
+    const text = best
+      ? p(`${formatNumber(waiting.length, l)} बोली तुमच्या उत्तराची वाट पाहत आहेत. सर्वात जास्त ${rs(best.price_paise_per_qtl)} प्रति क्विंटल.`,
+          `${formatNumber(waiting.length, l)} बोली आपके जवाब का इंतज़ार कर रही हैं। सबसे ऊँची ${rs(best.price_paise_per_qtl)} प्रति क्विंटल।`,
+          `${waiting.length} ${waiting.length === 1 ? 'offer is' : 'offers are'} waiting for your reply. The best is ${rs(best.price_paise_per_qtl)} per quintal.`)
+      : withBuyer
+        ? p('नवी बोली नाही. तुमचे उत्तर खरेदीदाराकडे आहे.', 'कोई नई बोली नहीं। आपका जवाब खरीदार के पास है।', 'No new offers. Your reply is with the buyer.')
+        : p('सध्या कोणतीही बोली नाही.', 'अभी कोई बोली नहीं है।', 'You have no offers right now.');
+    return reply('MY_OFFERS', text, goto('S37_Talks', p('बोली पहा', 'बोलियाँ देखें', 'See offers')), [], [askPrice]);
+  }
+
+  // 0b. His deals (escrow progress)
+  if (has(m, ['deal', 'payment', 'paid', 'money', 'सौदा', 'सौदे', 'पैसे', 'पैसा', 'भुगतान', 'escrow'])) {
+    const txs = await getTransactions().catch(() => null);
+    if (!txs) return failed({ ok: false } as AgentToolResult);
+    const STAGE: Record<string, [string, string, string]> = {
+      CREATED: ['करार झाला', 'सौदा तय', 'agreed'], ESCROW_HELD: ['पैसे सुरक्षित ठेवले', 'पैसा सुरक्षित रखा', 'money held'],
+      DISPATCHED: ['माल रवाना', 'माल रवाना', 'dispatched'], DELIVERED: ['माल पोहोचला', 'माल पहुँचा', 'delivered'],
+      INSPECTED: ['तपासणी झाली', 'जाँच हुई', 'inspected'], RELEASED: ['पैसे मिळाले', 'भुगतान हो गया', 'paid out'],
+      SETTLED: ['पैसे मिळाले', 'भुगतान हो गया', 'paid out'], DISPUTED: ['तक्रार चालू', 'शिकायत जारी', 'in dispute'],
+    };
+    const stage = (st: string) => { const x = STAGE[st] ?? [st, st, st.toLowerCase()]; return p(x[0], x[1], x[2]); };
+    const live = txs.filter(t => !['RELEASED', 'SETTLED', 'REFUNDED'].includes(t.status));
+    const text = !txs.length
+      ? p('अजून कोणताही सौदा नाही.', 'अभी कोई सौदा नहीं है।', 'You have no deals yet.')
+      : live.length
+        ? p(`${formatNumber(live.length, l)} सौदे चालू: `, `${formatNumber(live.length, l)} सौदे चालू: `, `${live.length} ${live.length === 1 ? 'deal' : 'deals'} in progress: `)
+          + live.map(t => `${formatNumber(Math.round(t.qty_kg / 100), l)} ${p('क्विंटल', 'क्विंटल', 'qtl')} @ ${rs(t.price_paise_per_qtl)} — ${stage(t.status)}`).join('; ') + '.'
+        : p('सर्व सौदे पूर्ण झाले, पैसे मिळाले.', 'सभी सौदे पूरे, भुगतान हो गया।', 'All your deals are complete and paid.');
+    return reply('MY_DEALS', text, goto('S31_DealsList', p('सौदे पहा', 'सौदे देखें', 'See deals')), [], [askPrice]);
+  }
+
+  // 0c. His lots (a question about what he has, not "list a new lot")
+  if (isLotQuestion) {
+    const lots = await getLots().catch(() => null);
+    if (!lots) return failed({ ok: false } as AgentToolResult);
+    const kg = lots.reduce((a, x) => a + x.qty_kg, 0);
+    const names = [...new Set(lots.map(x => refLabel(x.commodity_id, l as Locale)))].join(', ');
+    const text = lots.length
+      ? p(`तुमचे ${formatNumber(lots.length, l)} लॉट, एकूण ${formatNumber(Math.round(kg / 100), l)} क्विंटल: ${names}.`,
+          `आपके ${formatNumber(lots.length, l)} लॉट, कुल ${formatNumber(Math.round(kg / 100), l)} क्विंटल: ${names}।`,
+          `You have ${lots.length} ${lots.length === 1 ? 'lot' : 'lots'}, ${Math.round(kg / 100)} quintals in all: ${names}.`)
+      : p('अजून एकही लॉट नाही.', 'अभी कोई लॉट नहीं है।', 'You have no lots yet.');
+    return reply('MY_LOTS', text, goto('S15_MyLots', p('माझा माल पहा', 'मेरा माल देखें', 'See my produce')), [], [askPrice]);
+  }
+
+  // 0d. Best nearby mandi (net of transport), from /market/overview's ranking
+  if (has(m, ['nearby', 'best mandi', 'best market', 'which mandi', 'which market', 'कोणत्या बाजार', 'जवळच', 'कौन सी मंडी', 'पास की मंडी', 'सबसे अच्छी मंडी'])) {
+    const c = crop ?? STATIC_CROPS[0]!.name;
+    try {
+      const o = await getMarketOverview(c, mandi ?? screen.active_market_id ?? 'Lasalgaon APMC');
+      const rows = o.nearby.rows.slice(0, 3);
+      if (!rows.length) return failed({ ok: false } as AgentToolResult);
+      const name = (r: (typeof rows)[number]) => (l === 'en' ? String((r as { name?: string }).name ?? r.name_mr).replace(' APMC', '') : r.name_mr);
+      const top = rows[0]!;
+      const cl = cropLabel(o.commodity.name, o.commodity.name_mr);
+      const list = rows.map(r => `${name(r)} ${rs(r.net_paise_per_qtl)}`).join(', ');
+      return reply('NEARBY_MANDIS',
+        p(`${cl}: वाहतूक वजा करून सर्वात चांगला भाव ${name(top)} — ${rs(top.net_paise_per_qtl)} प्रति क्विंटल. (${list})`,
+          `${cl}: ढुलाई घटाकर सबसे अच्छा भाव ${name(top)} — ${rs(top.net_paise_per_qtl)} प्रति क्विंटल। (${list})`,
+          `${cl}: after transport, ${name(top)} pays most — ${rs(top.net_paise_per_qtl)} per quintal. (${list})`),
+        goto('PricesIndex', p('सर्व बाजार पहा', 'सभी मंडियाँ देखें', 'See all markets')), [], [askWhen]);
+    } catch { return failed({ ok: false } as AgentToolResult); }
+  }
+
   // 1. Creating a lot
   if (has(m, ['lot', 'लॉट', 'नोंद', 'list my', 'विकायच', 'बेचना है'])) {
     const r = await run('draft_lot', qty ?? {});
@@ -97,7 +190,7 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
   }
 
   // 2. When to sell (before price: "भाव कधी वाढेल" is a timing question)
-  if (has(m, ['when', 'wait', 'hold', 'sell', 'कधी', 'थांब', 'कब', 'रुक', 'विकू', 'बेचूँ', 'बेचू', 'सल्ला', 'सलाह'])) {
+  if (followUpQty || has(m, ['when', 'wait', 'hold', 'sell', 'कधी', 'थांब', 'कब', 'रुक', 'विकू', 'बेचूँ', 'बेचू', 'सल्ला', 'सलाह'])) {
     if (!has(m, ['सल्ला का', 'सलाह क्यों'])) {
       let r = await run('get_sale_window', qty ?? {});
       if (!r.ok && crop) r = (await elsewhere('get_sale_window', qty ?? {})) ?? r;

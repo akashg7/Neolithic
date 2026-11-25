@@ -76,7 +76,17 @@ const queryClient = new QueryClient({
 //      `SafeAreaProvider`, concretely). Hydrating at module scope keeps
 //      `App` itself a plain, synchronous, always-fully-mounts component,
 //      matching what that test already assumes.
-hydrateQueryClient(queryClient).then(() => persistQueryClient(queryClient));
+// Data a counterparty can change (a buyer bids, deposits, dispatches) is
+// re-checked while the screen is open, instead of trusting a 5-minute cache.
+for (const key of [['offers'], ['transactions'], ['lots'], ['verdict'], ['overview']]) {
+  queryClient.setQueryDefaults(key, { staleTime: 15_000, refetchInterval: 30_000 });
+}
+hydrateQueryClient(queryClient).then(() => {
+  // What came off disk is shown at once (offline-first) but is marked stale,
+  // so every screen also asks the server and shows today's numbers.
+  void queryClient.invalidateQueries();
+  persistQueryClient(queryClient);
+});
 
 // Without this, `lib/voice.ts`'s clips are silent when the phone is on
 // vibrate — which is how a demo phone is always configured. Set once, at

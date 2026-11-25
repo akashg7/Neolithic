@@ -11,6 +11,7 @@ const TABS: [string, IconName, string][] = [
   ['Home', 'home', 'tab_home'], ['Prices', 'chart-bar', 'tab_market'], ['MyLots', 'box', 'tab_my_produce'],
   ['Talks', 'message-circle', 'tab_chat'], ['Deals', 'handshake', 'tab_deals'],
 ];
+const ROOT: Record<string, string> = { Home: 'S4_Home', Prices: 'PricesIndex', MyLots: 'S15_MyLots', Talks: 'S37_Talks', Deals: 'S31_DealsList' };
 const LANGS: [Locale, string][] = [['mr', 'मराठी'], ['hi', 'हिन्दी'], ['en', 'English']];
 
 function activeTab(): string {
@@ -52,7 +53,7 @@ export function WebNavbar() {
         <button className="km-brand" onClick={() => go('FarmerTabs', { screen: 'Home' })}><Logo size={38} /><span>{t('app_name')}</span></button>
         <nav className="km-tabs">
           {TABS.map(([name, icon, key]) => (
-            <button key={name} aria-current={tab === name ? 'page' : undefined} onClick={() => go('FarmerTabs', { screen: name })}>
+            <button key={name} aria-current={tab === name ? 'page' : undefined} onClick={() => go('FarmerTabs', { screen: name, params: { screen: ROOT[name], pop: true } })}>
               <Ic name={icon} size={22} />{t(key)}
             </button>
           ))}

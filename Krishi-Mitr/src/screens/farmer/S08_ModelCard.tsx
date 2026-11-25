@@ -54,6 +54,7 @@ import { devNum, translate } from '../../lib/i18n';
 import { formatBps, formatNumber } from '../../lib/money';
 import { USE_FIXTURES } from '../../config';
 import { useFocusRefs } from '../../lib/liveMarket';
+import { useT } from '../../lib/i18n';
 import { useStaticMarket } from '../../lib/staticMarketStore';
 import { fxModelCard } from '../../fixtures/modelCard';
 import { StaleBanner } from '../../components/farmer/StaleBanner';
@@ -123,12 +124,8 @@ function Row({ label, value, testID }: { label: string; value: string; testID?: 
 export default function S08_ModelCard() {
   const { commodity_id: focusCommodity } = useFocusRefs();
   const { selectedCrop } = useStaticMarket();
-  const [locale, setLocale] = useState<Locale>('mr');
-  useFocusEffect(
-    useCallback(() => {
-      getLocale().then(l => l && setLocale(l));
-    }, []),
-  );
+  // The app's current language (the navbar switch), like every other screen.
+  const { locale } = useT();
 
   const { data, dataUpdatedAt, isLoading, error, refetch } = useQuery({
     queryKey: ['ai', 'model-card', focusCommodity],

@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 
 import './css';
 import { Icon, IconName } from '../components/ui/Icon';
-import { getMarketOverview, loadRefNames, MarketOverview, refLabel } from '../lib/api';
+import { getAllMarkets, getCommodities, getDistricts, getMarketOverview, loadRefNames, MarketOverview, refLabel } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import type { District, Market } from '../types/api';
 import { districtRef, mandiRef } from '../lib/liveMarket';
 import { formatNumber, formatPaise } from '../lib/money';
 import { STATIC_CROPS, STATIC_DISTRICTS, STATIC_MANDIS, StaticCrop } from '../lib/staticMarketData';
@@ -63,7 +65,13 @@ export function Ic({ name, size = 20, color = 'currentColor' }: { name: IconName
 
 /** The picked crop + market, with the live overview from the API. */
 export function useMarket() {
+  useFollowUserDistrict();
   const m = useStaticMarket();
+  // A remembered crop the server can't price (e.g. Sugarcane) falls back to one it can.
+  const known = useKnownCrops();
+  React.useEffect(() => {
+    if (known.length && !known.some(c => c.id === m.selectedCrop.id)) m.setSelectedCrop(known[0]!);
+  }, [known, m]);
   const crop = m.selectedCrop;
   const q = useQuery<MarketOverview>({
     queryKey: ['overview', crop.name, m.selectedMandi, m.selectedDistrict],
@@ -85,13 +93,74 @@ export function useRefNames(): boolean {
     }, staleTime: Infinity }).data;
 }
 
+/** Server reference data (cached for the session). Lists the app offers come from here,
+ *  so a farmer can only pick a crop, district or mandi the backend can price. */
+export function useRefData() {
+  const opts = { staleTime: Infinity, retry: 2 } as const;
+  const commodities = useQuery({ queryKey: ['ref', 'commodities'], queryFn: getCommodities, ...opts }).data;
+  const districts = useQuery({ queryKey: ['ref', 'districts'], queryFn: getDistricts, ...opts }).data;
+  const markets = useQuery({ queryKey: ['ref', 'markets', 'all'], queryFn: getAllMarkets, ...opts }).data;
+  return { commodities, districts, markets };
+}
+
+/** The app's crop tiles (photos, three-language names) limited to crops the server knows. */
+export function useKnownCrops(): StaticCrop[] {
+  const { commodities } = useRefData();
+  if (!commodities) return STATIC_CROPS;
+  const known = new Set(commodities.map(c => c.name.toLowerCase()));
+  return STATIC_CROPS.filter(c => known.has(c.name.toLowerCase()));
+}
+
+const norm = (x: string) => x.toLowerCase().replace(/\s*(apmc|market committee|मुख्य बाजार समिती|बाजार समिती|मुख्य मंडी|मंडी)\s*/g, ' ').trim().split(/\s+/)[0] ?? '';
+
+/** Find the server row a stored selection (English or Marathi, static or API spelling) refers to. */
+export function matchDistrict(list: District[] | undefined, sel: string): District | undefined {
+  if (!list) return undefined;
+  const ref = districtRef(sel) ?? sel;
+  return list.find(d => d.id === sel || d.name === ref || d.name_mr === sel || d.name === sel);
+}
+export function matchMarket(list: Market[] | undefined, sel: string): Market | undefined {
+  if (!list) return undefined;
+  const ref = mandiRef(sel);
+  return list.find(m => m.id === sel || m.name === ref || m.name === sel || m.name_mr === sel)
+    ?? list.find(m => norm(m.name) === norm(ref) || norm(m.name_mr) === norm(sel));
+}
+/** The mandi to show for a district: the app's usual one if the server has it, else its first. */
+export function defaultMarketFor(markets: Market[] | undefined, district: District): Market | undefined {
+  const inD = (markets ?? []).filter(m => m.district_id === district.id);
+  const usual = STATIC_DISTRICTS.find(x => x.name === district.name);
+  return (usual && matchMarket(inD, usual.defaultMandiEn)) ?? inD[0];
+}
+
+/**
+ * Once per sign-in, start Home/Market on the farmer's own district (from his
+ * profile) instead of the app default. Later picks are his and are left alone.
+ */
+let followedFor: string | null = null;
+export function useFollowUserDistrict() {
+  const { user } = useAuth();
+  const { districts, markets } = useRefData();
+  const m = useStaticMarket();
+  React.useEffect(() => {
+    const key = user ? `${user.id}:${user.district_id}` : null;
+    if (!key || followedFor === key || !districts || !markets || !user?.district_id) return;
+    followedFor = key;
+    const d = districts.find(x => x.id === user.district_id);
+    if (!d || matchDistrict(districts, m.selectedDistrict)?.id === d.id) return;
+    const mk = defaultMarketFor(markets, d);
+    m.setSelectedDistrict(d.name);
+    if (mk) m.setSelectedMandi(mk.name);
+  }, [user, districts, markets, m]);
+}
+
 export function CropStrip() {
   const { locale, s } = useSay();
   const { selectedCrop, setSelectedCrop } = useStaticMarket();
+  const crops = useKnownCrops();
   return (
     <nav className="km-strip km-wrap" aria-label={s('पीक निवडा', 'फसल चुनें', 'Choose a crop')}>
       <ul>
-        {STATIC_CROPS.map(c => (
+        {crops.map(c => (
           <li key={c.id}>
             <button className="km-tile" aria-pressed={c.id === selectedCrop.id} onClick={() => setSelectedCrop(c)}>
               <img src={tileSrc(c.name)} alt="" loading="lazy" />
@@ -104,28 +173,38 @@ export function CropStrip() {
   );
 }
 
+/** District + mandi pickers over the server's reference data (19 districts, every mandi). */
 export function PlacePickers({ light }: { light?: boolean }) {
   const { locale, s } = useSay();
   const { selectedDistrict, selectedMandi, setSelectedDistrict, setSelectedMandi } = useStaticMarket();
-  const d = STATIC_DISTRICTS.find(x => [x.name, x.name_mr, x.name_hi].includes(selectedDistrict)) ?? STATIC_DISTRICTS[0]!;
-  const inDistrict = STATIC_MANDIS.filter(x => x.district_id === d.id);
-  const m = STATIC_MANDIS.find(x => [x.name, x.name_mr, x.name_hi].includes(selectedMandi));
-  const options = m && !inDistrict.includes(m) ? [m, ...inDistrict] : inDistrict;
+  const { districts, markets } = useRefData();
+  const label = (x: { name: string; name_mr: string }) => (locale === 'en' ? x.name : x.name_mr || x.name);
   const cls = `km-pick${light ? ' light' : ''}`;
+  if (!districts || !markets) return null;
+  const d = matchDistrict(districts, selectedDistrict) ?? districts.find(x => x.name === 'Nashik') ?? districts[0]!;
+  const inDistrict = markets.filter(x => x.district_id === d.id).sort((a, b) => a.name.localeCompare(b.name));
+  const m = matchMarket(markets, selectedMandi);
+  const options = m && !inDistrict.some(x => x.id === m.id) ? [m, ...inDistrict] : inDistrict;
   return (
     <>
       <span className={cls}>
         <select aria-label={s('जिल्हा', 'जिला', 'District')} value={d.id}
-          onChange={e => { const x = STATIC_DISTRICTS.find(y => y.id === e.target.value); if (x) setSelectedDistrict(x.name_mr); }}>
-          {STATIC_DISTRICTS.map(x => <option key={x.id} value={x.id}>{named(locale, x)}</option>)}
+          onChange={e => {
+            const x = districts.find(y => y.id === e.target.value);
+            if (!x) return;
+            setSelectedDistrict(x.name);
+            const mk = defaultMarketFor(markets, x);
+            if (mk) setSelectedMandi(mk.name);
+          }}>
+          {[...districts].sort((a, b) => a.name.localeCompare(b.name)).map(x => <option key={x.id} value={x.id}>{label(x)}</option>)}
         </select>
       </span>
       {options.length > 0 ? (
         <span className={cls}>
           <select aria-label={s('बाजार', 'मंडी', 'Market')} value={m?.id ?? ''}
-            onChange={e => { const x = STATIC_MANDIS.find(y => y.id === e.target.value); if (x) setSelectedMandi(x.name_mr); }}>
+            onChange={e => { const x = markets.find(y => y.id === e.target.value); if (x) setSelectedMandi(x.name); }}>
             {!m ? <option value="">{selectedMandi}</option> : null}
-            {options.map(x => <option key={x.id} value={x.id}>{named(locale, x)}</option>)}
+            {options.map(x => <option key={x.id} value={x.id}>{label(x)}</option>)}
           </select>
         </span>
       ) : null}

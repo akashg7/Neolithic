@@ -7,6 +7,8 @@ app.domain.pledge.quote(), then adapts the result to the frontend contract
 
 from __future__ import annotations
 
+from app.ml.model_card import MODEL_CARD
+
 from datetime import datetime, date
 
 from app.domain.window import decide
@@ -95,7 +97,7 @@ def compute_sale_window(
         "worst_case_paise": result.worst_case_paise,
         "itemised_costs": itemised_costs,
         "hold_days": result.hold_days if result.action in ("HOLD", "SPLIT") else None,
-        "model_card": {"mase": 1.2, "coverage_80_bps": 8500},  # filled from model_meta in Phase 5
+        "model_card": {"mase": MODEL_CARD["mase"], "coverage_80_bps": MODEL_CARD["coverage_80_bps"]},
         "data_source": "AGMARKNET_ML" if price_engine._loaded else "SYNTHETIC",
         "pledge_quote": None,
         "alt_market": None,

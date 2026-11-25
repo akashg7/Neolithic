@@ -173,11 +173,35 @@ async def test_window_service_missing_mandi():
 async def test_window_service_no_price_means_no_data(monkeypatch):
     async def no_obs(*a, **k):
         return None
+    async def nowhere(*a, **k):
+        return {}  # no mandi has a recent price for this crop
     monkeypatch.setattr(price_service, "latest_price", no_obs)
+    monkeypatch.setattr(price_service, "latest_prices_by_market", nowhere)
     monkeypatch.setattr(window_service.price_engine, "predict",
                         lambda *a, **k: {"p50_paise": 220000, "source": "SYNTHETIC"})
     with pytest.raises(window_service.NoPriceDataError):
         await window_service.sale_window(None, commodity_ref="onion", market_ref="lasalgaon", quantity_kg=1000)
+
+
+@pytest.mark.asyncio
+async def test_window_service_uses_nearest_mandi_that_trades_the_crop(monkeypatch):
+    # Tomato isn't traded at Lasalgaon (id 1); Pimpalgaon (id 6, 16 km) and Pune (id 3) are.
+    async def latest(db, commodity_id, market_id, *a, **k):
+        return dict(SNAP) if market_id in (3, 6) else None
+    async def traded(*a, **k):
+        return {3: dict(SNAP), 6: dict(SNAP)}
+    captured = {}
+
+    def compute(**kw):
+        captured.update(kw)
+        return dict(WINDOW_RESULT)
+    monkeypatch.setattr(price_service, "latest_price", latest)
+    monkeypatch.setattr(price_service, "latest_prices_by_market", traded)
+    monkeypatch.setattr(window_service, "compute_sale_window", compute)
+    r = await window_service.sale_window(None, commodity_ref="cmd_tomato", market_ref="mkt_lasalgaon", quantity_kg=1000)
+    assert captured["mandi"] == "Pimpalgaon APMC"
+    assert r["inputs"]["market_substituted"] is True
+    assert r["inputs"]["requested_market"]["name"] == "Lasalgaon APMC"
 
 
 @pytest.mark.asyncio
