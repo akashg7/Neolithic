@@ -28,6 +28,7 @@ import { fxThreadFor, fxMyOffers } from '../fixtures/offers';
 import { fxCommodities, fxMarketsFor } from '../fixtures/reference';
 import { fxMatches } from '../fixtures/matches';
 import { fxLotListed } from '../fixtures/lots';
+import { fxPool } from '../fixtures/pools';
 import { fxTx } from '../fixtures/escrow';
 import { fxModelCard } from '../fixtures/modelCard';
 import {
@@ -633,6 +634,36 @@ export const createLot = async (body: {
   return toLot(await post<any>('/lots', body));
 };
 
+/** Upload a captured photo for an existing lot (`POST /api/v1/lots/{id}/photo`). */
+export const uploadLotPhoto = async (
+  lotId: string,
+  uriOrBlob: unknown,
+): Promise<{ photo_path: string }> => {
+  if (!uriOrBlob) throw new ApiError('NO_PHOTO', 'No photo selected.', 0);
+  if (USE_FIXTURES) {
+    return { photo_path: `/api/v1/lots/${lotId}/photo` };
+  }
+  let form: FormData;
+  if (typeof FormData !== 'undefined' && uriOrBlob instanceof FormData) {
+    form = uriOrBlob;
+  } else {
+    form = new FormData();
+    if (typeof uriOrBlob === 'string' && (uriOrBlob.startsWith('blob:') || uriOrBlob.startsWith('data:'))) {
+      const blob = await (await fetch(uriOrBlob)).blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      form.append('file', blob, `lot_${lotId}.${ext}`);
+    } else if (typeof Blob !== 'undefined' && uriOrBlob instanceof Blob) {
+      form.append('file', uriOrBlob, `lot_${lotId}.jpg`);
+    } else {
+      form.append('file', { uri: String(uriOrBlob), name: `lot_${lotId}.jpg`, type: 'image/jpeg' } as any);
+    }
+  }
+  return request<{ photo_path: string }>('POST', `/lots/${encodeURIComponent(lotId)}/photo`, {
+    form,
+    timeoutMs: 30000,
+  });
+};
+
 /** S22: set the asking price and list the lot to buyers. */
 export const publishLot = async (lotId: string, pricePaisePerQtl: number): Promise<LotDto> => {
   if (USE_FIXTURES) return { ...fxLotListed, id: lotId };
@@ -669,15 +700,10 @@ export const getLotAssay = async (lotId: string): Promise<AssayRecord> => {
   return get<AssayRecord>(`/lots/${lotId}/assay`);
 };
 
-/** No pooling read API on the server yet — the split shown is illustrative. */
+/** Grade-weighted FPO pool split (`GET /api/v1/pools/{id}`). */
 export const getPool = async (id: string): Promise<PoolDto> => {
-  return {
-    fpo: { id: 'fpo_1', name: 'Niphad Kanda Utpadak FPO', name_mr: 'निफाड कांदा उत्पादक FPO' },
-    total_qty_kg: 14500,
-    avg_score: 820,
-    members: [],
-    all_consented: false,
-  } as unknown as PoolDto;
+  if (USE_FIXTURES) return fxPool;
+  return get<PoolDto>(`/pools/${encodeURIComponent(id)}`);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -832,30 +858,36 @@ export const getDataProvenance = async (): Promise<ProvenanceRes> => {
   return get<ProvenanceRes>('/meta/data-provenance');
 };
 
-/** No messaging backend yet — these two stay illustrative in every mode. */
+/** Buyer <-> Farmer thread chat persisted via `/api/v1/chats/{threadId}/messages`. */
 export const getChatMessages = async (threadId: string): Promise<ChatMessage[]> => {
-  return [
-    {
-      id: 'msg_1',
-      sender_id: 'buyer_1',
-      sender_name: 'सुरेश मेहता (व्यापारी)',
-      text: 'नमस्कार, कांद्याचा दर्जा कसा आहे? माल कधी लोड करता येईल?',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      is_me: false,
-    },
-  ];
+  if (USE_FIXTURES) {
+    return [
+      {
+        id: 'msg_1',
+        sender_id: 'buyer_1',
+        sender_name: 'सुरेश मेहता (व्यापारी)',
+        text: 'नमस्कार, कांद्याचा दर्जा कसा आहे? माल कधी लोड करता येईल?',
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        is_me: false,
+      },
+    ];
+  }
+  return get<ChatMessage[]>(`/chats/${encodeURIComponent(threadId)}/messages`);
 };
 
 export const sendChatMessage = async (threadId: string, text: string): Promise<ChatMessage> => {
-  const me = await getCachedUser();
-  return {
-    id: `msg_${Date.now()}`,
-    sender_id: me?.id ?? 'me',
-    sender_name: me?.name ?? '',
-    text,
-    created_at: new Date().toISOString(),
-    is_me: true,
-  };
+  if (USE_FIXTURES) {
+    const me = await getCachedUser();
+    return {
+      id: `msg_${Date.now()}`,
+      sender_id: me?.id ?? 'me',
+      sender_name: me?.name ?? '',
+      text,
+      created_at: new Date().toISOString(),
+      is_me: true,
+    };
+  }
+  return post<ChatMessage>(`/chats/${encodeURIComponent(threadId)}/messages`, { text });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

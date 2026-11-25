@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListenButton } from '../../components/ui/ListenButton';
-import { acceptOffer, counterOffer, getLots, getMarketOverview, getOfferThread, rejectOffer } from '../../lib/api';
+import { acceptOffer, counterOffer, getChatMessages, getLots, getMarketOverview, getOfferThread, rejectOffer, sendChatMessage } from '../../lib/api';
 import { noteText } from '../../lib/offerNote';
 import { formatQuintal, quintalValuePaise } from '../../lib/money';
 import { cropLabel, Empty, heroSrc, marketLabel, Skel, useRefNames, useSay } from '../../web/kit';
@@ -18,6 +18,16 @@ export default function S27_Bargaining({ route, navigation }: { route: any; navi
   const { data: lots, isLoading: lotsLoading } = useQuery({ queryKey: ['lots'], queryFn: getLots });
   const thread = th.data ?? [];
   const latest = thread[thread.length - 1];
+  const chatThreadId = thread[0]?.id ?? id;
+  const chatQ = useQuery({ queryKey: ['chats', chatThreadId], queryFn: () => getChatMessages(chatThreadId!), enabled: !!chatThreadId });
+  const [chatInput, setChatInput] = useState('');
+  const chatSend = useMutation({
+    mutationFn: (txt: string) => sendChatMessage(chatThreadId!, txt),
+    onSuccess: () => {
+      setChatInput('');
+      void qc.invalidateQueries({ queryKey: ['chats', chatThreadId] });
+    },
+  });
   const lot = lots?.find(l => latest?.lots.some(x => String(x.lot_id) === l.id));
   const { data: o } = useQuery({ queryKey: ['overview', lot?.commodity_id, lot?.market_id], queryFn: () => getMarketOverview(lot!.commodity_id, lot!.market_id), enabled: !!lot });
   const [mode, setMode] = useState<null | 'counter' | 'accept' | 'reject'>(null);
@@ -51,6 +61,22 @@ export default function S27_Bargaining({ route, navigation }: { route: any; navi
         <div><div className="km-head" style={{ marginBottom: 18 }}><h2 className="km-h2" style={{ fontSize: 24 }}>{t('bg_audit_title')}</h2><ListenButton text={t('bg_narr_offer', { rate: rs(latest.price_paise_per_qtl), total: rs(total), qty: formatQuintal(latest.qty_kg, locale) })} /></div>
           <div style={{ display: 'grid', gap: 14 }}>{thread.map(r => { const note = noteText(r.note, t); return (
             <div key={r.id} className={`km-round${r.initiator === 'FARMER' ? ' me' : ''}`}><div><b>{r.initiator === 'FARMER' ? t('chat_from_you') : t('chat_from_buyer')}</b><p className="km-note">{t('bg_round_n', { round: n(r.round) })}, {day(r.created_at)}</p></div><div style={{ textAlign: 'right' }}><strong>{rs(r.price_paise_per_qtl)}</strong><p className="km-note">{rs(quintalValuePaise(r.price_paise_per_qtl, r.qty_kg))}</p></div>{note ? <p className="km-quote" style={{ gridColumn: '1/-1' }}>{note}</p> : null}</div>); })}</div>
+          <div className="km-sheet" style={{ marginTop: 24 }}>
+            <h3 className="km-h2" style={{ fontSize: 20, marginBottom: 12 }}>{s('खरेदीदाराशी थेट संदेश', 'खरीदार से सीधे संदेश', 'Direct messages with buyer')}</h3>
+            <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+              {(chatQ.data ?? []).length === 0 ? (
+                <p className="km-note">{s('अजून कोणताही संदेश नाही.', 'अभी कोई संदेश नहीं है।', 'No messages yet.')}</p>
+              ) : (chatQ.data ?? []).map(m => (
+                <div key={m.id} className={`km-round${m.is_me ? ' me' : ''}`} style={{ padding: '10px 14px' }}>
+                  <div><b>{m.is_me ? t('chat_from_you') : m.sender_name}</b><p>{m.text}</p></div>
+                </div>
+              ))}
+            </div>
+            <form className="km-row" style={{ gap: 10 }} onSubmit={e => { e.preventDefault(); if (chatInput.trim() && !chatSend.isPending) chatSend.mutate(chatInput.trim()); }}>
+              <input className="km-in" style={{ flex: 1 }} value={chatInput} placeholder={s('संदेश लिहा…', 'संदेश लिखें…', 'Write a message…')} onChange={e => setChatInput(e.target.value)} />
+              <button className="km-btn" type="submit" disabled={chatSend.isPending || !chatInput.trim()}>{t('chat_send')}</button>
+            </form>
+          </div>
         </div>
         <aside className="km-sheet km-stick">
           <h3 className="km-h2" style={{ fontSize: 22 }}>{t('bg_matrix_title')}</h3>

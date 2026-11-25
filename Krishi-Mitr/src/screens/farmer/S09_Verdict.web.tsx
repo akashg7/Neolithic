@@ -4,12 +4,12 @@ import { ListenButton } from '../../components/ui/ListenButton';
 import { WebFooter } from '../../components/web/WebFooter';
 import { cropName, Empty, heroSrc, Ic, Skel, useSay, verdictOf } from '../../web/kit';
 import { PriceChart } from '../../web/PriceChart';
-import { setVerdictQty, useVerdict } from '../../web/useVerdict';
+import { setVerdictQty, useVerdict, type VerdictRouteParams } from '../../web/useVerdict';
 
-export default function S09_Verdict({ navigation }: { navigation: any }) {
+export default function S09_Verdict({ route, navigation }: { route?: { params?: VerdictRouteParams }; navigation: any }) {
   const say = useSay();
   const { t, s, n, rs, locale } = say;
-  const { crop, o, v, kg, vLoading, vRefetch } = useVerdict();
+  const { crop, o, v, kg, vLoading, vRefetch } = useVerdict(route?.params);
   const back = () => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('S4_Home'));
   const d = v ? verdictOf(v.action, v.hold_days, say) : null;
   const place = o ? (locale === 'en' ? o.market.name.replace(' APMC', '') : o.market.name_mr) : '';

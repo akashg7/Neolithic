@@ -3,6 +3,8 @@ import mr from '../i18n/mr.json';
 import en from '../i18n/en.json';
 import hi from '../i18n/hi.json';
 import { getLocale as getPersistedLocale, setLocale as persistLocale } from './locale';
+import { getCachedUser, getToken, setCachedUser, updateLocale } from './api';
+import { USE_FIXTURES } from '../config';
 import type { Locale } from '../types/api';
 
 const DICTS: Record<Locale, Record<string, string>> = { mr, hi, en };
@@ -111,6 +113,18 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       // right value for this session; a failed AsyncStorage write means the
       // next cold start re-asks, not that this session is wrong.
     });
+    if (!USE_FIXTURES) {
+      void getToken()
+        .then(async tok => {
+          if (!tok || tok.startsWith('fixture-')) return;
+          await updateLocale(l);
+          const cached = await getCachedUser();
+          if (cached) await setCachedUser({ ...cached, locale: l });
+        })
+        .catch(() => {
+          /* best-effort sync when logged in */
+        });
+    }
   }, []);
 
   const t = useCallback<TFn>(
