@@ -47,6 +47,9 @@ fi
 
 PORT="$(grep -E '^HTTP_PORT=' .env | cut -d= -f2 | sed 's/#.*//; s/[[:space:]]//g' || true)"
 PORT="${PORT:-80}"
+envval() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed 's/#.*//; s/[[:space:]]//g'; }
+DOMAIN="$(envval DOMAIN || true)"
+CERT_EMAIL="$(envval CERT_EMAIL || true)"
 
 echo "=== 1/4 Building and starting containers ==="
 docker compose up -d --build --remove-orphans
@@ -79,17 +82,50 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
+# ── HTTPS (browsers only allow the microphone on https://) ─────────────────
+# With DOMAIN set (a real domain, or <ip-with-dashes>.sslip.io), get a free
+# Let's Encrypt certificate once; nginx then serves HTTPS and redirects HTTP.
+# Needs ports 80 and 443 open to the internet. The certbot service renews it.
+if [[ -n "$DOMAIN" ]]; then
+  if ! docker compose run --rm --no-deps --entrypoint sh certbot -c "test -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+    echo "=== Getting an HTTPS certificate for $DOMAIN ==="
+    if [[ -n "$CERT_EMAIL" ]]; then EMAIL_ARG=(--email "$CERT_EMAIL"); else EMAIL_ARG=(--register-unsafely-without-email); fi
+    if docker compose run --rm --no-deps --entrypoint certbot certbot certonly --webroot -w /var/www/certbot \
+         -d "$DOMAIN" --agree-tos --non-interactive "${EMAIL_ARG[@]}"; then
+      docker compose restart nginx
+      sleep 3
+    else
+      echo "WARNING: certificate request failed; the site stays on plain HTTP (voice input will not work)." >&2
+      echo "         Check that ports 80 and 443 are open and $DOMAIN resolves to this server." >&2
+    fi
+  fi
+fi
+HTTPS=0
+if [[ -n "$DOMAIN" ]] && docker compose run --rm --no-deps --entrypoint sh certbot -c "test -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+  HTTPS=1
+fi
+
 echo "=== 4/4 Smoke test ==="
-B="http://localhost:$PORT/api/v1"
-curl -fsS "$B/meta/health" >/dev/null
-curl -fsS "$B/ref/commodities" | grep -q cmd_onion
-curl -fsS "$B/market/overview?commodity_id=cmd_onion&market_id=mkt_lasalgaon" | grep -q '"latest"'
-curl -fsS "http://localhost:$PORT/" | grep -qi '<html'
+if [[ $HTTPS -eq 1 ]]; then
+  ROOT="https://$DOMAIN"; C=(--resolve "$DOMAIN:443:127.0.0.1")
+else
+  ROOT="http://localhost:$PORT"; C=()
+fi
+B="$ROOT/api/v1"
+curl -fsS "${C[@]}" "$B/meta/health" >/dev/null
+curl -fsS "${C[@]}" "$B/ref/commodities" | grep -q cmd_onion
+curl -fsS "${C[@]}" "$B/market/overview?commodity_id=cmd_onion&market_id=mkt_lasalgaon" | grep -q '"latest"'
+curl -fsS "${C[@]}" "$ROOT/" | grep -qi '<html'
 docker compose ps --status running --services | grep -qx celery_worker \
   || { echo "ERROR: celery worker not running" >&2; docker compose logs --tail 30 celery_worker >&2; exit 1; }
 
 echo
 echo "Deploy complete:"
-echo "  web   http://<server>:$PORT/"
-echo "  api   http://<server>:$PORT/api/v1   (docs at /docs)"
+if [[ $HTTPS -eq 1 ]]; then
+  echo "  web   https://$DOMAIN/          (http:// redirects here; voice input works)"
+  echo "  api   https://$DOMAIN/api/v1    (docs at /docs)"
+else
+  echo "  web   http://<server>:$PORT/    (plain HTTP: set DOMAIN in .env for HTTPS + voice input)"
+  echo "  api   http://<server>:$PORT/api/v1   (docs at /docs)"
+fi
 docker compose ps

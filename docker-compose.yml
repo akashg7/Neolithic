@@ -100,8 +100,16 @@ services:
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      # e.g. 3-227-26-8.sslip.io — HTTPS is served once a certificate exists.
+      DOMAIN: ${DOMAIN:-}
     volumes:
-      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx:/etc/nginx/km:ro
+      - ./deploy/nginx/40-krishimitr.sh:/docker-entrypoint.d/40-krishimitr.sh:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
     depends_on:
       api:
         condition: service_healthy
@@ -111,7 +119,20 @@ services:
       timeout: 3s
       retries: 6
 
+  # Renews the Let's Encrypt certificate twice a day (the first one is
+  # issued by deploy/deploy.sh when DOMAIN is set).
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/renew.sh"]
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+      - ./deploy/certbot-renew.sh:/opt/renew.sh:ro
+
 volumes:
+  letsencrypt:
+  certbot-www:
   pgdata:
   redisdata:
   miniodata:
