@@ -14,7 +14,7 @@ export default function S15_MyLots({ navigation }: { navigation: any }) {
   const { data: lots, isLoading, error, refetch } = useQuery({ queryKey: ['lots'], queryFn: getLots });
   const add = () => navigation.navigate('S17_CameraGuide');
   const kg = (lots ?? []).reduce((a, l) => a + l.qty_kg, 0);
-  const total = s(`${n(lots?.length ?? 0)} लॉट, एकूण ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} गोण्या)`, `${n(lots?.length ?? 0)} लॉट, कुल ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} बोरी)`, `${n(lots?.length ?? 0)} lots, ${formatQuintal(kg, locale)} quintals in all (${n(Math.floor(kg / 50))} bags)`);
+  const total = s(`${n(lots?.length ?? 0)} लॉट, एकूण ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} गोण्या)`, `${n(lots?.length ?? 0)} लॉट, कुल ${formatQuintal(kg, locale)} क्विंटल (${n(Math.floor(kg / 50))} बोरी)`, `${n(lots?.length ?? 0)} ${(lots?.length ?? 0) === 1 ? 'lot' : 'lots'}, ${formatQuintal(kg, locale)} quintals in all (${n(Math.floor(kg / 50))} bags)`);
 
   return (
     <div className="km km-page">

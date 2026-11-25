@@ -130,7 +130,8 @@ export default function S27_Bargaining({ navigation, route }: Props) {
     onSuccess: tx => {
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       if (tx) navigation.navigate('S30_DealDone', { tx });
-      else navigation.goBack();
+      else if (navigation.canGoBack()) navigation.goBack();
+      else (navigation as any).navigate('Talks', { screen: 'S37_Talks' });
     },
   });
 

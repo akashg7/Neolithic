@@ -11,6 +11,10 @@ export type AgentIntent =
   | 'CREATE_LOT'
   | 'REGISTER'
   | 'KNOWLEDGE'
+  | 'MY_OFFERS'
+  | 'MY_DEALS'
+  | 'MY_LOTS'
+  | 'NEARBY_MANDIS'
   | 'UNKNOWN';
 
 export interface ScreenContext {

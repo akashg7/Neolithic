@@ -211,7 +211,8 @@ export type MyLotsStackParamList = {
    * live there and hands the new lot straight to the assay. */
   S17_CameraGuide: undefined;
   S18_PhotoReview: { photoUri: string };
-  S19_Quantity: { photoUri: string | null } | undefined;
+  /** commodity/market accept a slug or a name; prefilled by the assistant's lot draft. */
+  S19_Quantity: { photoUri?: string | null; commodity?: string; market?: string; qty_kg?: number } | undefined;
   S20_QualityDiagnostic: { lot_id?: string } | undefined;
   /**
    * S21 is a pure reveal: it renders what S20's own submission returned and

@@ -174,7 +174,9 @@ export default function S28_CounterOffer({ navigation, route }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offers'] });
-      navigation.goBack();
+      // Back to the bargaining screen; opened from a link, there is none → the talks list.
+      if (navigation.canGoBack()) navigation.goBack();
+      else (navigation as any).navigate('Talks', { screen: 'S37_Talks' });
     },
   });
 

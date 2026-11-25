@@ -156,6 +156,7 @@ class OfferService:
     async def accept_offer(self, user: User, offer_id: int) -> Any:
         offer = await self._party_offer(user, offer_id)
         self._require_open_and_not_own(user, offer, "accepted")
+        await self._commit_lots(offer)
 
         offer.status = "ACCEPTED"
         await self.offer_repo.update(offer)
@@ -165,6 +166,41 @@ class OfferService:
             return txn
 
         return _offer_to_dict(offer)
+
+    async def _commit_lots(self, offer: Offer) -> None:
+        """Accepting sells the produce: no lot may be sold twice.
+
+        Refuses (409) if any lot in the offer is no longer active, locks each
+        lot this deal takes in full, and withdraws every other open offer or
+        counter that still points at those lots — otherwise a second buyer
+        could accept the same 40 quintals.
+        """
+        from sqlalchemy import select, update
+        from app.models.lot import Lot
+
+        session = getattr(self.offer_repo, "session", None)
+        lots = {ol.lot_id: ol.quantity_allocated_kg for ol in (offer.lots or [])}
+        if session is None or not lots:
+            return  # in-memory repositories (unit tests) hold no lots
+        rows = (await session.execute(select(Lot).where(Lot.id.in_(lots)))).scalars().all()
+        for lot in rows:
+            if (lot.status or "active").lower() != "active":
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="This produce is already committed to another deal")
+        taken = [lot.id for lot in rows if lots[lot.id] >= (lot.quantity_qtl or 0) * 100]
+        for lot in rows:
+            if lot.id in taken:
+                lot.status = "locked"
+        if not taken:
+            return  # part of a lot: what is left stays on offer
+        # Any other live offer touching a lot that is now fully sold is void.
+        other = select(OfferLot.offer_id).where(OfferLot.lot_id.in_(taken), OfferLot.offer_id != offer.id)
+        await session.execute(
+            update(Offer)
+            .where(Offer.id.in_(other), Offer.status == "OPEN")
+            .values(status="WITHDRAWN")
+            .execution_options(synchronize_session=False)
+        )
 
     async def reject_offer(self, user: User, offer_id: int) -> dict:
         offer = await self._party_offer(user, offer_id)

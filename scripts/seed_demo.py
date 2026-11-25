@@ -188,7 +188,9 @@ def load_prices(csv_path: Path, commodity_ids: dict[str, int], market_ids: dict[
             "date": datetime(shifted.year, shifted.month, shifted.day, tzinfo=timezone.utc),
             "min_price_paise": int(round(min(a["min"]) * 100)),
             "max_price_paise": int(round(max(a["max"]) * 100)),
-            "modal_price_paise": int(round(modal * 100)),
+            # Agmarknet quotes whole rupees; averaging several rows for one
+            # day must not invent paise (₹4,600.33 → ₹4,600).
+            "modal_price_paise": int(round(modal)) * 100,
             "arrivals_qtl": int(round(a["arr"])),
             "observation_type": "ARCHIVE",
         })
@@ -239,7 +241,8 @@ async def seed(csv_path: Path) -> None:
             cid, mid = commodities[commodity].id, markets[market].id
             best = max((r for r in rows if r["commodity_id"] == cid and r["market_id"] == mid),
                        key=lambda r: r["date"], default=None)
-            return best["modal_price_paise"] if best else 200000
+            # Asking prices and bids are quoted in whole ₹5 steps, never paise.
+            return (round(best["modal_price_paise"] / 500) * 500) if best else 200000
 
         # ── people ─────────────────────────────────────────────────────────
         fpo = FPO(name="Niphad Kanda Utpadak FPO", region="Nashik")

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.ml.model_card import MODEL_CARD
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -93,17 +94,7 @@ async def get_price_forecasts(
         for item in raw_list
     ]
 
-    model_card = ModelCard(
-        mase=0.5718,
-        coverage_80_bps=6960,
-        algo="lightgbm_quantile",
-        trained_at="2026-09-06T19:09:00+05:30",
-        train_rows=267756,
-        train_from="2024-01-23",
-        train_to="2026-07-31",
-        horizon_days=horizon,
-        baseline="seasonal_naive",
-    )
+    model_card = ModelCard(**MODEL_CARD, horizon_days=horizon)
 
     return ForecastRes(
         as_of_date=datetime.now().strftime("%Y-%m-%d"),
@@ -118,17 +109,7 @@ async def get_model_card(
     commodity: str | None = None,
 ):
     """Full Model Card metrics for S08."""
-    return ModelCard(
-        mase=0.5718,
-        coverage_80_bps=6960,
-        algo="lightgbm_quantile",
-        trained_at="2026-09-06T19:09:00+05:30",
-        train_rows=267756,
-        train_from="2024-01-23",
-        train_to="2026-07-31",
-        horizon_days=14,
-        baseline="seasonal_naive",
-    )
+    return ModelCard(**MODEL_CARD, horizon_days=14)
 
 @router.post("/window/recommend", response_model=WindowRes)
 async def get_sale_window(
