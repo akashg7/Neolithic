@@ -65,7 +65,7 @@ async def draft_lot(ctx: ToolContext, args: DraftArgs) -> ToolResult:
         missing.append("expected_price_rupees_per_qtl")
 
     suggested = None
-    if commodity is not None and market is not None:
+    if commodity is not None and market is not None and ctx.db is not None:
         snap = await price_service.latest_price(ctx.db, commodity.id, market.id)
         if snap is not None:
             suggested = {"paise_per_qtl": snap["modal_paise_per_qtl"],

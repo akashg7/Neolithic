@@ -79,86 +79,78 @@ def agent_tool_schemas(*, include_onboarding: bool = False) -> list[dict[str, An
     schemas: list[dict[str, Any]] = [
         _fn(
             "compute_sale_window",
-            "Should the farmer sell now or hold? Fetches the forecast itself and returns a SELL_NOW / HOLD / "
-            "SPLIT / NO_ADVICE verdict with expected gain, worst 1-in-10 case, itemised costs (paise), "
-            "and a WINDOW_VERDICT card. Always prefer this single coarse tool for sell-or-wait questions.",
+            "Recommend SELL_NOW / HOLD / SPLIT / NO_ADVICE with gain, worst-case, costs (paise) and WINDOW_VERDICT card.",
             {
-                "commodity": {"type": "string", "description": "Crop name or slug (e.g. 'onion', 'cmd_onion'). Omit to use screen context or lot."},
-                "mandi": {"type": "string", "description": "Mandi name or slug (e.g. 'Lasalgaon', 'mkt_lasalgaon'). Omit to use screen context or lot."},
-                "quantity": {"type": "number", "description": "Numeric quantity as the farmer said it (e.g. 20 for '20 bori')."},
-                "unit": {"type": "string", "description": "Unit of quantity: 'kg', 'quintal', 'bori', 'ton', etc. Pass raw unit if unsure."},
-                "grade": {"type": "string", "enum": ["A", "B", "C"], "description": "Produce grade if known (default 'A')."},
-                "lot_id": {"type": "string", "description": "Optional existing lot ID."},
+                "commodity": {"type": "string", "description": "Crop name/slug (optional)."},
+                "mandi": {"type": "string", "description": "Mandi name/slug (optional)."},
+                "quantity": {"type": "number", "description": "Quantity number (e.g. 20 for '20 bori')."},
+                "unit": {"type": "string", "description": "kg, quintal, bori, ton, or raw unit."},
+                "grade": {"type": "string", "enum": ["A", "B", "C"]},
+                "lot_id": {"type": "string"},
             },
             [],
         ),
         _fn(
             "get_price_forecast",
-            "Get today's observed mandi rate (min, modal, max in paise/qtl + 7d change) and the 14-day p10/p50/p90 "
-            "price forecast for a crop and mandi. Emits a PRICE_SNAPSHOT card.",
+            "Get mandi rate (paise/qtl), 7d change, 14d forecast, and PRICE_SNAPSHOT card.",
             {
-                "commodity": {"type": "string", "description": "Crop name or slug. Omit to use screen context."},
-                "mandi": {"type": "string", "description": "Mandi name or slug. Omit to use screen context."},
-                "horizon_days": {"type": "integer", "description": "Forecast horizon in days (1 to 14, default 14)."},
+                "commodity": {"type": "string", "description": "Crop name/slug."},
+                "mandi": {"type": "string", "description": "Mandi name/slug."},
+                "horizon_days": {"type": "integer", "description": "1-14 (default 14)."},
             },
             [],
         ),
         _fn(
             "calculate_grade",
-            "Calculate produce grade (A/B/C) from six self-check fields (size_uniform, colour_uniform, "
-            "damage_pct, sprouting, moisture_feel, foreign_matter). If any fields are missing, returns the next "
-            "question to ask the farmer one at a time.",
+            "Compute A/B/C grade from 6 checks or ask next missing check one at a time.",
             {
-                "commodity": {"type": "string", "description": "Crop name or slug."},
-                "lot_id": {"type": "string", "description": "Optional lot ID to attach a Save Grade confirm card."},
-                "size_uniform": {"type": "integer", "enum": [1, 2, 3], "description": "3=uniform, 2=mixed, 1=very mixed."},
-                "colour_uniform": {"type": "integer", "enum": [1, 2, 3], "description": "3=uniform, 2=some variation, 1=uneven."},
-                "damage_pct": {"type": "integer", "description": "Percent damaged (0-100)."},
-                "sprouting": {"type": "integer", "enum": [1, 2, 3], "description": "3=none, 2=a little, 1=a lot."},
-                "moisture_feel": {"type": "integer", "enum": [1, 2, 3], "description": "3=dry, 2=slightly damp, 1=wet."},
-                "foreign_matter": {"type": "integer", "enum": [1, 2, 3], "description": "3=clean, 2=some debris, 1=a lot."},
-                "assay": {"type": "object", "description": "Optional dict containing any of the 6 assay fields."},
+                "commodity": {"type": "string"},
+                "lot_id": {"type": "string"},
+                "size_uniform": {"type": "integer", "enum": [1, 2, 3], "description": "3=uniform..1=very mixed"},
+                "colour_uniform": {"type": "integer", "enum": [1, 2, 3]},
+                "damage_pct": {"type": "integer", "description": "0-100"},
+                "sprouting": {"type": "integer", "enum": [1, 2, 3], "description": "3=none..1=a lot"},
+                "moisture_feel": {"type": "integer", "enum": [1, 2, 3], "description": "3=dry..1=wet"},
+                "foreign_matter": {"type": "integer", "enum": [1, 2, 3], "description": "3=clean..1=a lot"},
+                "assay": {"type": "object"},
             },
             [],
         ),
         _fn(
             "create_lot_draft",
-            "Prepare a LOT_DRAFT card (or CONFIRM_ACTION card when confirm=true and price is agreed) from the "
-            "farmer's words. NEVER writes to the database; the farmer taps Confirm in the app to save.",
+            "Prepare LOT_DRAFT or CONFIRM_ACTION card without saving until user confirms.",
             {
-                "commodity": {"type": "string", "description": "Crop name or slug."},
-                "quantity": {"type": "number", "description": "Numeric quantity."},
-                "unit": {"type": "string", "description": "Unit ('kg', 'quintal', 'bori', 'ton', etc.)."},
-                "mandi": {"type": "string", "description": "Target mandi if mentioned."},
-                "expected_price_rupees": {"type": "number", "description": "Optional expected price in rupees per quintal."},
-                "confirm": {"type": "boolean", "description": "Set true only when the farmer confirmed saving the lot."},
+                "commodity": {"type": "string"},
+                "quantity": {"type": "number"},
+                "unit": {"type": "string"},
+                "mandi": {"type": "string"},
+                "expected_price_rupees": {"type": "number", "description": "Rs/quintal."},
+                "confirm": {"type": "boolean"},
             },
             [],
         ),
         _fn(
             "get_farmer_portfolio",
-            "Fetch the logged-in farmer's active lots, open buyer/farmer offers, and escrow deal statuses.",
+            "Get farmer's active lots, offers, and deals.",
             {},
             [],
         ),
         _fn(
             "search_agri_knowledge",
-            "Search agricultural knowledge base: KCC, WDRA pledge loans, PMFBY insurance, e-NAM, AGMARK grading, "
-            "post-harvest storage, escrow/pooling rules, and unit glossaries.",
+            "Search KCC, WDRA, PMFBY, e-NAM, AGMARK, storage, escrow/FPO, and unit docs.",
             {
-                "query": {"type": "string", "description": "Concise English search query."},
-                "category": {"type": "string", "enum": _CATEGORY_ENUM, "description": "Optional corpus category."},
-                "crop": {"type": "string", "description": "Optional crop filter."},
+                "query": {"type": "string", "description": "Concise English query."},
+                "category": {"type": "string", "enum": _CATEGORY_ENUM},
+                "crop": {"type": "string"},
             },
             ["query"],
         ),
         _fn(
             "navigate_screen",
-            "Offer a one-tap button to open a specific app screen (e.g. S15_MyLots, S9_Verdict, S13_CropLoan, "
-            "S31_DealsList, S35_FarmerProfile, PricesIndex).",
+            "Offer CTA button to open a farmer screen.",
             {
-                "target_screen": {"type": "string", "description": "Screen name from the app navigation whitelist."},
-                "params": {"type": "object", "description": "Optional IDs: commodity_id, market_id, district_id, lot_id, qty_kg."},
+                "target_screen": {"type": "string"},
+                "params": {"type": "object", "description": "commodity_id, market_id, district_id, lot_id, qty_kg."},
             },
             ["target_screen"],
         ),
@@ -167,12 +159,11 @@ def agent_tool_schemas(*, include_onboarding: bool = False) -> list[dict[str, An
         schemas.append(
             _fn(
                 "extract_onboarding_profile",
-                "Extract farmer registration details (name, village, district) during onboarding and emit an "
-                "ONBOARD_PROFILE card to pre-fill the profile form.",
+                "Extract farmer name, village, district into ONBOARD_PROFILE card.",
                 {
-                    "name": {"type": "string", "description": "Farmer's full name."},
-                    "village": {"type": "string", "description": "Village or taluka name."},
-                    "district": {"type": "string", "description": "Maharashtra district name or slug."},
+                    "name": {"type": "string"},
+                    "village": {"type": "string"},
+                    "district": {"type": "string"},
                 },
                 [],
             )
@@ -180,19 +171,12 @@ def agent_tool_schemas(*, include_onboarding: bool = False) -> list[dict[str, An
     schemas.append(
         _fn(
             "final_answer",
-            "End the turn with a grounded English reply, frozen intent label, and up to 3 quick reply chips.",
+            "Return grounded reply, intent, and up to 3 quick_replies.",
             {
-                "reply_text": {"type": "string", "description": "Concise English reply grounded strictly in tool results."},
-                "intent": {"type": "string", "enum": INTENT_LABELS, "description": "Frozen intent label."},
-                "quick_replies": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Up to 3 short English follow-up suggestions.",
-                },
-                "ui_action": {
-                    "type": "object",
-                    "description": "Optional navigation override {target_screen, params}.",
-                },
+                "reply_text": {"type": "string"},
+                "intent": {"type": "string", "enum": INTENT_LABELS},
+                "quick_replies": {"type": "array", "items": {"type": "string"}},
+                "ui_action": {"type": "object", "description": "{target_screen, params}"},
             },
             ["reply_text", "intent"],
         )
@@ -267,9 +251,7 @@ def _apply_hint_wins_and_units(
     if "crop" not in merged and "commodity" in hints and tool_name == "search_agri_knowledge":
         merged["crop"] = hints["commodity"]
 
-    if "mandi" in hints and tool_name in ("compute_sale_window", "get_price_forecast"):
-        merged["mandi"] = hints["mandi"]
-    elif "mandi" in hints and tool_name == "create_lot_draft" and merged.get("mandi"):
+    if "mandi" in hints and tool_name in ("compute_sale_window", "get_price_forecast", "create_lot_draft"):
         merged["mandi"] = hints["mandi"]
 
     if needs_quantity:
@@ -506,8 +488,13 @@ async def execute_agent_tool(
         raw = await run_tool(inner_name, ctx, mapped)
         if raw.get("ok") and isinstance(raw.get("card"), dict) and raw["card"].get("type") == "LOT_DRAFT":
             cdata = raw["card"].setdefault("data", {})
+            ddata = raw.get("data") or {}
             if cdata.get("mandi") is None:
                 cdata["mandi"] = ""
+            if isinstance(ddata.get("commodity"), dict) and ddata["commodity"].get("slug"):
+                cdata.setdefault("commodity_id", ddata["commodity"]["slug"])
+            if isinstance(ddata.get("market"), dict) and ddata["market"].get("slug"):
+                cdata.setdefault("market_id", ddata["market"]["slug"])
         env = _tool_result_from_raw(raw, "lot_service_v1")
         return ExecutedToolCall(
             tool_name=name,

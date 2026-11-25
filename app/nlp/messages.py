@@ -24,12 +24,9 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     # number check failed twice / translation unavailable.
     "FALLBACK": {
-        "en": "Sorry, I couldn't prepare a reliable answer right now. Please check the details on the "
-        "card below, or try asking again.",
-        "mr": "क्षमस्व, सध्या मी विश्वासार्ह उत्तर तयार करू शकलो नाही. कृपया खालील कार्डवरील माहिती पाहा किंवा "
-        "पुन्हा विचारून पाहा.",
-        "hi": "क्षमा करें, अभी मैं भरोसेमंद जवाब तैयार नहीं कर पाया। कृपया नीचे कार्ड की जानकारी देखें या "
-        "दोबारा पूछकर देखें।",
+        "en": "Sorry, I couldn't prepare a reliable answer right now. Please try asking again.",
+        "mr": "क्षमस्व, सध्या मी विश्वासार्ह उत्तर तयार करू शकलो नाही. कृपया पुन्हा विचारून पाहा.",
+        "hi": "क्षमा करें, अभी मैं भरोसेमंद जवाब तैयार नहीं कर पाया। कृपया दोबारा पूछकर देखें।",
     },
     "ASK_QUANTITY": {
         "en": "How much do you want to sell? For example, 20 bags or 5 quintals.",

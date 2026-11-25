@@ -83,9 +83,13 @@ class ILLMClient(ABC):
 
 def _env_or_setting(env_key: str, default: Any = "") -> Any:
     val = os.getenv(env_key)
-    if val is not None and val != "":
-        return val
-    return getattr(settings, env_key, default)
+    if val is not None:
+        cleaned = str(val).strip()
+        return "" if cleaned.startswith("#") else cleaned
+    sval = getattr(settings, env_key, default)
+    if isinstance(sval, str) and sval.strip().startswith("#"):
+        return default
+    return sval
 
 
 def _provider_defaults(name: str) -> Optional[ProviderConfig]:
@@ -161,6 +165,25 @@ def build_provider_chain() -> list[ProviderConfig]:
             )
         if cfg.api_key:
             configs.append(cfg)
+            if pname == "groq" and not custom_model:
+                extra_models = str(_env_or_setting("GROQ_FALLBACK_MODELS", "") or "")
+                for em in extra_models.split(","):
+                    m_name = em.strip()
+                    if not m_name or m_name == cfg.model:
+                        continue
+                    em_extra: dict[str, Any] = {}
+                    effort = str(_env_or_setting("LLM_REASONING_EFFORT", "low")).strip()
+                    if "gpt-oss" in m_name and effort:
+                        em_extra["reasoning_effort"] = effort
+                    configs.append(
+                        ProviderConfig(
+                            name=f"groq:{m_name}",
+                            base_url=cfg.base_url,
+                            api_key=cfg.api_key,
+                            model=m_name,
+                            extra=em_extra,
+                        )
+                    )
     return configs
 
 
@@ -179,7 +202,14 @@ def _parse_arguments(raw: Any) -> tuple[dict[str, Any], str]:
 
 def _is_retryable_status(exc: APIStatusError) -> bool:
     code = getattr(exc, "status_code", None)
-    return code == 429 or (code is not None and code >= 500)
+    return code in (401, 402, 403, 404, 408, 429) or (code is not None and code >= 500)
+
+
+def _is_tool_use_error(exc: APIStatusError) -> bool:
+    if getattr(exc, "status_code", None) != 400:
+        return False
+    msg = str(exc).lower()
+    return "tool_use_failed" in msg or "tool call validation failed" in msg or "failed_generation" in msg
 
 
 class OpenAICompatibleLLMClient(ILLMClient):
@@ -259,6 +289,27 @@ class OpenAICompatibleLLMClient(ILLMClient):
                 continue
             except APIStatusError as exc:
                 latency_ms = (time.perf_counter() - t0) * 1000.0
+                if _is_tool_use_error(exc):
+                    if tools and kwargs.get("tool_choice") == "required":
+                        try:
+                            retry_kwargs = dict(kwargs, tool_choice="auto")
+                            resp = await asyncio.wait_for(
+                                client.chat.completions.create(**retry_kwargs),
+                                timeout=self.timeout_s + 1.0,
+                            )
+                            return self._normalize(resp, cfg, (time.perf_counter() - t0) * 1000.0)
+                        except Exception as retry_exc:
+                            logger.warning(
+                                "LLM provider %s (%s) tool_use retry failed: %s",
+                                cfg.name, cfg.model, retry_exc,
+                            )
+                    else:
+                        logger.warning(
+                            "LLM provider %s (%s) tool_use failed in %.0fms; failing over",
+                            cfg.name, cfg.model, latency_ms,
+                        )
+                    errors.append(f"{cfg.name}: tool_use_failed")
+                    continue
                 if _is_retryable_status(exc):
                     logger.warning(
                         "LLM provider %s (%s) returned HTTP %s in %.0fms; failing over",

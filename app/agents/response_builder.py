@@ -114,25 +114,28 @@ def build_card_fallback_reply(cards: list[AgentCard], target_lang: str) -> str:
     base = get_message("FALLBACK", target_lang)
     if not cards:
         return base
+    card_hint = {
+        "mr": "कृपया खालील कार्डवरील माहिती पाहा.",
+        "hi": "कृपया नीचे कार्ड की जानकारी देखें।",
+    }.get(target_lang, "Please check the card below.")
+    base_with_card = f"{base} {card_hint}"
     card = cards[0]
     d = card.data
     if card.type == "PRICE_SNAPSHOT" and d.get("modal_paise_per_qtl"):
         rupees = int(round(int(d["modal_paise_per_qtl"]) / 100))
         crop = d.get("commodity_mr") if target_lang == "mr" and d.get("commodity_mr") else d.get("commodity", "")
         mandi = d.get("mandi_mr") if target_lang == "mr" and d.get("mandi_mr") else d.get("mandi", "")
-        if target_lang == "mr":
-            return f"{base} ({crop} @ {mandi}: ₹{rupees}/क्विंटल)"
-        if target_lang == "hi":
-            return f"{base} ({crop} @ {mandi}: ₹{rupees}/क्विंटल)"
-        return f"{base} ({crop} @ {mandi}: Rs {rupees}/quintal)"
+        if target_lang in ("mr", "hi"):
+            return f"{base_with_card} ({crop} @ {mandi}: ₹{rupees}/क्विंटल)"
+        return f"{base_with_card} ({crop} @ {mandi}: Rs {rupees}/quintal)"
     if card.type == "WINDOW_VERDICT" and d.get("action"):
         action = d["action"]
         if action == "NO_ADVICE":
             return get_message("NO_ADVICE", target_lang)
         crop = d.get("commodity_mr") if target_lang == "mr" and d.get("commodity_mr") else d.get("commodity", "")
         mandi = d.get("mandi_mr") if target_lang == "mr" and d.get("mandi_mr") else d.get("mandi", "")
-        return f"{base} ({crop} @ {mandi}: {action})"
-    return base
+        return f"{base_with_card} ({crop} @ {mandi}: {action})"
+    return base_with_card
 
 
 __all__ = [

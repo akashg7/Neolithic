@@ -322,9 +322,15 @@ STUB_HINTS = {"quantity_kg": 1000, "commodity": "cmd_onion", "mandi": "mkt_lasal
 
 
 async def _stub_to_english(text, audio, locale_hint) -> Translated:
-    if text is not None and detect_language(text, locale_hint) == "en":
-        return Translated(original=text, english=normalize_text(text), source_lang="en",
-                          hints=extract_hints(text))
+    if text is not None and (detect_language(text, locale_hint) == "en" or not pivot_enabled()):
+        lang = detect_language(text, locale_hint)
+        resolved = lang if lang in ("mr", "hi", "en") else (locale_hint if locale_hint in ("mr", "hi", "en") else "mr")
+        return Translated(
+            original=text,
+            english=normalize_text(text),
+            source_lang=resolved,
+            hints=extract_hints(text),
+        )
     return Translated(original=text or "<audio>", english=STUB_ENGLISH,
                       source_lang=locale_hint if locale_hint in ("mr", "hi") else "mr",
                       hints=dict(STUB_HINTS))

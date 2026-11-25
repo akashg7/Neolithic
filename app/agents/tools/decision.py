@@ -56,8 +56,11 @@ async def get_sale_window(ctx: ToolContext, args: WindowArgs) -> ToolResult:
         "sell_now_net_paise_per_qtl": r.get("sell_now_net_paise_per_qtl"),
         "refusal_reason": r.get("refusal_reason"),
         "commodity": inp["commodity"]["name"], "commodity_mr": inp["commodity"]["name_mr"],
+        "commodity_id": inp["commodity"]["slug"],
         "mandi": inp["market"]["name"], "mandi_mr": inp["market"]["name_mr"],
+        "market_id": inp["market"]["slug"],
         "quantity_kg": inp["quantity_kg"],
+        "alt_market": r.get("alt_market"),
         "transport_included": inp["transport_included"],
         "pledge_available": r.get("pledge_quote") is not None,
     }}

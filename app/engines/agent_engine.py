@@ -44,10 +44,13 @@ from app.agents.tools import ToolContext
 from app.config import settings
 from app.contracts import Intent, Translated
 from app.models.user import User
+from app.nlp.hints import extract_hints
 from app.nlp.messages import MESSAGES, get_message
+from app.nlp.normalize import normalize_text
 from app.nlp.translate import (
     EmptyTranscript,
     TranslationUnavailable,
+    detect_language,
     pivot_enabled,
     to_english,
     translate_back_checked,
@@ -295,6 +298,7 @@ class AgentEngine:
             return resp
 
         # ── 1. Translate in (and extract hints from original) ───────────────
+        translate_in_failed = False
         try:
             translated = pre_translated or await to_english(
                 text=text,
@@ -312,15 +316,27 @@ class AgentEngine:
                 error_code="EMPTY_TRANSCRIPT",
             )
         except TranslationUnavailable:
-            reply = get_message("FALLBACK", target_lang)
-            return AgentChatResponse(
-                session_id=session_id,
-                turn_id=turn_id,
-                transcript=text or "",
-                intent_detected=Intent.OUT_OF_SCOPE,
-                reply_text=reply,
-                error_code="TRANSLATION_UNAVAILABLE",
+            if text is None or not text.strip():
+                reply = get_message("FALLBACK", target_lang)
+                return AgentChatResponse(
+                    session_id=session_id,
+                    turn_id=turn_id,
+                    transcript="",
+                    intent_detected=Intent.OUT_OF_SCOPE,
+                    reply_text=reply,
+                    error_code="TRANSLATION_UNAVAILABLE",
+                )
+            # Sarvam text translation outage/quota exhaustion must not block text turns;
+            # pass normalized original text + extracted hints straight to the agent loop.
+            detected_lang = detect_language(text, target_lang)
+            fallback_lang = detected_lang if detected_lang in ("mr", "hi", "en") else target_lang
+            translated = Translated(
+                original=text,
+                english=normalize_text(text),
+                source_lang=fallback_lang,
+                hints=extract_hints(text),
             )
+            translate_in_failed = True
 
         effective_lang = (
             translated.source_lang
@@ -360,7 +376,7 @@ class AgentEngine:
             return resp
 
         # ── 2. Build context (profile + Redis last 8 turns concurrently) ─────
-        pivot = pivot_enabled()
+        pivot = pivot_enabled() and not translate_in_failed
         model_user_input = translated.english if pivot else translated.original
         profile_block, history_turns = await asyncio.gather(
             build_farmer_profile_block(db, user),
@@ -415,6 +431,15 @@ class AgentEngine:
                     # Plain-text response fallback when provider did not emit a tool call.
                     candidate_reply = (llm_resp.content or "").strip()
                     if not candidate_reply:
+                        if not guard_retried:
+                            guard_retried = True
+                            force_final_retry = True
+                            messages.append(
+                                {
+                                    "role": "user",
+                                    "content": "Empty output received. Call `final_answer` now with your concise answer.",
+                                }
+                            )
                         continue
                     final_args = {
                         "reply_text": candidate_reply,

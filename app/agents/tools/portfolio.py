@@ -11,6 +11,12 @@ from app.models.transaction import Transaction
 from app.utils.id_resolver import load_catalog
 
 
+_LOT_STATUS_MAP = {
+    "ACTIVE": "LISTED",
+    "LOCKED": "OFFERED",
+}
+
+
 class PortfolioArgs(BaseModel):
     """Takes no identity parameters — farmer identity comes strictly from JWT."""
 
@@ -58,6 +64,8 @@ async def get_farmer_portfolio(ctx: ToolContext, args: PortfolioArgs) -> ToolRes
     for lot in lots:
         comm = catalog.get("commodity", lot.commodity_id)
         mkt = catalog.get("market", lot.market_id) if lot.market_id else None
+        raw_status = (lot.status or "ACTIVE").upper()
+        api_status = _LOT_STATUS_MAP.get(raw_status, raw_status)
         lot_items.append(
             {
                 "lot_id": str(lot.id),
@@ -67,7 +75,7 @@ async def get_farmer_portfolio(ctx: ToolContext, args: PortfolioArgs) -> ToolRes
                 "quantity_kg": int(lot.quantity_qtl) * 100,
                 "expected_price_paise_per_qtl": lot.expected_price_paise,
                 "grade": lot.grade,
-                "status": lot.status,
+                "status": api_status,
             }
         )
 
@@ -93,7 +101,7 @@ async def get_farmer_portfolio(ctx: ToolContext, args: PortfolioArgs) -> ToolRes
         for t in txns
     ]
 
-    active_lots = [l for l in lot_items if (l.get("status") or "").lower() == "active"]
+    active_lots = [l for l in lot_items if l.get("status") == "LISTED"]
     open_offers = [o for o in offer_items if (o.get("status") or "").upper() == "OPEN"]
 
     target = "S31_DealsList" if txn_items and not open_offers and not active_lots else "S15_MyLots"
