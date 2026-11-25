@@ -104,10 +104,13 @@ window_res = test("Sale Window Engine Recommendation", "POST", "/api/v1/ai/windo
 if window_res:
     rec = window_res.get('action') or window_res.get('recommendation')
     print(f"   ℹ️ Recommendation: {rec} (Confidence: {window_res.get('confidence')})")
-    print(f"   ℹ️ Sell-now net: ₹{window_res.get('sell_now_net_paise_per_qtl', 0)/100:.2f}/qtl | Hold p50 net: ₹{window_res.get('hold_p50_net_paise_per_qtl', 0)/100:.2f}/qtl")
+    sell_net = window_res.get('sell_now_net_paise_per_qtl') or 0
+    hold_p50 = window_res.get('hold_p50_net_paise_per_qtl')
+    hold_str = f"₹{hold_p50/100:.2f}/qtl" if hold_p50 is not None else "N/A"
+    print(f"   ℹ️ Sell-now net: ₹{sell_net/100:.2f}/qtl | Hold p50 net: {hold_str}")
     if window_res.get("pledge_quote"):
         pq = window_res["pledge_quote"]
-        print(f"   ℹ️ Pledge Quote: Loan=₹{pq.get('loan_paise', 0)/100:.2f}, Net benefit=₹{pq.get('net_benefit_paise', 0)/100:.2f}")
+        print(f"   ℹ️ Pledge Quote: Loan=₹{(pq.get('loan_paise') or 0)/100:.2f}, Net benefit=₹{(pq.get('net_benefit_paise') or 0)/100:.2f}")
 
 # ── 4. Authentication Flow (Farmer & Buyer) ───────────────────────────────
 print("\n--- Testing Authentication Flow ---")
@@ -135,7 +138,12 @@ if buyer_token:
 print("\n--- Testing Lots Management ---")
 lots = test("List Farmer Lots", "GET", "/api/v1/lots", token=farmer_token)
 if lots and len(lots) > 0:
-    print(f"   ℹ️ Found {len(lots)} active lots (Lot #1: Qty={lots[0].get('quantity_qtl')} qtl, Expected=₹{lots[0].get('expected_price_paise', 0)/100:.2f})")
+    qty_qtl = lots[0].get('quantity_qtl')
+    if qty_qtl is None and lots[0].get('qty_kg') is not None:
+        qty_qtl = lots[0]['qty_kg'] / 100
+    exp = lots[0].get('expected_price_paise')
+    exp_str = f"₹{exp/100:.2f}" if exp is not None else "Unpriced"
+    print(f"   ℹ️ Found {len(lots)} active lots (Lot #{lots[0].get('id', 1)}: Qty={qty_qtl} qtl, Expected={exp_str})")
 
 # ── 6. Buyer Demand & Matching (Authenticated Buyer) ──────────────────────
 print("\n--- Testing Demands & Matching ---")
