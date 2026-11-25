@@ -57,7 +57,7 @@ const LAN_IP = '192.168.1.7';
  *   The web build ignores this: it calls same-origin `/api/v1`, which the dev
  *   server (webpack proxy) and Vercel (vercel.json rewrite) forward to the API.
  */
-const PROD_HOST = 'https://api.krishimitr.example'; // ← replace with the real API host
+const PROD_HOST = 'http://3.227.26.8'; // EC2 backend (the website reaches it via the vercel.json rewrite)
 
 const DEV_HOST: Record<DevTransport, string> = {
   'adb-reverse': 'http://localhost:8000',
