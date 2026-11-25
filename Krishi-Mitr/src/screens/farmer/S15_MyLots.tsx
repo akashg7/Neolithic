@@ -163,7 +163,7 @@ export default function S15_MyLots({ navigation }: Props) {
      a reply. Every value comes from the same query the card renders. */
   const narration = (() => {
     const list = lots ?? [];
-    if (list.length === 0) return t('mp_empty_title');
+    if (list.length === 0) return t('produce_empty_heading');
     const kg = list.reduce((sum, l) => sum + l.qty_kg, 0);
     const parts = [
       t('mp_narr_summary', {

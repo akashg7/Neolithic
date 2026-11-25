@@ -21,6 +21,7 @@
  *   if Shreya builds `context/AuthContext.tsx`, delete this and change one import.
  */
 
+import { useQueryClient } from '@tanstack/react-query';
 import React, {
   createContext,
   useCallback,
@@ -106,6 +107,7 @@ export function clearPendingAuth(): void {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({ status: 'loading', user: null });
   const [hasLocale, setHasLocale] = useState(false);
 
@@ -155,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         // A 401 means the 72-hour token really is spent — sign out for real.
         if (err instanceof ApiError && err.status === 401) {
+          queryClient.clear();
           await clearToken();
           if (!cancelled) setState({ status: 'signed-out', user: null });
           return;
@@ -184,10 +187,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionStorage.setItem('app.session_active', '1');
       } catch {}
     }
+    // Nothing cached for a previous account may be shown to this one.
+    queryClient.clear();
     await setToken(res.token);
     await setCachedUser(res.user);
     setState({ status: 'signed-in', user: res.user });
-  }, []);
+  }, [queryClient]);
 
   const signOut = useCallback(async () => {
     if (typeof window !== 'undefined') {
@@ -197,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('auth.user');
       } catch {}
     }
+    queryClient.clear();
     await clearToken();
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
@@ -204,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.removeItem('app.user');
     } catch {}
     setState({ status: 'signed-out', user: null });
-  }, []);
+  }, [queryClient]);
 
   // A 401 from any API call (expired/invalid token) signs the user out.
   useEffect(() => {

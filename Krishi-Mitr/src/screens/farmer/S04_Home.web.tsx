@@ -12,7 +12,7 @@ import { ListenButton } from '../../components/ui/ListenButton';
 import { WebFooter } from '../../components/web/WebFooter';
 import { getLots } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { CropStrip, cropName, Empty, heroSrc, Ic, PlacePickers, Skel, sourceLine, useMarket, useSay, verdictOf } from '../../web/kit';
+import { CropStrip, cropName, Empty, heroSrc, Ic, PlacePickers, sceneSrc, Skel, sourceLine, useMarket, useSay, verdictOf } from '../../web/kit';
 import { LotCard } from '../../web/LotCard';
 import { MandiTable } from '../../web/MandiTable';
 import { PriceChart } from '../../web/PriceChart';
@@ -173,6 +173,13 @@ export default function S04_Home({ navigation }: { navigation: any }) {
           ) : (
             <Empty title={s('अजून एकही लॉट नाही', 'अभी कोई लॉट नहीं', 'No lots yet')} action={<button className="km-btn" onClick={() => navigation.navigate('MyLots')}>{s('शेतमाल नोंदवा', 'उपज जोड़ें', 'Add produce')}</button>} />
           )}
+        </div>
+      </section>
+      <section className="km-wrap km-sec">
+        <div className="km-opts three">
+          {([['phone', s('शेतमाल विका', 'उपज बेचें', 'Sell your produce'), () => navigation.navigate('MyLots', { screen: 'S17_CameraGuide' })], ['store', s('साठवणुकीवर कर्ज', 'भंडारण पर ऋण', 'Loan against stored crop'), () => navigation.navigate('S13_CropLoan')], ['tea', s('बोली आणि सूचना', 'बोली और सूचनाएँ', 'Offers and alerts'), () => navigation.navigate('S38_Notifications')]] as const).map(([img, label, go]) => (
+            <button key={img} className="km-opt photo" onClick={go}><img src={sceneSrc(img)} alt="" style={{ height: 190 }} loading="lazy" /><span><b>{label}</b></span></button>
+          ))}
         </div>
       </section>
       <WebFooter />
