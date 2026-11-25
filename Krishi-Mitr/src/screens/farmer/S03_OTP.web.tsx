@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { VoiceMic } from '../../components/ui/VoiceMic';
 import { ApiError, getDevOtp, requestOtp, verifyOtp } from '../../lib/api';
-import { getPendingAuth, setPendingAuth, useAuth } from '../../lib/auth';
+import { clearPendingAuth, getPendingAuth, setPendingAuth, useAuth } from '../../lib/auth';
 import { digitsFromSpeech } from '../../lib/spokenDigits';
 import { USE_FIXTURES } from '../../config';
 import { Ic, useSay } from '../../web/kit';
@@ -32,7 +32,9 @@ export default function S03_OTP({ navigation }: { navigation: any }) {
     setBusy(true); setError('');
     try {
       if (USE_FIXTURES) { setPendingAuth(phone, code, role); navigation.navigate('S3_Profile'); return; }
-      await signIn(await verifyOtp(phone, code));
+      const res = await verifyOtp(phone, code);
+      clearPendingAuth();
+      await signIn(res);
     } catch (x) {
       if (x instanceof ApiError && x.status === 404) { setPendingAuth(phone, code, role); navigation.navigate('S3_Profile'); }
       else setError(x instanceof ApiError ? (x.status === 401 ? t('otp_invalid_expired') : x.message) : t('network_error_generic'));

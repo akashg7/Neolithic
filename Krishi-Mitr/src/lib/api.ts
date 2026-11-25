@@ -358,7 +358,11 @@ function toDemand(d: any): DemandDto {
  * in. Every code is random, single-phone, expires, and is attempt-capped
  * server-side; production never returns it.
  */
-let lastDevOtp: { phone: string; code: string } | null = null;
+// Survives a page refresh within the tab (sessionStorage), like the pending sign-up.
+const DEV_OTP_KEY = 'km.devOtp';
+let lastDevOtp: { phone: string; code: string } | null = (() => {
+  try { const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(DEV_OTP_KEY) : null; return raw ? JSON.parse(raw) : null; } catch { return null; }
+})();
 export const getDevOtp = (phone: string): string | null =>
   lastDevOtp && lastDevOtp.phone === phone ? lastDevOtp.code : null;
 
@@ -366,6 +370,12 @@ export const requestOtp = async (phone: string): Promise<OtpRequestRes> => {
   if (USE_FIXTURES) return { ok: true, expires_in_s: 300, dev_otp: '123456' };
   const res = await post<OtpRequestRes>('/auth/otp/request', { phone });
   lastDevOtp = res.dev_otp ? { phone, code: res.dev_otp } : null;
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      if (lastDevOtp) sessionStorage.setItem(DEV_OTP_KEY, JSON.stringify(lastDevOtp));
+      else sessionStorage.removeItem(DEV_OTP_KEY);
+    }
+  } catch { /* private mode */ }
   return res;
 };
 

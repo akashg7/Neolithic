@@ -92,18 +92,30 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  *   both sides, instead of a parallel set of buyer screens that would drift
  *   from the farmer ones the first time either changed.
  */
-let pendingAuth: { phone: string; code: string; role: Role } | null = null;
+// The sign-up in progress (phone, role, and — after OTP — the code). Kept in
+// sessionStorage on the web so a page refresh on the OTP or profile step does
+// not lose the number; it lives only as long as the browser tab.
+type Pending = { phone: string; code: string; role: Role };
+const PENDING_KEY = 'km.pendingAuth';
+const ss = (): Storage | null => {
+  try { return typeof sessionStorage !== 'undefined' ? sessionStorage : null; } catch { return null; }
+};
+let pendingAuth: Pending | null = (() => {
+  try { const raw = ss()?.getItem(PENDING_KEY); return raw ? (JSON.parse(raw) as Pending) : null; } catch { return null; }
+})();
 
 export function setPendingAuth(phone: string, code: string, role: Role = 'FARMER'): void {
   pendingAuth = { phone, code, role };
+  try { ss()?.setItem(PENDING_KEY, JSON.stringify(pendingAuth)); } catch { /* private mode */ }
 }
 
-export function getPendingAuth(): { phone: string; code: string; role: Role } | null {
+export function getPendingAuth(): Pending | null {
   return pendingAuth;
 }
 
 export function clearPendingAuth(): void {
   pendingAuth = null;
+  try { ss()?.removeItem(PENDING_KEY); } catch { /* ignore */ }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
