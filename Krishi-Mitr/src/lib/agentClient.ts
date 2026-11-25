@@ -35,6 +35,7 @@ const INTENT_MAP: Record<string, AgentIntent> = {
 
 function normalizeWindowAction(raw: unknown): WindowAction {
   const s = String(raw || '').toUpperCase();
+  if (s === 'SELL_ELSEWHERE') return 'SELL_ELSEWHERE';
   if (s === 'SELL_NOW' || s === 'SELL') return 'SELL';
   if (s === 'HOLD') return 'HOLD';
   if (s === 'SPLIT') return 'SPLIT';
@@ -58,6 +59,7 @@ function normalizeCards(rawCards: any[]): AgentCard[] {
           commodity: String(d.commodity || ''),
           mandi: String(d.mandi || ''),
           quantity_kg: Number(d.quantity_kg || 0),
+          alt_market: d.alt_market ?? null,
         },
       });
     } else if (raw.type === 'PRICE_SNAPSHOT') {
@@ -84,16 +86,51 @@ function normalizeCards(rawCards: any[]): AgentCard[] {
           commodity: String(d.commodity || ''),
           mandi: String(d.mandi || ''),
           quantity_kg: Number(d.quantity_kg || 0),
+          ...(d.commodity_id ? { commodity_id: String(d.commodity_id) } : {}),
+          ...(d.market_id ? { market_id: String(d.market_id) } : {}),
         },
       });
     } else if (raw.type === 'CONFIRM_ACTION' && d.action === 'CREATE_LOT') {
       const sum = d.summary || {};
+      const body = d.body || {};
       out.push({
         type: 'LOT_DRAFT',
         data: {
           commodity: String(sum.commodity || ''),
           mandi: String(sum.mandi || ''),
           quantity_kg: Number(sum.quantity_kg || 0),
+          ...(body.commodity_id ? { commodity_id: String(body.commodity_id) } : {}),
+          ...(body.market_id ? { market_id: String(body.market_id) } : {}),
+        },
+      });
+    } else if (raw.type === 'RAG_CITATION') {
+      const chunks = Array.isArray(d.chunks)
+        ? d.chunks.map((c: any) => ({
+            chunk_id: String(c?.chunk_id || ''),
+            source_doc: String(c?.source_doc || ''),
+            section_title: c?.section_title ? String(c.section_title) : undefined,
+            category: c?.category ? String(c.category) : undefined,
+            score: typeof c?.score === 'number' ? c.score : undefined,
+            snippet: String(c?.snippet ?? c?.text ?? ''),
+          }))
+        : [];
+      if (chunks.length) {
+        out.push({
+          type: 'RAG_CITATION',
+          data: {
+            query: String(d.query || ''),
+            chunks,
+          },
+        });
+      }
+    } else if (raw.type === 'ONBOARD_PROFILE') {
+      out.push({
+        type: 'ONBOARD_PROFILE',
+        data: {
+          name: d.name ?? null,
+          village: d.village ?? null,
+          district_id: d.district_id ?? null,
+          district_name: d.district_name ?? null,
         },
       });
     }

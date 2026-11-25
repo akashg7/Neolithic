@@ -224,6 +224,7 @@ export function verdictOf(action: string, days: number | null | undefined, say: 
   const d = say.n(days ?? 14);
   if (action === 'SPLIT') return { tone: 'hold', title: say.s(`अर्धे आज विका, अर्धे ${d} दिवस ठेवा`, `आधा आज बेचें, आधा ${d} दिन रखें`, `Sell half today, keep half for ${d} days`) };
   if (action === 'HOLD') return { tone: 'hold', title: say.s(`${d} दिवस थांबा`, `${d} दिन रुकें`, `Wait ${d} days`) };
+  if (action === 'SELL_ELSEWHERE') return { tone: 'sell', title: say.s('दुसऱ्या बाजारात विका', 'दूसरी मंडी में बेचें', 'Sell at another market') };
   if (action === 'NO_ADVICE') return { tone: 'none', title: say.s('आज सल्ला देता येत नाही', 'आज सलाह नहीं दे सकते', 'We can’t advise today') };
   return { tone: 'sell', title: say.s('आजच विका', 'आज ही बेचें', 'Sell today') };
 }

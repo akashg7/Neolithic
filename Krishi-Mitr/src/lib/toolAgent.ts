@@ -7,8 +7,9 @@
  */
 import { translate } from './i18n';
 import { formatNumber, formatPaise } from './money';
-import { STATIC_CROPS, STATIC_MANDIS } from './staticMarketData';
-import { getLots, getMarketOverview, getOffers, getPriceSeries, getTransactions, refLabel, runAgentTool, AgentToolResult } from './api';
+import { parseFarmerDetails } from './parseFarmerDetails';
+import { STATIC_CROPS, STATIC_DISTRICTS, STATIC_MANDIS } from './staticMarketData';
+import { getDistricts, getLots, getMarketOverview, getOffers, getPriceSeries, getTransactions, refLabel, runAgentTool, AgentToolResult } from './api';
 import type { AgentCard, AgentChatRequest, AgentChatResponse, AgentIntent } from './agentTypes';
 import type { Locale } from '../types/api';
 
@@ -108,6 +109,57 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
   const isLotQuestion = has(m, ['my lot', 'my produce', 'माझे लॉट', 'माझा माल', 'मेरे लॉट', 'मेरा माल', 'show my', 'how many lot'])
     && !qty && !has(m, ['list my lot:', 'list a', 'new lot', 'add', 'create', 'नवीन', 'नया', 'विकायच', 'बेचना']);
 
+  const isChem = has(m, ['pesticide', 'insecticide', 'fungicide', 'herbicide', 'weedicide', 'chemical', 'dosage', 'spray dose', 'कीटकनाशक', 'बुरशीनाशक', 'तणनाशक', 'फवारणी', 'कीटनाशक', 'दवा', 'छिड़काव']);
+  if (isChem) {
+    return reply('OUT_OF_SCOPE', p(
+      'कीटकनाशके किंवा रसायनांच्या मात्रेबाबत मी सल्ला देऊ शकत नाही. कृपया यासाठी तुमच्या जवळच्या कृषी विज्ञान केंद्राशी (KVK) संपर्क साधा.',
+      'मैं कीटनाशकों या रसायनों की मात्रा पर सलाह नहीं दे सकता। कृपया इसके लिए अपने नज़दीकी कृषि विज्ञान केंद्र (KVK) से संपर्क करें।',
+      'I can’t advise on pesticides or chemical doses. Please contact your nearest Krishi Vigyan Kendra (KVK) for this.',
+    ), null, [], [askPrice, askWhen]);
+  }
+
+  // -1. Onboarding profile helper on Auth / Profile screens
+  const onbScreen = /^(S0_Splash|S1_Language|S2_Phone|S0?3_Profile)$/.test(screen.current_screen || '');
+  if (onbScreen) {
+    const districts = await getDistricts().catch(() =>
+      STATIC_DISTRICTS.map((d, idx) => ({ id: `dist_${idx + 1}`, name: d.name, name_mr: d.name_mr })),
+    );
+    const parsed = parseFarmerDetails(req.message, districts);
+    if (parsed.name || parsed.districtId || parsed.village) {
+      const dist = districts.find(d => d.id === parsed.districtId);
+      const profileCard: AgentCard = {
+        type: 'ONBOARD_PROFILE',
+        data: {
+          name: parsed.name,
+          village: parsed.village,
+          district_id: parsed.districtId,
+          district_name: dist ? (l === 'en' ? dist.name : dist.name_mr) : null,
+        },
+      };
+      const ui: AgentToolResult = {
+        ok: true,
+        tool: 'extract_onboarding_profile',
+        data: profileCard.data as Record<string, any>,
+        ui_action: {
+          type: 'PREFILL',
+          target_screen: 'S3_Profile',
+          cta_label: p('फॉर्ममध्ये भरा', 'फ़ॉर्म में भरें', 'Fill profile'),
+          params: {
+            ...(parsed.districtId ? { district_id: parsed.districtId } : {}),
+            ...(parsed.name ? { name: parsed.name } : {}),
+            ...(parsed.village ? { village: parsed.village } : {}),
+          },
+        },
+      };
+      return reply(
+        'ONBOARD',
+        p('तुमचा तपशील वाचला आहे. खालील बटण दाबून फॉर्ममध्ये भरा.', 'आपकी जानकारी समझ ली गई है। नीचे बटन दबाकर फ़ॉर्म भरें।', 'Got your profile details. Tap below to fill them into the form.'),
+        ui,
+        [profileCard],
+      );
+    }
+  }
+
   // 0a. His offers (buyer bids waiting on him)
   if (has(m, ['offer', 'bid', 'बोली', 'ऑफर', 'खरेदीदार', 'खरीदार', 'buyer'])) {
     const offers = await getOffers().catch(() => null);
@@ -186,7 +238,7 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
     if (!r.ok) return failed(r);
     const d = r.data;
     return reply('CREATE_LOT', p('ही माहिती बरोबर आहे का पहा. पुढच्या पायरीवर लॉट पूर्ण करा.', 'यह जानकारी सही है या नहीं देखें। अगले चरण में लॉट पूरा करें।', 'Check these details, then finish the lot on the next step.'), { ...r, ui_action: null },
-      [{ type: 'LOT_DRAFT', data: { commodity: d.commodity?.name ?? crop ?? '', mandi: d.market?.name ?? '', quantity_kg: d.quantity_kg ?? 0 } }]);
+      [{ type: 'LOT_DRAFT', data: { commodity: d.commodity?.name ?? crop ?? '', mandi: d.market?.name ?? '', quantity_kg: d.quantity_kg ?? 0, ...(d.commodity?.slug ? { commodity_id: d.commodity.slug } : {}), ...(d.market?.slug ? { market_id: d.market.slug } : {}) } }]);
   }
 
   // 2. When to sell (before price: "भाव कधी वाढेल" is a timing question)
@@ -202,6 +254,7 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
         d.action === 'NO_ADVICE' ? p(`${c}: भावात फार चढ-उतार आहे, म्हणून आज सल्ला देत नाही.`, `${c}: भाव में बहुत उतार-चढ़ाव है, इसलिए आज सलाह नहीं दूँगा।`, `${c}: rates are swinging too much, so I won’t advise today.`)
         : d.action === 'SPLIT' ? p(`${c}, ${mk}: अर्धे आज विका, अर्धे ${days} दिवस ठेवा. नफा होऊ शकतो, पण तोट्याचाही धोका आहे.`, `${c}, ${mk}: आधा आज बेचें, आधा ${days} दिन रखें। लाभ हो सकता है, पर नुकसान का जोखिम भी है।`, `${c} at ${mk}: sell half today and keep half for ${days} days. There may be a gain, but there is a risk of loss too.`)
         : d.action === 'HOLD' ? p(`${c}, ${mk}: ${days} दिवस थांबा.`, `${c}, ${mk}: ${days} दिन रुकें।`, `${c} at ${mk}: wait ${days} days.`)
+        : d.action === 'SELL_ELSEWHERE' ? p(`${c}: दुसऱ्या बाजारात विकणे जास्त फायदेशीर दिसेल.`, `${c}: दूसरी मंडी में बेचना ज़्यादा फ़ायदेमंद दिखता है।`, `${c}: selling at another nearby mandi nets more after transport.`)
         : p(`${c}, ${mk}: आजच विका. थांबून फायदा दिसत नाही.`, `${c}, ${mk}: आज ही बेचें। रुकने में फायदा नहीं दिखता।`, `${c} at ${mk}: sell today. Waiting doesn’t look worth it.`);
       return reply('SALE_WINDOW', text, r, [{
         type: 'WINDOW_VERDICT',
@@ -210,6 +263,7 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
           expected_gain_paise: d.expected_gain_paise ?? undefined, worst_case_paise: d.worst_case_paise ?? undefined,
           uncertainty_pct: d.band_width_bps != null ? Math.round(d.band_width_bps / 100) : undefined,
           commodity: d.inputs?.commodity?.name ?? '', mandi: d.inputs?.market?.name ?? '', quantity_kg: d.inputs?.quantity_kg ?? 0,
+          alt_market: d.alt_market ?? null,
         },
       }], [p('सर्वात वाईट स्थिती म्हणजे काय?', 'सबसे बुरी स्थिति क्या है?', 'What does worst case mean?'), askPrice]);
     }
@@ -234,9 +288,45 @@ export async function toolAgentReply(req: AgentChatRequest): Promise<AgentChatRe
     }], [askWhen]);
   }
 
-  // 4. Checked answers about the app
+  // 4. Checked answers about the app + live RAG knowledge base lookup
   const faq = FAQ.find(([, w]) => has(m, w));
   if (faq) return reply('KNOWLEDGE', translate(faq[0], l as Locale), null, [], [askWhen, askPrice]);
+
+  const query = req.message.trim();
+  if (query.length >= 2) {
+    try {
+      const rag = await runAgentTool('search_agri_knowledge', { query, ...(crop ? { crop } : {}) }, l, screen);
+      const chunks = Array.isArray(rag.data?.chunks) ? rag.data.chunks : [];
+      if (rag.ok && chunks.length > 0) {
+        const top = chunks[0] as { text?: string; section_title?: string; source_doc?: string; chunk_id?: string };
+        const ragCard: AgentCard = {
+          type: 'RAG_CITATION',
+          data: {
+            query,
+            chunks: chunks.map((ch: any) => ({
+              chunk_id: String(ch.chunk_id || ''),
+              source_doc: String(ch.source_doc || ''),
+              section_title: ch.section_title ? String(ch.section_title) : undefined,
+              category: ch.category ? String(ch.category) : undefined,
+              score: typeof ch.score === 'number' ? ch.score : undefined,
+              snippet: String(ch.text ?? ch.snippet ?? '').slice(0, 240),
+            })),
+          },
+        };
+        return {
+          ...reply('RAG', String(top.text || ''), rag, [ragCard], [askWhen, askPrice]),
+          citations: chunks.slice(0, 2).map((ch: any) => ({
+            source: String(ch.source_doc || 'krishi_kb'),
+            title: String(ch.section_title || ch.source_doc || 'Krishi Mitr KB'),
+            chunk_id: ch.chunk_id ? String(ch.chunk_id) : null,
+            section_title: ch.section_title ? String(ch.section_title) : null,
+          })),
+        };
+      }
+    } catch {
+      /* fall through to general help message */
+    }
+  }
 
   return reply('UNKNOWN',
     p('मी भाव, विकण्याची वेळ, लॉट आणि या ॲपबद्दल सांगू शकतो. औषध-फवारणीचा सल्ला देत नाही.', 'मैं भाव, बेचने का समय, लॉट और इस ऐप के बारे में बता सकता हूँ। दवा-छिड़काव की सलाह नहीं देता।', 'I can tell you rates, when to sell, help with a lot, and explain this app. I don’t advise on sprays or chemicals.'),

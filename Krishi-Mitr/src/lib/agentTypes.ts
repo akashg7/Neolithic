@@ -42,7 +42,7 @@ export interface AgentChatRequest {
   include_audio: boolean;
 }
 
-export type WindowAction = 'HOLD' | 'SPLIT' | 'SELL' | 'NO_ADVICE';
+export type WindowAction = 'HOLD' | 'SPLIT' | 'SELL' | 'SELL_ELSEWHERE' | 'NO_ADVICE';
 
 export interface WindowVerdictCardData {
   action: WindowAction;
@@ -55,6 +55,12 @@ export interface WindowVerdictCardData {
   commodity: string;
   mandi: string;
   quantity_kg: number;
+  alt_market?: {
+    market_id: string;
+    distance_km?: number;
+    gross_price_paise?: number;
+    net_price_paise?: number;
+  } | null;
 }
 
 export interface PriceSnapshotCardData {
@@ -73,12 +79,37 @@ export interface LotDraftCardData {
   commodity: string;
   mandi: string;
   quantity_kg: number;
+  commodity_id?: string;
+  market_id?: string;
+}
+
+export interface RagCitationChunk {
+  chunk_id: string;
+  source_doc: string;
+  section_title?: string;
+  category?: string;
+  score?: number;
+  snippet: string;
+}
+
+export interface RagCitationCardData {
+  query: string;
+  chunks: RagCitationChunk[];
+}
+
+export interface OnboardProfileCardData {
+  name?: string | null;
+  village?: string | null;
+  district_id?: string | null;
+  district_name?: string | null;
 }
 
 export type AgentCard =
   | { type: 'WINDOW_VERDICT'; data: WindowVerdictCardData }
   | { type: 'PRICE_SNAPSHOT'; data: PriceSnapshotCardData }
-  | { type: 'LOT_DRAFT'; data: LotDraftCardData };
+  | { type: 'LOT_DRAFT'; data: LotDraftCardData }
+  | { type: 'RAG_CITATION'; data: RagCitationCardData }
+  | { type: 'ONBOARD_PROFILE'; data: OnboardProfileCardData };
 
 export interface UiAction {
   type: 'OFFER_NAVIGATION' | 'PREFILL';

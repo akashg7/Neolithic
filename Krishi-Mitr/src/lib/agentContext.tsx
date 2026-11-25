@@ -165,21 +165,44 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         });
         if (epoch !== epochRef.current) return;
 
-        const transcript = (response.transcript || '').trim();
-        if (response.error_code === 'LLM_UNAVAILABLE' && transcript) {
-          response = await sendChatMessage({
-            session_id: sessionRef.current,
-            message: transcript,
-            locale,
-            screen_context: readScreen(),
-            include_audio: false,
-          });
-          if (epoch !== epochRef.current) return;
+        const rawTranscript = (response.transcript || '').trim();
+        const isRealTranscript = rawTranscript.length > 0 && rawTranscript !== '<audio>';
+        let finalTranscript = isRealTranscript ? rawTranscript : '';
+
+        if (!isRealTranscript || response.error_code === 'LLM_UNAVAILABLE' || response.error_code === 'TRANSLATION_UNAVAILABLE') {
+          if (isRealTranscript) {
+            response = await sendChatMessage({
+              session_id: sessionRef.current,
+              message: rawTranscript,
+              locale,
+              screen_context: readScreen(),
+              include_audio: false,
+            });
+            if (epoch !== epochRef.current) return;
+          } else if (transcribeFallback) {
+            try {
+              const spoken = (await transcribeFallback()).trim();
+              if (epoch !== epochRef.current) return;
+              if (spoken) {
+                finalTranscript = spoken;
+                response = await sendChatMessage({
+                  session_id: sessionRef.current,
+                  message: spoken,
+                  locale,
+                  screen_context: readScreen(),
+                  include_audio: false,
+                });
+                if (epoch !== epochRef.current) return;
+              }
+            } catch {
+              /* keep original fallback response below */
+            }
+          }
         }
 
         setMessages(m => [
           ...m,
-          { id: mid(), role: 'user', text: transcript || fallbackLabel, at: Date.now() },
+          { id: mid(), role: 'user', text: finalTranscript || fallbackLabel, at: Date.now() },
           { id: mid(), role: 'assistant', response, at: Date.now() },
         ]);
         if (response.audio_base64 && response.reply_text) {

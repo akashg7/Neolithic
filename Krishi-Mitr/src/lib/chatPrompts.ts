@@ -31,6 +31,12 @@ const BY_SCREEN: Record<string, L3[]> = {
     { mr: 'कांद्याचा आजचा भाव काय?', hi: 'प्याज का आज का भाव क्या है?', en: 'What is today\'s onion price?' },
     { mr: 'टोमॅटो कधी विकू?', hi: 'टमाटर कब बेचूँ?', en: 'When should I sell tomato?' },
   ],
+  S3_Profile: [
+    { mr: 'माझं नाव रामभाऊ पाटील, गाव निफाड, जिल्हा नाशिक', hi: 'मेरा नाम रामभाऊ पाटिल, गाँव निफाड़, ज़िला नासिक', en: 'My name is Rambhau Patil, village Niphad, district Nashik' },
+  ],
+  S03_Profile: [
+    { mr: 'माझं नाव रामभाऊ पाटील, गाव निफाड, जिल्हा नाशिक', hi: 'मेरा नाम रामभाऊ पाटिल, गाँव निफाड़, ज़िला नासिक', en: 'My name is Rambhau Patil, village Niphad, district Nashik' },
+  ],
 };
 
 export function promptsFor(screen: string, locale: Locale): string[] {

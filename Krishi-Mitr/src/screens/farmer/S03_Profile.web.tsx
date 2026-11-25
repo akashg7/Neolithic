@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { VoiceMic } from '../../components/ui/VoiceMic';
 import { ApiError, getDistricts, register } from '../../lib/api';
 import { clearPendingAuth, getPendingAuth, useAuth } from '../../lib/auth';
+import { clearOnboardingDraft, useOnboardingDraft } from '../../lib/onboardingDraft';
 import { parseFarmerDetails } from '../../lib/parseFarmerDetails';
 import { useSay } from '../../web/kit';
 import { Split } from '../../web/Split';
 import type { District } from '../../types/api';
 
-export default function S03_Profile({ navigation }: { navigation: any }) {
+export default function S03_Profile({ navigation, route }: { navigation: any; route?: any }) {
   const { t, s, locale } = useSay();
   const { signIn } = useAuth();
+  const onboardingDraft = useOnboardingDraft();
   const [name, setName] = useState('');
   const [village, setVillage] = useState('');
   const [district, setDistrict] = useState('');
@@ -22,6 +24,25 @@ export default function S03_Profile({ navigation }: { navigation: any }) {
   // Mount only: a successful sign-up clears `pending` and must not bounce back here.
   useEffect(() => { if (!getPendingAuth()) navigation.replace('S2_Phone'); }, [navigation]);
   useEffect(() => { let off = false; getDistricts().then(l => { if (!off) setDistricts(l); }).catch(() => setError(t('network_error_generic'))); return () => { off = true; }; }, [t]);
+  useEffect(() => {
+    const rp = (route?.params ?? {}) as { name?: string; village?: string; district_id?: string };
+    const nextName = onboardingDraft.name ?? rp.name;
+    const nextVillage = onboardingDraft.village ?? rp.village;
+    const nextDistrict = onboardingDraft.district_id ?? rp.district_id ?? onboardingDraft.district_name;
+    if (nextName) setName(nextName);
+    if (nextVillage) setVillage(nextVillage);
+    if (nextDistrict && districts.length) {
+      const match = districts.find(
+        d =>
+          d.id === nextDistrict ||
+          d.name.toLowerCase() === String(nextDistrict).toLowerCase() ||
+          d.name_mr === nextDistrict,
+      );
+      if (match) setDistrict(match.id);
+    } else if (nextDistrict && String(nextDistrict).startsWith('dist_')) {
+      setDistrict(String(nextDistrict));
+    }
+  }, [onboardingDraft, route?.params, districts]);
   const onVoice = (x: string) => {
     const p = parseFarmerDetails(x, districts);
     if (p.name) setName(p.name);
@@ -38,6 +59,7 @@ export default function S03_Profile({ navigation }: { navigation: any }) {
     try {
       const res = await register({ phone: pending.phone, code: pending.code, name: name.trim(), role: pending.role, locale, district_id: district, ...(village.trim() ? { village: village.trim() } : {}) });
       clearPendingAuth();
+      clearOnboardingDraft();
       await signIn(res);
     } catch (x) { setError(x instanceof ApiError ? x.message : t('network_error_generic')); setBusy(false); }
   };

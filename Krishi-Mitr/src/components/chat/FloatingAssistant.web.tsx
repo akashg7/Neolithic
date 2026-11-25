@@ -5,7 +5,7 @@ import { sceneSrc, useSay } from '../../web/kit';
 
 // Steps keep their main button bottom-right, so the launcher shrinks to its photo there.
 const MINI = /^S(13|17|18|19|20|21|22|23|30|32|33|35|38)_/;
-const HIDDEN = new Set(['Assistant', 'Menu', 'LanguageSwitcher']);
+const HIDDEN = new Set(['Assistant', 'Menu', 'LanguageSwitcher', 'Web_Landing', 'Buyer_Splash']);
 
 export function FloatingAssistant() {
   const { isOpen, open, screen } = useAgent();

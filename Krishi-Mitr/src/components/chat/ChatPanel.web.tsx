@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ListenButton } from '../ui/ListenButton';
 import { transcribeAudio } from '../../lib/api';
 import { useAgent } from '../../lib/agentContext';
+import { setOnboardingDraft } from '../../lib/onboardingDraft';
 import { STATIC_CROPS, STATIC_MANDIS } from '../../lib/staticMarketData';
 import { useStaticMarket } from '../../lib/staticMarketStore';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
@@ -32,17 +33,16 @@ function Card({ card }: { card: AgentCard }) {
   const say = useSay();
   const { s, rs, n, day } = say;
   const nm = useNames();
-  const { runUiAction } = useAgent();
-  const d = card.data;
-  const head = (title: string, sub: string) => (
-    <div className="ph"><img src={heroSrc(d.commodity)} alt="" /><div><b>{title}</b><span>{sub}</span></div></div>
+  const { runUiAction, close } = useAgent();
+  const head = (commodity: string, title: string, sub: string) => (
+    <div className="ph"><img src={heroSrc(commodity)} alt="" /><div><b>{title}</b><span>{sub}</span></div></div>
   );
   if (card.type === 'WINDOW_VERDICT') {
     const w = card.data;
     const v = verdictOf(w.action, w.hold_days, say);
     return (
       <div className="km-card">
-        {head(nm.crop(w.commodity), `${nm.place(w.mandi)}, ${n(w.quantity_kg)} ${s('किलो', 'किलो', 'kg')}`)}
+        {head(w.commodity, nm.crop(w.commodity), `${nm.place(w.mandi)}, ${n(w.quantity_kg)} ${s('किलो', 'किलो', 'kg')}`)}
         <div className="in">
           <div className={`km-verdict ${v.tone}`} style={{ fontSize: 24 }}>{v.title}</div>
           {w.action === 'NO_ADVICE' ? (
@@ -53,6 +53,12 @@ function Card({ card }: { card: AgentCard }) {
               <div><dt>{s('सर्वात वाईट स्थिती', 'सबसे बुरी स्थिति', 'Worst case')}</dt><dd className={(w.worst_case_paise ?? 0) < 0 ? 'km-bad' : ''}>{rs(w.worst_case_paise)}</dd></div>
             </dl>
           )}
+          {w.action === 'SELL_ELSEWHERE' && w.alt_market ? (
+            <p className="km-note" style={{ marginTop: 10 }}>
+              {nm.place(w.alt_market.market_id)}
+              {w.alt_market.net_price_paise != null ? ` · ${rs(w.alt_market.net_price_paise)}` : ''}
+            </p>
+          ) : null}
         </div>
       </div>
     );
@@ -61,7 +67,7 @@ function Card({ card }: { card: AgentCard }) {
     const w = card.data;
     return (
       <div className="km-card">
-        {head(nm.crop(w.commodity), nm.place(w.mandi))}
+        {head(w.commodity, nm.crop(w.commodity), nm.place(w.mandi))}
         <div className="in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 12 }}>
           <div>
             <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.1 }}>{rs(w.modal_price_paise_per_qtl)}</div>
@@ -72,20 +78,91 @@ function Card({ card }: { card: AgentCard }) {
       </div>
     );
   }
-  const w = card.data;
-  return (
-    <div className="km-card">
-      {head(nm.crop(w.commodity), s('लॉट मसुदा', 'लॉट मसौदा', 'Lot draft'))}
-      <div className="in">
-        <dl className="km-costs" style={{ marginTop: 0 }}>
-          <div><dt>{s('वजन', 'वज़न', 'Quantity')}</dt><dd>{w.quantity_kg ? `${n(w.quantity_kg)} ${s('किलो', 'किलो', 'kg')}` : s('पुढे भरा', 'आगे भरें', 'Fill in next')}</dd></div>
-          {w.mandi ? <div><dt>{s('बाजार', 'मंडी', 'Market')}</dt><dd>{nm.place(w.mandi)}</dd></div> : null}
-        </dl>
-        <button className="km-btn" style={{ width: '100%', marginTop: 14 }} onClick={() => runUiAction({ target_screen: 'S19_Quantity', params: { commodity: w.commodity, market: w.mandi, ...(w.quantity_kg ? { qty_kg: w.quantity_kg } : {}) } })}>{s('लॉट पूर्ण करा', 'लॉट पूरा करें', 'Finish the lot')}</button>
-        <p className="km-note" style={{ marginTop: 8 }}>{s('अजून काहीही नोंदवले नाही.', 'अभी कुछ दर्ज नहीं हुआ।', 'Nothing is saved yet.')}</p>
+  if (card.type === 'LOT_DRAFT') {
+    const w = card.data;
+    return (
+      <div className="km-card">
+        {head(w.commodity, nm.crop(w.commodity), s('लॉट मसुदा', 'लॉट मसौदा', 'Lot draft'))}
+        <div className="in">
+          <dl className="km-costs" style={{ marginTop: 0 }}>
+            <div><dt>{s('वजन', 'वज़न', 'Quantity')}</dt><dd>{w.quantity_kg ? `${n(w.quantity_kg)} ${s('किलो', 'किलो', 'kg')}` : s('पुढे भरा', 'आगे भरें', 'Fill in next')}</dd></div>
+            {w.mandi ? <div><dt>{s('बाजार', 'मंडी', 'Market')}</dt><dd>{nm.place(w.mandi)}</dd></div> : null}
+          </dl>
+          <button
+            className="km-btn"
+            style={{ width: '100%', marginTop: 14 }}
+            onClick={() => runUiAction({
+              target_screen: 'S19_Quantity',
+              params: {
+                ...(w.commodity_id ? { commodity_id: w.commodity_id } : {}),
+                ...(w.market_id ? { market_id: w.market_id } : {}),
+                commodity: w.commodity,
+                market: w.mandi,
+                ...(w.quantity_kg ? { qty_kg: w.quantity_kg } : {}),
+              },
+            })}
+          >
+            {s('लॉट पूर्ण करा', 'लॉट पूरा करें', 'Finish the lot')}
+          </button>
+          <p className="km-note" style={{ marginTop: 8 }}>{s('अजून काहीही नोंदवले नाही.', 'अभी कुछ दर्ज नहीं हुआ।', 'Nothing is saved yet.')}</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  if (card.type === 'RAG_CITATION') {
+    const w = card.data;
+    return (
+      <div className="km-card">
+        <div className="in">
+          <b style={{ display: 'block', marginBottom: 8 }}>{s('माहितीचा संदर्भ', 'जानकारी का संदर्भ', 'Verified guidance')}</b>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {w.chunks.slice(0, 3).map((ch, idx) => (
+              <div key={ch.chunk_id || idx} style={{ padding: '8px 10px', background: 'var(--sunk)', borderRadius: 10 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{ch.section_title || ch.source_doc}</div>
+                <p className="km-note" style={{ marginTop: 4 }}>{ch.snippet}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (card.type === 'ONBOARD_PROFILE') {
+    const w = card.data;
+    const applyDraft = () => {
+      setOnboardingDraft({
+        ...(w.name ? { name: w.name } : {}),
+        ...(w.village ? { village: w.village } : {}),
+        ...(w.district_id ? { district_id: w.district_id } : {}),
+        ...(w.district_name ? { district_name: w.district_name } : {}),
+      });
+      close();
+      runUiAction({
+        target_screen: 'S3_Profile',
+        params: {
+          ...(w.district_id ? { district_id: w.district_id } : {}),
+          ...(w.name ? { name: w.name } : {}),
+          ...(w.village ? { village: w.village } : {}),
+        },
+      });
+    };
+    return (
+      <div className="km-card">
+        <div className="in">
+          <b style={{ display: 'block', marginBottom: 8 }}>{s('ओळख तपशील', 'प्रोफ़ाइल विवरण', 'Profile details')}</b>
+          <dl className="km-costs" style={{ marginTop: 0 }}>
+            {w.name ? <div><dt>{s('नाव', 'नाम', 'Name')}</dt><dd>{w.name}</dd></div> : null}
+            {w.district_name || w.district_id ? <div><dt>{s('जिल्हा', 'जिला', 'District')}</dt><dd>{w.district_name || w.district_id}</dd></div> : null}
+            {w.village ? <div><dt>{s('गाव', 'गाँव', 'Village')}</dt><dd>{w.village}</dd></div> : null}
+          </dl>
+          <button className="km-btn" style={{ width: '100%', marginTop: 14 }} onClick={applyDraft}>
+            {s('फॉर्ममध्ये भरा', 'फ़ॉर्म में भरें', 'Fill profile')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 function Turn({ m }: { m: ChatMessage }) {
