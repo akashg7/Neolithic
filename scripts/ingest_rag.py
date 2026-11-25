@@ -80,16 +80,17 @@ def main() -> None:
     ap.add_argument("--corpus", default=str(ROOT / "data/rag_corpus"))
     ap.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", "http://localhost:6333"))
     ap.add_argument("--collection", default=os.getenv("QDRANT_COLLECTION", "krishi_mitr_kb"))
-    ap.add_argument("--embedder", default=os.getenv("EMBEDDER", "bge-m3"), choices=["bge-m3", "fake"])
+    ap.add_argument("--embedder", default=os.getenv("EMBEDDER", "bge-m3"), choices=["bge-m3", "lexical", "fake"])
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--prune", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     corpus = Path(a.corpus)
+    use_approx = a.embedder in ("fake", "lexical")
     if a.dry_run:
-        dry_run(corpus, approx_token_counter if a.embedder == "fake" else bge_m3_token_counter())
+        dry_run(corpus, approx_token_counter if use_approx else bge_m3_token_counter())
         return
-    count = approx_token_counter if a.embedder == "fake" else bge_m3_token_counter()
+    count = approx_token_counter if use_approx else bge_m3_token_counter()
     stats = ingest(corpus, store.connect(a.qdrant_url), a.collection, make_embedder(a.embedder), count, a.force, a.prune)
     print(stats)
 

@@ -6,6 +6,7 @@ retriever never care which one is running.
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 import os
 import re
@@ -13,6 +14,8 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.nlp.normalize import fold
+
+log = logging.getLogger("krishi.embedder")
 
 
 @dataclass
@@ -79,6 +82,40 @@ class FakeEmbedder:
         return res
 
 
+class LexicalEmbedder(FakeEmbedder):
+    """Zero-dependency unigram + bigram lexical/dense hybrid embedder fallback.
+
+    Preserves the 128-d hashed dense vector + sparse term index format when
+    `FlagEmbedding` (BGE-M3, ~2.2 GB) is not installed.
+    """
+
+    def encode(self, texts: list[str]) -> list[Embedded]:
+        res = []
+        for t in texts:
+            toks = self._TOK.findall(fold(t))
+            bigrams = [f"{a}_{b}" for a, b in zip(toks, toks[1:])]
+            dense = [0.0] * self.dense_dim
+            sparse: dict[int, float] = {}
+            for tok in toks:
+                dense[self._h(tok, self.dense_dim)] += 1.0
+                sparse[self._h("s" + tok, 50021)] = sparse.get(self._h("s" + tok, 50021), 0.0) + 1.0
+            for bg in bigrams:
+                dense[self._h(bg, self.dense_dim)] += 0.5
+                sparse[self._h("b" + bg, 50021)] = sparse.get(self._h("b" + bg, 50021), 0.0) + 0.5
+            norm = math.sqrt(sum(x * x for x in dense)) or 1.0
+            items = sorted(sparse.items())
+            res.append(Embedded([x / norm for x in dense], [k for k, _ in items], [v for _, v in items]))
+        return res
+
+
 def make_embedder(name: str | None = None) -> Embedder:
     name = (name or os.getenv("EMBEDDER", "bge-m3")).lower()
-    return FakeEmbedder() if name == "fake" else BGEM3Embedder()
+    if name == "fake":
+        return FakeEmbedder()
+    if name == "lexical":
+        return LexicalEmbedder()
+    try:
+        return BGEM3Embedder()
+    except (ImportError, ModuleNotFoundError) as exc:
+        log.warning("FlagEmbedding unavailable (%s); falling back to LexicalEmbedder.", exc)
+        return LexicalEmbedder()

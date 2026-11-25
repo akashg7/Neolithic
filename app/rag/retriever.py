@@ -6,10 +6,13 @@ built. Day 3: replaced by the real hybrid retriever in app/rag/qdrant_retriever.
 """
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
 
 from app.contracts import RetrievedChunk
+
+log = logging.getLogger("krishi.retriever.facade")
 
 _STUB_CHUNKS = [
     RetrievedChunk(
@@ -67,7 +70,12 @@ async def search(
     k: int = 4,
 ) -> list[RetrievedChunk]:
     if os.getenv("RETRIEVER", "stub") == "real":
-        from app.rag.qdrant_retriever import search as real_search
+        try:
+            from app.rag.qdrant_retriever import search as real_search
 
-        return await real_search(query, locale, category, crop, k)
+            hits = await real_search(query, locale, category, crop, k)
+            if hits:
+                return hits
+        except Exception as exc:
+            log.warning("Real Qdrant retriever failed (%s); falling back to stub chunks", exc)
     return await _stub_search(query, locale, category, crop, k)
