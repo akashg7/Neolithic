@@ -118,6 +118,7 @@ B="$ROOT/api/v1"
 curl -fsS "${C[@]}" "$B/meta/health" >/dev/null
 curl -fsS "${C[@]}" "$B/ref/commodities" | grep -q cmd_onion
 curl -fsS "${C[@]}" "$B/market/overview?commodity_id=cmd_onion&market_id=mkt_lasalgaon" | grep -q '"latest"'
+curl -fsS "${C[@]}" "$B/agent/metrics" | grep -q '"total_turns"'
 curl -fsS "${C[@]}" "$ROOT/" | grep -qi '<html'
 docker compose ps --status running --services | grep -qx celery_worker \
   || { echo "ERROR: celery worker not running" >&2; docker compose logs --tail 30 celery_worker >&2; exit 1; }

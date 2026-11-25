@@ -34,7 +34,7 @@ export function ChatPanel({
   closeIcon?: IconName;
 }) {
   const { t, locale } = useT();
-  const { messages, isThinking, screen, starters, send, reset } = useAgent();
+  const { messages, isThinking, screen, starters, send, sendVoice, reset } = useAgent();
   const scroller = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export function ChatPanel({
             ))}
           </ScrollView>
         ) : null}
-        <Composer onSend={send} busy={isThinking} />
+        <Composer onSend={send} onSendVoice={sendVoice} busy={isThinking} />
         <Text style={styles.note}>{t('chat_footer_note')}</Text>
       </View>
     </View>

@@ -21,6 +21,7 @@ generate_authorship.py
 # extract below instead, so deploys still get real prices.
 maharashtra/
 data/*
+!data/rag_corpus/
 !data/seed/
 data/seed/*
 !data/seed/agmarknet_maharashtra_demo.csv.gz

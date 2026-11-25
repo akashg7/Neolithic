@@ -9,12 +9,14 @@
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { USE_FIXTURES } from '../config';
 import { navigationRef } from '../navigation/navigationRef';
 import { useT } from './i18n';
 import { mandiRef } from './liveMarket';
 import { staticMarketStore } from './staticMarketStore';
-import { sendChatMessage } from './agentClient';
+import { sendChatMessage, sendVoiceChatMessage, resetAgentSession } from './agentClient';
 import { promptsFor } from './chatPrompts';
+import { speakSmart } from './voice';
 import type { AgentChatResponse, ChatMessage, ScreenContext, UiAction } from './agentTypes';
 
 const TAB_FOR_SCREEN: Record<string, string> = {
@@ -40,6 +42,7 @@ interface AgentContextValue {
   screen: ScreenContext;
   starters: string[];
   send: (text: string) => Promise<void>;
+  sendVoice: (audioUriOrBlob: unknown, transcribeFallback?: () => Promise<string>) => Promise<void>;
   retry: (id: string) => Promise<void>;
   reset: () => void;
   runUiAction: (action: Pick<UiAction, 'target_screen' | 'params'>) => void;
@@ -141,6 +144,69 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     [ask, isThinking],
   );
 
+  const sendVoice = useCallback(
+    async (audioUriOrBlob: unknown, transcribeFallback?: () => Promise<string>) => {
+      if (isThinking) return;
+      if (USE_FIXTURES && transcribeFallback) {
+        const spoken = (await transcribeFallback()).trim();
+        if (spoken) await send(spoken);
+        return;
+      }
+
+      const epoch = epochRef.current;
+      const fallbackLabel = locale === 'mr' ? 'आवाज संदेश' : locale === 'hi' ? 'आवाज़ संदेश' : 'Voice message';
+      setThinking(true);
+      try {
+        let response = await sendVoiceChatMessage(audioUriOrBlob, {
+          session_id: sessionRef.current,
+          locale,
+          screen_context: readScreen(),
+          include_audio: true,
+        });
+        if (epoch !== epochRef.current) return;
+
+        const transcript = (response.transcript || '').trim();
+        if (response.error_code === 'LLM_UNAVAILABLE' && transcript) {
+          response = await sendChatMessage({
+            session_id: sessionRef.current,
+            message: transcript,
+            locale,
+            screen_context: readScreen(),
+            include_audio: false,
+          });
+          if (epoch !== epochRef.current) return;
+        }
+
+        setMessages(m => [
+          ...m,
+          { id: mid(), role: 'user', text: transcript || fallbackLabel, at: Date.now() },
+          { id: mid(), role: 'assistant', response, at: Date.now() },
+        ]);
+        if (response.audio_base64 && response.reply_text) {
+          void speakSmart(response.reply_text, locale, response.audio_base64).catch(() => {});
+        }
+      } catch {
+        if (epoch !== epochRef.current) return;
+        if (transcribeFallback) {
+          try {
+            const spoken = (await transcribeFallback()).trim();
+            if (spoken && epoch === epochRef.current) {
+              setThinking(false);
+              await send(spoken);
+              return;
+            }
+          } catch {
+            /* fall through to error bubble */
+          }
+        }
+        setMessages(m => [...m, { id: mid(), role: 'error', text: '', retryText: '', at: Date.now() }]);
+      } finally {
+        if (epoch === epochRef.current) setThinking(false);
+      }
+    },
+    [isThinking, locale, send],
+  );
+
   const retry = useCallback(
     async (id: string) => {
       const failed = messages.find(m => m.id === id);
@@ -152,6 +218,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   );
 
   const reset = useCallback(() => {
+    const prev = sessionRef.current;
+    void resetAgentSession(prev);
     epochRef.current += 1;
     sessionRef.current = newSession();
     setMessages([]);
@@ -186,11 +254,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       screen,
       starters: promptsFor(screen.current_screen, locale),
       send,
+      sendVoice,
       retry,
       reset,
       runUiAction,
     }),
-    [isOpen, messages, isThinking, screen, locale, send, retry, reset, runUiAction],
+    [isOpen, messages, isThinking, screen, locale, send, sendVoice, retry, reset, runUiAction],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

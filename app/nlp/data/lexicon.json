@@ -1,0 +1,713 @@
+{
+ "_note": "v1 seed. IDs must be reconciled with Member 2's id_resolver.py / DB slugs before Day 3. 'stems' cover Marathi/Hindi inflected forms (कांद्याचा, गव्हाला); matched as stem + known suffix. RULE: hints override the model, so a false positive is worse than a miss. Words that are also common everyday words are deliberately left out: आले (Mr 'came' / ginger), केला (Mr 'did' / Hi banana), शेंगा (pods). The model resolves those; add them back only with language-aware matching.",
+ "commodities": {
+  "cmd_onion": {
+   "aliases": [
+    "कांदा",
+    "काँदा",
+    "प्याज",
+    "प्याज़",
+    "onion",
+    "onions",
+    "kanda",
+    "kaanda",
+    "pyaz",
+    "pyaaz",
+    "piyaz"
+   ],
+   "stems": [
+    "कांद्या",
+    "कांद",
+    "प्याज"
+   ]
+  },
+  "cmd_tomato": {
+   "aliases": [
+    "टोमॅटो",
+    "टोमॅटू",
+    "टमाटर",
+    "tomato",
+    "tomatoes",
+    "tamatar",
+    "tamater"
+   ],
+   "stems": [
+    "टोमॅटो",
+    "टमाटर"
+   ]
+  },
+  "cmd_potato": {
+   "aliases": [
+    "बटाटा",
+    "बटाटे",
+    "आलू",
+    "आलु",
+    "potato",
+    "potatoes",
+    "batata",
+    "aloo",
+    "aalu"
+   ],
+   "stems": [
+    "बटाट्या",
+    "बटाटे",
+    "आलू"
+   ]
+  },
+  "cmd_soybean": {
+   "aliases": [
+    "सोयाबीन",
+    "सोयाबिन",
+    "soybean",
+    "soybeans",
+    "soyabean",
+    "soya"
+   ],
+   "stems": [
+    "सोयाबीन"
+   ]
+  },
+  "cmd_cotton": {
+   "aliases": [
+    "कापूस",
+    "कपास",
+    "cotton",
+    "kapus",
+    "kapas"
+   ],
+   "stems": [
+    "कापसा",
+    "कापूस",
+    "कपास"
+   ]
+  },
+  "cmd_wheat": {
+   "aliases": [
+    "गहू",
+    "गेहूं",
+    "गेहू",
+    "गेहूँ",
+    "wheat",
+    "gahu",
+    "gehu",
+    "gehun"
+   ],
+   "stems": [
+    "गव्हा",
+    "गहू",
+    "गेहूं",
+    "गेहू"
+   ]
+  },
+  "cmd_tur": {
+   "aliases": [
+    "तूर",
+    "तुर",
+    "अरहर",
+    "तुअर",
+    "tur",
+    "toor",
+    "tuar",
+    "arhar",
+    "pigeon pea",
+    "pigeonpea"
+   ],
+   "stems": [
+    "तुरी",
+    "तूर",
+    "अरहर"
+   ]
+  },
+  "cmd_chana": {
+   "aliases": [
+    "हरभरा",
+    "चणा",
+    "चना",
+    "harbhara",
+    "chana",
+    "chickpea",
+    "chickpeas",
+    "bengal gram"
+   ],
+   "stems": [
+    "हरभऱ्या",
+    "हरभरा",
+    "चणा",
+    "चना"
+   ]
+  },
+  "cmd_maize": {
+   "aliases": [
+    "मका",
+    "मक्का",
+    "मक्‍का",
+    "maize",
+    "corn",
+    "maka",
+    "makka"
+   ],
+   "stems": [
+    "मक्या",
+    "मका",
+    "मक्का"
+   ]
+  },
+  "cmd_jowar": {
+   "aliases": [
+    "ज्वारी",
+    "ज्वार",
+    "jowar",
+    "jwari",
+    "sorghum"
+   ],
+   "stems": [
+    "ज्वारी",
+    "ज्वार"
+   ]
+  },
+  "cmd_bajra": {
+   "aliases": [
+    "बाजरी",
+    "बाजरा",
+    "bajra",
+    "bajri",
+    "pearl millet"
+   ],
+   "stems": [
+    "बाजरी",
+    "बाजरा"
+   ]
+  },
+  "cmd_groundnut": {
+   "aliases": [
+    "भुईमूग",
+    "शेंगदाणा",
+    "मूंगफली",
+    "मुंगफली",
+    "groundnut",
+    "groundnuts",
+    "peanut",
+    "peanuts",
+    "bhuimug",
+    "moongfali",
+    "mungfali"
+   ],
+   "stems": [
+    "भुईमुगा",
+    "भुईमूग",
+    "शेंगदाण्या",
+    "मूंगफली"
+   ]
+  },
+  "cmd_turmeric": {
+   "aliases": [
+    "हळद",
+    "हल्दी",
+    "turmeric",
+    "halad",
+    "haldi"
+   ],
+   "stems": [
+    "हळदी",
+    "हळद",
+    "हल्दी"
+   ]
+  },
+  "cmd_pomegranate": {
+   "aliases": [
+    "डाळिंब",
+    "अनार",
+    "pomegranate",
+    "dalimb",
+    "anar"
+   ],
+   "stems": [
+    "डाळिंबा",
+    "डाळिंब",
+    "अनार"
+   ]
+  },
+  "cmd_grapes": {
+   "aliases": [
+    "द्राक्ष",
+    "द्राक्षे",
+    "अंगूर",
+    "grapes",
+    "grape",
+    "draksha",
+    "angur"
+   ],
+   "stems": [
+    "द्राक्ष",
+    "अंगूर"
+   ]
+  },
+  "cmd_banana": {
+   "aliases": [
+    "केळी",
+    "केळे",
+    "banana",
+    "bananas",
+    "keli",
+    "kela"
+   ],
+   "stems": [
+    "केळ्या",
+    "केळी"
+   ]
+  },
+  "cmd_paddy": {
+   "aliases": [
+    "भात",
+    "धान",
+    "चावल",
+    "paddy",
+    "rice",
+    "bhat",
+    "dhan"
+   ],
+   "stems": [
+    "भाता",
+    "भात",
+    "धान"
+   ]
+  },
+  "cmd_moong": {
+   "aliases": [
+    "मूग",
+    "मुग",
+    "moong",
+    "mung",
+    "green gram"
+   ],
+   "stems": [
+    "मुगा",
+    "मूग"
+   ]
+  },
+  "cmd_urad": {
+   "aliases": [
+    "उडीद",
+    "उड़द",
+    "उरद",
+    "urad",
+    "udid",
+    "black gram"
+   ],
+   "stems": [
+    "उडदा",
+    "उडीद",
+    "उड़द"
+   ]
+  },
+  "cmd_garlic": {
+   "aliases": [
+    "लसूण",
+    "लहसुन",
+    "garlic",
+    "lasun",
+    "lahsun"
+   ],
+   "stems": [
+    "लसणा",
+    "लसूण",
+    "लहसुन"
+   ]
+  },
+  "cmd_ginger": {
+   "aliases": [
+    "अद्रक",
+    "अदरक",
+    "ginger",
+    "adrak"
+   ],
+   "stems": [
+    "अदरक"
+   ]
+  },
+  "cmd_chilli": {
+   "aliases": [
+    "मिरची",
+    "मिर्च",
+    "मिर्ची",
+    "chilli",
+    "chili",
+    "chillies",
+    "mirchi",
+    "mirch"
+   ],
+   "stems": [
+    "मिरच्या",
+    "मिरची",
+    "मिर्च"
+   ]
+  },
+  "cmd_brinjal": {
+   "aliases": [
+    "वांगी",
+    "वांगे",
+    "बैंगन",
+    "बैगन",
+    "brinjal",
+    "eggplant",
+    "baingan",
+    "vangi"
+   ],
+   "stems": [
+    "वांग्या",
+    "वांगी",
+    "बैंगन"
+   ]
+  },
+  "cmd_cabbage": {
+   "aliases": [
+    "कोबी",
+    "पत्ता गोभी",
+    "पत्तागोभी",
+    "cabbage",
+    "kobi",
+    "patta gobhi"
+   ],
+   "stems": [
+    "कोबी"
+   ]
+  },
+  "cmd_cauliflower": {
+   "aliases": [
+    "फुलकोबी",
+    "फूलगोभी",
+    "फूल गोभी",
+    "cauliflower",
+    "phulkobi",
+    "phool gobhi",
+    "fulkobi"
+   ],
+   "stems": [
+    "फुलकोबी",
+    "फूलगोभी"
+   ]
+  },
+  "cmd_sugarcane": {
+   "aliases": [
+    "ऊस",
+    "गन्ना",
+    "sugarcane",
+    "ganna"
+   ],
+   "stems": [
+    "उसा",
+    "ऊस",
+    "गन्ना"
+   ]
+  }
+ },
+ "mandis": {
+  "mkt_lasalgaon": {
+   "aliases": [
+    "लासलगाव",
+    "लासलगांव",
+    "लसलगाव",
+    "lasalgaon",
+    "lasalgaav",
+    "lasalgam"
+   ],
+   "stems": [
+    "लासलगाव",
+    "लासलगांव"
+   ]
+  },
+  "mkt_pimpalgaon": {
+   "aliases": [
+    "पिंपळगाव बसवंत",
+    "पिंपळगाव",
+    "पिम्पलगांव",
+    "pimpalgaon baswant",
+    "pimpalgaon"
+   ],
+   "stems": [
+    "पिंपळगाव"
+   ]
+  },
+  "mkt_nashik": {
+   "aliases": [
+    "नाशिक",
+    "नासिक",
+    "nashik",
+    "nasik"
+   ],
+   "stems": [
+    "नाशिक",
+    "नासिक"
+   ]
+  },
+  "mkt_pune": {
+   "aliases": [
+    "पुणे",
+    "पुना",
+    "pune",
+    "poona"
+   ],
+   "stems": [
+    "पुण्या",
+    "पुणे"
+   ]
+  },
+  "mkt_solapur": {
+   "aliases": [
+    "सोलापूर",
+    "सोलापुर",
+    "शोलापुर",
+    "solapur",
+    "sholapur"
+   ],
+   "stems": [
+    "सोलापूर",
+    "सोलापुर"
+   ]
+  },
+  "mkt_latur": {
+   "aliases": [
+    "लातूर",
+    "लातुर",
+    "latur"
+   ],
+   "stems": [
+    "लातूर",
+    "लातुर"
+   ]
+  },
+  "mkt_nagpur": {
+   "aliases": [
+    "नागपूर",
+    "नागपुर",
+    "nagpur"
+   ],
+   "stems": [
+    "नागपूर",
+    "नागपुर"
+   ]
+  },
+  "mkt_akola": {
+   "aliases": [
+    "अकोला",
+    "akola"
+   ],
+   "stems": [
+    "अकोल्या",
+    "अकोला"
+   ]
+  },
+  "mkt_amravati": {
+   "aliases": [
+    "अमरावती",
+    "amravati",
+    "amaravati"
+   ],
+   "stems": [
+    "अमरावती"
+   ]
+  },
+  "mkt_kolhapur": {
+   "aliases": [
+    "कोल्हापूर",
+    "कोल्हापुर",
+    "kolhapur"
+   ],
+   "stems": [
+    "कोल्हापूर",
+    "कोल्हापुर"
+   ]
+  },
+  "mkt_sangli": {
+   "aliases": [
+    "सांगली",
+    "sangli"
+   ],
+   "stems": [
+    "सांगली"
+   ]
+  },
+  "mkt_ahilyanagar": {
+   "aliases": [
+    "अहमदनगर",
+    "अहिल्यानगर",
+    "अहमदनगर",
+    "ahmednagar",
+    "ahilyanagar",
+    "ahmadnagar"
+   ],
+   "stems": [
+    "अहमदनगर",
+    "अहिल्यानगर"
+   ]
+  },
+  "mkt_jalgaon": {
+   "aliases": [
+    "जळगाव",
+    "जलगांव",
+    "जलगाव",
+    "jalgaon"
+   ],
+   "stems": [
+    "जळगाव",
+    "जलगांव"
+   ]
+  },
+  "mkt_dhule": {
+   "aliases": [
+    "धुळे",
+    "धुले",
+    "dhule",
+    "dhulia"
+   ],
+   "stems": [
+    "धुळे",
+    "धुले"
+   ]
+  },
+  "mkt_yeola": {
+   "aliases": [
+    "येवला",
+    "येओला",
+    "yeola",
+    "yevla"
+   ],
+   "stems": [
+    "येवल्या",
+    "येवला"
+   ]
+  },
+  "mkt_chandwad": {
+   "aliases": [
+    "चांदवड",
+    "चांदवड़",
+    "chandwad",
+    "chandvad"
+   ],
+   "stems": [
+    "चांदवड"
+   ]
+  },
+  "mkt_vashi": {
+   "aliases": [
+    "वाशी",
+    "vashi",
+    "navi mumbai apmc",
+    "नवी मुंबई",
+    "navi mumbai"
+   ],
+   "stems": [
+    "वाशी"
+   ]
+  },
+  "mkt_chh_sambhajinagar": {
+   "aliases": [
+    "छत्रपती संभाजीनगर",
+    "संभाजीनगर",
+    "औरंगाबाद",
+    "chhatrapati sambhajinagar",
+    "sambhajinagar",
+    "aurangabad"
+   ],
+   "stems": [
+    "संभाजीनगर",
+    "औरंगाबाद"
+   ]
+  },
+  "mkt_satara": {
+   "aliases": [
+    "सातारा",
+    "सतारा",
+    "satara"
+   ],
+   "stems": [
+    "साताऱ्या",
+    "सातारा",
+    "सतारा"
+   ]
+  },
+  "mkt_beed": {
+   "aliases": [
+    "बीड",
+    "beed"
+   ],
+   "stems": [
+    "बीड"
+   ]
+  },
+  "mkt_washim": {
+   "aliases": [
+    "वाशिम",
+    "washim",
+    "vashim"
+   ],
+   "stems": [
+    "वाशिम"
+   ]
+  },
+  "mkt_yavatmal": {
+   "aliases": [
+    "यवतमाळ",
+    "यवतमाल",
+    "yavatmal",
+    "yeotmal"
+   ],
+   "stems": [
+    "यवतमाळ",
+    "यवतमाल"
+   ]
+  },
+  "mkt_nanded": {
+   "aliases": [
+    "नांदेड",
+    "नांदेड़",
+    "nanded"
+   ],
+   "stems": [
+    "नांदेड"
+   ]
+  },
+  "mkt_hingoli": {
+   "aliases": [
+    "हिंगोली",
+    "hingoli"
+   ],
+   "stems": [
+    "हिंगोली"
+   ]
+  },
+  "mkt_parbhani": {
+   "aliases": [
+    "परभणी",
+    "परभनी",
+    "parbhani"
+   ],
+   "stems": [
+    "परभणी",
+    "परभनी"
+   ]
+  },
+  "mkt_jalna": {
+   "aliases": [
+    "जालना",
+    "jalna"
+   ],
+   "stems": [
+    "जालन्या",
+    "जालना"
+   ]
+  },
+  "mkt_mumbai": {
+   "aliases": [
+    "मुंबई",
+    "मुम्बई",
+    "mumbai",
+    "bombay"
+   ],
+   "stems": [
+    "मुंबई",
+    "मुम्बई"
+   ]
+  }
+ }
+}

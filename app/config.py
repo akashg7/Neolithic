@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings
 
 
@@ -54,10 +56,32 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:8080,http://127.0.0.1:8080"
 
     # ── Agent / NLP (Track C reads these; all optional — the API boots without them) ──
-    LLM_PROVIDER: str = "gemini"            # gemini | openai | groq
+    LLM_PROVIDER: str = "groq"              # groq | gemini | sarvam | openai
+    LLM_BASE_URL: str = ""
+    LLM_MODEL: str = ""
+    LLM_API_KEY: str = ""
+    LLM_REASONING_EFFORT: str = "low"
+    LLM_TIMEOUT_S: float = 15.0
+    LLM_FALLBACK_CHAIN: str = "groq,gemini,sarvam,openai"
+    GROQ_API_KEY: str = ""
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     GEMINI_API_KEY: str = ""
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     GEMINI_MODEL: str = "gemini-2.5-flash"
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    SARVAM_LLM_BASE_URL: str = "https://api.sarvam.ai/v1"
+    SARVAM_LLM_MODEL: str = "sarvam-105b"
+    AGENT_MAX_STEPS: int = 3
+    AGENT_TEMPERATURE: float = 0.2
+    AGENT_MEMORY_TTL_SECONDS: int = 1800
+    AGENT_MEMORY_MAX_TURNS: int = 8
+    AGENT_MOCK: bool = False
+    TRANSLATE_BACKEND: str = "stub"
+    TRANSLATE_PIVOT: str = "on"
+    RETRIEVER: str = "stub"
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str = ""
     QDRANT_COLLECTION: str = "krishi_mitr_kb"
@@ -76,3 +100,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Propagate `.env` values loaded by Pydantic Settings into `os.environ` so
+# helpers using `os.getenv(...)` (app/nlp, app/rag) see `.env` config locally.
+for _env_key in (
+    "SARVAM_API_KEY",
+    "TRANSLATE_BACKEND",
+    "TRANSLATE_PIVOT",
+    "RETRIEVER",
+    "QDRANT_URL",
+    "QDRANT_API_KEY",
+    "QDRANT_COLLECTION",
+    "EMBEDDING_MODEL",
+    "LLM_PROVIDER",
+    "LLM_FALLBACK_CHAIN",
+    "GROQ_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENAI_API_KEY",
+):
+    if _env_key in settings.model_fields_set:
+        _val = getattr(settings, _env_key, "")
+        if _val != "":
+            os.environ.setdefault(_env_key, str(_val))

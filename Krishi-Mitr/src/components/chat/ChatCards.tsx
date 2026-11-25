@@ -136,6 +136,7 @@ function WindowVerdictCard({ d }: { d: WindowVerdictCardData }) {
 /* ─────────────────────────── Price snapshot ─────────────────────────── */
 
 function Sparkline({ series }: { series: number[] }) {
+  if (series.length < 2) return null;
   const W = 112;
   const H = 46;
   const min = Math.min(...series);
@@ -155,9 +156,10 @@ function Sparkline({ series }: { series: number[] }) {
 
 function PriceSnapshotCard({ d }: { d: PriceSnapshotCardData }) {
   const { t, locale } = useT();
-  const first = d.series_paise_per_qtl[0] ?? d.modal_price_paise_per_qtl;
-  const delta = d.modal_price_paise_per_qtl - first;
-  const flat = Math.abs(delta) < first * 0.005;
+  const series = d.series_paise_per_qtl ?? [];
+  const first = series[0] ?? d.modal_price_paise_per_qtl;
+  const delta = series.length >= 2 ? d.modal_price_paise_per_qtl - first : (d.change_bps ?? 0);
+  const flat = series.length >= 2 ? Math.abs(delta) < first * 0.005 : Math.abs(delta) < 50;
   const up = delta > 0;
   return (
     <View style={styles.card}>
@@ -187,7 +189,7 @@ function LotDraftCard({ d, onConfirm }: { d: LotDraftCardData; onConfirm: () => 
   const rows: [string, string][] = [
     [t('chat_lot_commodity'), nm(d.commodity, locale)],
     [t('chat_lot_qty'), `${formatNumber(d.quantity_kg, locale)} ${t('chat_kg')}`],
-    [t('chat_lot_mandi'), nm(d.mandi, locale)],
+    ...(d.mandi ? [[t('chat_lot_mandi'), nm(d.mandi, locale)] as [string, string]] : []),
   ];
   return (
     <View style={[styles.card, styles.slip]}>
@@ -224,8 +226,8 @@ export function CitationList({ items }: { items: Citation[] }) {
         <Icon name={open ? 'chevron-down' : 'chevron-right'} size={14} color={colors.outline} />
       </TouchableOpacity>
       {open
-        ? items.map(c => (
-            <View key={c.source} style={styles.citeItem}>
+        ? items.map((c, idx) => (
+            <View key={`${c.source}-${idx}`} style={styles.citeItem}>
               <Text style={styles.citeTitle}>{c.title}</Text>
               <Text style={styles.citeSrc}>{c.source}</Text>
             </View>

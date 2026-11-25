@@ -585,6 +585,15 @@ export const runAgentTool = async (
 ): Promise<AgentToolResult> =>
   post<AgentToolResult>(`/agent/tools/${name}`, { args, locale, screen_context: screen }, 20000);
 
+export const postAgentChat = async <T = any>(payload: Record<string, unknown>): Promise<T> =>
+  post<T>('/agent/chat', payload, 25000);
+
+export const postAgentVoiceChat = async <T = any>(form: FormData): Promise<T> =>
+  request<T>('POST', '/agent/voice-chat', { form, timeoutMs: 30000 });
+
+export const deleteAgentSession = async (sessionId: string): Promise<{ ok: boolean }> =>
+  request<{ ok: boolean }>('DELETE', `/agent/session/${encodeURIComponent(sessionId)}`, { timeoutMs: 5000 });
+
 export const getForecast = async (commodityId: string, marketId: string, horizon = 14): Promise<ForecastRes> => {
   if (USE_FIXTURES) return getDynamicForecast(commodityId, marketId, horizon);
   return get<ForecastRes>('/ai/forecast', { commodity_id: commodityId, market_id: marketId, horizon }, 20000);
