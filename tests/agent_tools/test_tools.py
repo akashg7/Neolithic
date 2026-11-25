@@ -234,7 +234,10 @@ async def test_draft_lot_from_speech(monkeypatch):
     async def obs(*a, **k):
         return dict(SNAP)
     monkeypatch.setattr(price_service, "latest_price", obs)
-    r = await run_tool("draft_lot", ctx(), {"crop": "कांदा", "quantity": 20, "unit": "bori", "mandi": "लासलगाव"})
+    # draft_lot only looks up the observed price when a db session exists (372afdd); latest_price is mocked here
+    c = ctx()
+    c.db = object()
+    r = await run_tool("draft_lot", c, {"crop": "कांदा", "quantity": 20, "unit": "bori", "mandi": "लासलगाव"})
     d = r["data"]
     assert d["quantity_kg"] == 1000 and d["commodity"]["slug"] == "cmd_onion"
     assert d["missing"] == ["expected_price_rupees_per_qtl"] and not d["ready"]
