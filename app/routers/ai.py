@@ -9,6 +9,7 @@ from app.engines.price_engine import price_engine
 from app.models.user import User
 from app.schemas.ai import ForecastPoint, ForecastRes, ModelCard, WindowReq, WindowRes
 from app.services.window_service import NoPriceDataError, WindowInputError, sale_window
+from app.utils.cache import safe_cache
 from app.utils.id_resolver import ResolveError, resolve
 from app.services import price_service
 
@@ -52,6 +53,7 @@ async def _engine_name(db: AsyncSession, kind: str, ref: str | None) -> str | No
 
 
 @router.get("/forecast", response_model=ForecastRes)
+@safe_cache(expire=300, namespace="ai")
 async def get_price_forecasts(
     mandi: str | None = None,
     commodity: str | None = None,
@@ -104,6 +106,7 @@ async def get_price_forecasts(
 
 
 @router.get("/model-card", response_model=ModelCard)
+@safe_cache(expire=3600, namespace="ai")
 async def get_model_card(
     commodity_id: str | None = None,
     commodity: str | None = None,

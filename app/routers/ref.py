@@ -7,12 +7,14 @@ from app.database import get_db
 from app.models.reference import District, Commodity, Warehouse
 from app.models.mandi import MandiLocation
 from app.schemas.ref import DistrictOut, CommodityOut, WarehouseOut, MandiOut
+from app.utils.cache import safe_cache
 from app.utils.id_resolver import load_catalog, resolve_or_404
 
 router = APIRouter()
 
 
 @router.get("/districts", response_model=List[DistrictOut])
+@safe_cache(expire=3600, namespace="ref")
 async def get_districts(db: AsyncSession = Depends(get_db)):
     """All districts. `id` is the app slug (e.g. `dist_nashik`)."""
     await load_catalog(db)
@@ -21,6 +23,7 @@ async def get_districts(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/commodities", response_model=List[CommodityOut])
+@safe_cache(expire=3600, namespace="ref")
 async def get_commodities(db: AsyncSession = Depends(get_db)):
     """All commodities. `id` is the app slug (e.g. `cmd_onion`)."""
     result = await db.execute(select(Commodity).order_by(Commodity.name))
@@ -28,6 +31,7 @@ async def get_commodities(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/warehouses", response_model=List[WarehouseOut])
+@safe_cache(expire=3600, namespace="ref")
 async def get_warehouses(district_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     """Warehouses, optionally for one district (slug or id)."""
     await load_catalog(db)
@@ -40,6 +44,7 @@ async def get_warehouses(district_id: Optional[str] = None, db: AsyncSession = D
 
 @router.get("/mandis", response_model=List[MandiOut])
 @router.get("/markets", response_model=List[MandiOut])
+@safe_cache(expire=3600, namespace="ref")
 async def get_markets(district_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     """Mandis, optionally for one district (slug or id). `id` is the app slug."""
     await load_catalog(db)

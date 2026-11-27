@@ -346,6 +346,11 @@ async def seed(csv_path: Path) -> None:
         await db.commit()
 
     id_resolver.reload()
+    try:
+        from app.utils.cache import clear_http_cache
+        await clear_http_cache()
+    except Exception:
+        pass
     print("demo farmer : 9822011111  (रामभाऊ पाटील, Niphad, Nashik)")
     print("demo buyers : 9822022222  (Mehta Onion Traders), 9822022223 (Agro Fresh Exports)")
     print("FPO admin   : 9822033333")

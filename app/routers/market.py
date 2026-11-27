@@ -20,12 +20,14 @@ from app.dependencies.auth import get_optional_user
 from app.models.user import User
 from app.services import price_service
 from app.services.window_service import NoPriceDataError, sale_window
+from app.utils.cache import safe_cache
 from app.utils.id_resolver import resolve_or_404
 
 router = APIRouter()
 
 
 @router.get("/overview")
+@safe_cache(expire=300, namespace="market", user_scoped=True)
 async def market_overview(
     commodity_id: str,
     market_id: str,

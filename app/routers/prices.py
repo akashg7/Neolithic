@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.mandi import PriceObservation, MandiLocation
 from app.schemas.prices import PriceSeriesRes, NearbyRes, PricePoint, NearbyMarketRow
 from app.services import price_service
+from app.utils.cache import safe_cache
 from app.utils.id_resolver import resolve_or_404
 from app.dependencies.auth import get_optional_user
 from app.models.user import User
@@ -15,6 +16,7 @@ from app.models.user import User
 router = APIRouter()
 
 @router.get("/series", response_model=PriceSeriesRes)
+@safe_cache(expire=300, namespace="prices")
 async def get_price_series(
     commodity_id: str,
     market_id: str,
@@ -32,6 +34,7 @@ async def get_price_series(
     )
 
 @router.get("/nearby", response_model=NearbyRes)
+@safe_cache(expire=300, namespace="prices", user_scoped=True)
 async def get_nearby_markets(
     commodity_id: str,
     district_id: Optional[str] = None,

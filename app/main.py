@@ -11,6 +11,7 @@ from redis import asyncio as aioredis
 from app.config import settings
 from app.engines.price_engine import price_engine
 from app.middleware.error_handler import ErrorHandlerMiddleware
+from app.utils.cache import request_key_builder
 from app.routers import (
     auth, lots, demands, offers,
     transactions, logistics, disputes, fpo, ai, voice,
@@ -21,8 +22,15 @@ from app.routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Redis caching
-    redis = aioredis.from_url(settings.REDIS_URL)
-    FastAPICache.init(RedisBackend(redis), prefix="agrisense-cache")
+    try:
+        redis = aioredis.from_url(settings.REDIS_URL)
+        FastAPICache.init(
+            RedisBackend(redis),
+            prefix="agrisense-cache",
+            key_builder=request_key_builder,
+        )
+    except Exception:
+        pass
     
     # Startup: load AI models into memory
     try:

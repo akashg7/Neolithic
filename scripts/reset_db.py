@@ -23,6 +23,11 @@ async def reset_database():
     
     print("Database reset complete.")
     await engine.dispose()
+    try:
+        from app.utils.cache import clear_http_cache
+        await clear_http_cache()
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     asyncio.run(reset_database())

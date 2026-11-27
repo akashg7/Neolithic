@@ -6,6 +6,7 @@ from app.models.reference import Commodity
 from app.models.mandi import MandiLocation
 from pydantic import BaseModel
 from typing import List
+from app.utils.cache import safe_cache
 from app.utils.id_resolver import slug_for
 
 router = APIRouter()
@@ -20,6 +21,7 @@ class AppInitRes(BaseModel):
     markets: List[IdNamePair]
 
 @router.get("/init", response_model=AppInitRes)
+@safe_cache(expire=300, namespace="meta")
 async def get_app_init(db: AsyncSession = Depends(get_db)):
     """Initialize app data for frontend."""
     
@@ -54,6 +56,7 @@ async def get_health():
     }
 
 @router.get("/data-provenance")
+@safe_cache(expire=300, namespace="meta")
 async def get_data_provenance(db: AsyncSession = Depends(get_db)):
     """Where every price row came from: one row per crop × mandi × source,
     with counts and date range (ProvenanceRes, S24)."""
