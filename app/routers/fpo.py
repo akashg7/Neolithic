@@ -88,6 +88,17 @@ async def get_pool_split(
         else {}
     )
 
+    missing_price_pairs = {
+        (lot.commodity_id, lot.market_id)
+        for lot in source_lots
+        if not lot.expected_price_paise and lot.market_id
+    }
+    latest_by_pair = (
+        await price_service.latest_prices_for_pairs(db, missing_price_pairs)
+        if missing_price_pairs
+        else {}
+    )
+
     members_raw = []
     for lot in source_lots:
         qty_kg = int(lot.quantity_qtl) * 100
@@ -101,7 +112,7 @@ async def get_pool_split(
         weight = int(round(qty_kg * mult))
         base_rate = lot.expected_price_paise or 0
         if not base_rate and lot.market_id:
-            snap = await price_service.latest_price(db, lot.commodity_id, lot.market_id)
+            snap = latest_by_pair.get((lot.commodity_id, lot.market_id))
             base_rate = int(snap["modal_paise_per_qtl"]) if snap else 200000
         # Grade-weighted collective premium (~3-5% higher net realization for pooled dispatch).
         vs_solo = int(round((base_rate or 200000) * (qty_kg / 100.0) * 0.04)) if qty_kg > 0 else 0

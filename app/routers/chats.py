@@ -15,6 +15,7 @@ from app.models.chat import ThreadMessage
 from app.models.lot import Lot
 from app.models.offer import Offer
 from app.models.user import User
+from app.utils.spatial import is_postgres
 
 router = APIRouter()
 
@@ -48,14 +49,32 @@ async def _resolve_thread_key_and_authorize(db: AsyncSession, user: User, thread
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
         if user.id not in (offer.buyer_id, offer.farmer_id) and (offer.farmer_id is not None or (user.role or "").upper() != "FARMER"):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
-        cur = offer
-        visited = {cur.id}
-        while cur.parent_offer_id and cur.parent_offer_id not in visited:
-            visited.add(cur.parent_offer_id)
-            parent = await db.get(Offer, cur.parent_offer_id)
-            if parent is None:
-                break
-            cur = parent
+        if is_postgres(db):
+            anchor = select(Offer.id, Offer.parent_offer_id).where(Offer.id == offer_id).cte(
+                name="chat_offer_ancestors", recursive=True
+            )
+            parent_q = select(Offer.id, Offer.parent_offer_id).join(
+                anchor, Offer.id == anchor.c.parent_offer_id
+            )
+            cte = anchor.union_all(parent_q)
+            root_offer = (
+                await db.execute(
+                    select(Offer)
+                    .join(cte, Offer.id == cte.c.id)
+                    .where(Offer.parent_offer_id.is_(None))
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            cur = root_offer or offer
+        else:
+            cur = offer
+            visited = {cur.id}
+            while cur.parent_offer_id and cur.parent_offer_id not in visited:
+                visited.add(cur.parent_offer_id)
+                parent = await db.get(Offer, cur.parent_offer_id)
+                if parent is None:
+                    break
+                cur = parent
         return f"offer:{cur.id}", cur
 
     if raw.startswith("lot_") and raw[4:].isdigit():

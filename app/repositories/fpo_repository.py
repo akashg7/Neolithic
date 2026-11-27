@@ -21,6 +21,13 @@ class IFpoRepository(IRepository[FPO]):
     async def list_farmers(self, fpo_id: int) -> Sequence[Farmer]:
         """Farmer profiles (with `.user` loaded) registered under this FPO."""
 
+    async def get_fpo_ids_for_users(self, user_ids: Sequence[int]) -> dict[int, Optional[int]]:
+        """Batch lookup mapping user_id -> fpo_id (default fallback for test doubles)."""
+        out: dict[int, Optional[int]] = {}
+        for uid in dict.fromkeys(user_ids):
+            out[uid] = await self.get_fpo_id_for_user(uid)
+        return out
+
 
 class SQLAlchemyFpoRepository(SQLAlchemyBaseRepository[FPO], IFpoRepository):
     def __init__(self, session: AsyncSession):
@@ -31,6 +38,17 @@ class SQLAlchemyFpoRepository(SQLAlchemyBaseRepository[FPO], IFpoRepository):
             select(Farmer.fpo_id).where(Farmer.user_id == user_id)
         )
         return result.scalar_one_or_none()
+
+    async def get_fpo_ids_for_users(self, user_ids: Sequence[int]) -> dict[int, Optional[int]]:
+        unique_ids = list(dict.fromkeys(user_ids))
+        if not unique_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(Farmer.user_id, Farmer.fpo_id).where(Farmer.user_id.in_(unique_ids))
+            )
+        ).all()
+        return {uid: fpo_id for uid, fpo_id in rows}
 
     async def list_farmers(self, fpo_id: int) -> Sequence[Farmer]:
         result = await self.session.execute(

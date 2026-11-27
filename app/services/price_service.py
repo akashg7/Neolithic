@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engines.price_engine import price_engine
@@ -153,6 +153,34 @@ async def latest_prices_by_market(db: AsyncSession, commodity_id: int,
         .distinct(PriceObservation.market_id)
     )).scalars().all()
     return {o.market_id: _point(o) for o in rows}
+
+
+async def latest_prices_for_pairs(
+    db: AsyncSession,
+    pairs: set[tuple[int, int]],
+    max_age_days: int = 30,
+) -> dict[tuple[int, int], dict]:
+    """Batch lookup of latest observation per (commodity_id, market_id) in one query."""
+    if not pairs:
+        return {}
+    since = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    stmt = (
+        select(PriceObservation)
+        .where(tuple_(PriceObservation.commodity_id, PriceObservation.market_id).in_(list(pairs)))
+        .where(PriceObservation.date >= since)
+        .order_by(PriceObservation.commodity_id, PriceObservation.market_id, PriceObservation.date.desc())
+    )
+    if is_postgres(db):
+        stmt = stmt.distinct(PriceObservation.commodity_id, PriceObservation.market_id)
+        rows = (await db.execute(stmt)).scalars().all()
+        return {(o.commodity_id, o.market_id): _point(o) for o in rows}
+    rows = (await db.execute(stmt)).scalars().all()
+    out: dict[tuple[int, int], dict] = {}
+    for o in rows:
+        k = (o.commodity_id, o.market_id)
+        if k not in out:
+            out[k] = _point(o)
+    return out
 
 
 async def nearby_markets(db: AsyncSession, commodity_id: int, *,

@@ -53,8 +53,9 @@ class LotPoolService:
         lots = list(await self.lot_repo.get_many(unique_ids, lock=True))
         if len(lots) != len(unique_ids):
             raise _not_found()
+        farmer_fpos = await self.fpo_repo.get_fpo_ids_for_users([lot.farmer_id for lot in lots])
         for lot in lots:
-            if await self.fpo_repo.get_fpo_id_for_user(lot.farmer_id) != admin_fpo_id:
+            if farmer_fpos.get(lot.farmer_id) != admin_fpo_id:
                 raise _not_found()
 
         if len({lot.commodity_id for lot in lots}) > 1:

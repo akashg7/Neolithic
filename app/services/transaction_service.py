@@ -49,8 +49,9 @@ class TransactionService:
         txn = await self.txn_repo.get_with_events(transaction_id)
         if not txn:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
-        events = await self.event_repo.list_for_transaction(txn.id)
-        txn.events = events
+        if not isinstance(self.txn_repo, SQLAlchemyTransactionRepository):
+            events = await self.event_repo.list_for_transaction(txn.id)
+            txn.events = events
         return txn
 
     async def create_transaction_for_offer(
