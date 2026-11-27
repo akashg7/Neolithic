@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engines.price_engine import price_engine
-from app.models.mandi import PriceObservation
+from app.models.mandi import MandiLocation, PriceObservation
+from app.utils.spatial import distance_km_expr, is_postgres, within_radius_filter
 
 _KNOWN_SOURCES = {"AGMARKNET", "MSAMB", "ARCHIVE", "IMPUTED", "SYNTHETIC"}
 
@@ -166,20 +167,66 @@ async def nearby_markets(db: AsyncSession, commodity_id: int, *,
     from app.utils.id_resolver import load_catalog
 
     catalog = await load_catalog(db)
-    latest = await latest_prices_by_market(db, commodity_id)
     routes = {}
     if from_district_id is not None:
         for r in (await db.execute(select(LogisticsCostRoute).where(
                 LogisticsCostRoute.from_district_id == from_district_id))).scalars():
             routes[r.to_market_id] = r
 
+    candidates: list[tuple[int, dict, float | None]] = []
+    if is_postgres(db) and origin is not None:
+        since = datetime.now(timezone.utc) - timedelta(days=30)
+        latest_subq = (
+            select(
+                PriceObservation.market_id.label("market_id"),
+                PriceObservation.date.label("date"),
+                PriceObservation.min_price_paise.label("min_price_paise"),
+                PriceObservation.max_price_paise.label("max_price_paise"),
+                PriceObservation.modal_price_paise.label("modal_price_paise"),
+                PriceObservation.arrivals_qtl.label("arrivals_qtl"),
+                PriceObservation.observation_type.label("observation_type"),
+            )
+            .where(PriceObservation.commodity_id == commodity_id)
+            .where(PriceObservation.date >= since)
+            .where(PriceObservation.market_id.is_not(None))
+            .order_by(PriceObservation.market_id, PriceObservation.date.desc())
+            .distinct(PriceObservation.market_id)
+            .subquery()
+        )
+        dist_col = distance_km_expr(MandiLocation.geom, origin[0], origin[1]).label("distance_km")
+        pg_rows = (
+            await db.execute(
+                select(latest_subq, dist_col)
+                .join(MandiLocation, MandiLocation.id == latest_subq.c.market_id)
+                .where(within_radius_filter(MandiLocation.geom, origin[0], origin[1], radius_km))
+            )
+        ).all()
+        for row in pg_rows:
+            src = row.observation_type if row.observation_type in _KNOWN_SOURCES else "IMPUTED"
+            point = {
+                "obs_date": row.date.strftime("%Y-%m-%d"),
+                "min_paise_per_qtl": row.min_price_paise or row.modal_price_paise,
+                "max_paise_per_qtl": row.max_price_paise or row.modal_price_paise,
+                "modal_paise_per_qtl": row.modal_price_paise,
+                "arrivals_qtl": row.arrivals_qtl or 0,
+                "source": src,
+            }
+            candidates.append((row.market_id, point, round(float(row.distance_km), 1)))
+    else:
+        latest = await latest_prices_by_market(db, commodity_id)
+        for market_id, p in latest.items():
+            m = catalog.get("market", market_id)
+            if m is None or m.lat is None:
+                continue
+            dist = round(haversine_km(origin[0], origin[1], m.lat, m.lng), 1) if origin else None
+            if dist is not None and dist > radius_km:
+                continue
+            candidates.append((market_id, p, dist))
+
     rows = []
-    for market_id, p in latest.items():
+    for market_id, p, dist in candidates:
         m = catalog.get("market", market_id)
         if m is None or m.lat is None:
-            continue
-        dist = round(haversine_km(origin[0], origin[1], m.lat, m.lng), 1) if origin else None
-        if dist is not None and dist > radius_km:
             continue
         gross = p["modal_paise_per_qtl"]
         route = routes.get(market_id)

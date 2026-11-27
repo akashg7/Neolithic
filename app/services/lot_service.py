@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +17,13 @@ from app.engines.price_engine import price_engine
 from app.engines.window_engine import compute_sale_window
 from app.utils.haversine import haversine_km
 from app.utils.id_resolver import resolve_or_404, load_catalog
+from app.utils.spatial import (
+    distance_km_expr,
+    is_postgres,
+    make_wkt_point,
+    st_point,
+    within_radius_filter,
+)
 from app.services.window_service import sale_window, NoPriceDataError
 from app.schemas.lot import (
     LotCreate, LotOut, SelfAssayRequest, SelfAssayResponse,
@@ -27,7 +34,27 @@ from app.engines import matching_engine
 
 
 async def _find_nearest_mandi(db: AsyncSession, lat: float, lng: float) -> Optional[MandiLocation]:
-    """Find the nearest mandi location to the given coordinates."""
+    """Find the nearest mandi location using PostGIS GIST KNN + spheroidal distance."""
+    if is_postgres(db):
+        ref_pt = st_point(lat, lng)
+        # Step 1: fast GIST KNN bounding candidates, Step 2: exact Geography ST_Distance
+        knn_subq = (
+            select(MandiLocation.id)
+            .where(MandiLocation.geom.is_not(None))
+            .order_by(MandiLocation.geom.op("<->")(ref_pt))
+            .limit(5)
+        )
+        nearest = (
+            await db.execute(
+                select(MandiLocation)
+                .where(MandiLocation.id.in_(knn_subq))
+                .order_by(distance_km_expr(MandiLocation.geom, lat, lng).asc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if nearest is not None:
+            return nearest
+
     result = await db.execute(select(MandiLocation))
     mandis = result.scalars().all()
     if not mandis:
@@ -54,6 +81,7 @@ async def create_lot(db: AsyncSession, user: User, payload: LotCreate) -> LotOut
         warehouse_id=wh_id,
         lat=user.lat,
         lng=user.lng,
+        geom=make_wkt_point(user.lat, user.lng) if is_postgres(db) else None,
         image_url=payload.photo_path,
         status="active",
     )
@@ -273,7 +301,16 @@ async def get_lot_matches(db: AsyncSession, user: User, lot_id: int) -> dict:
     if lot is None or lot.farmer_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lot not found")
 
-    demand_result = await db.execute(select(BuyerDemand).where(BuyerDemand.commodity_id == lot.commodity_id))
+    demand_query = select(BuyerDemand).where(BuyerDemand.commodity_id == lot.commodity_id)
+    if is_postgres(db) and lot.lat is not None and lot.lng is not None:
+        max_km = matching_engine.get_strategy().max_radius_km
+        demand_query = demand_query.where(
+            or_(
+                BuyerDemand.geom.is_(None),
+                within_radius_filter(BuyerDemand.geom, lot.lat, lot.lng, max_km),
+            )
+        )
+    demand_result = await db.execute(demand_query)
     demands = demand_result.scalars().all()
 
     matches_dict = matching_engine.match_demands_for_lot(demands, lot)

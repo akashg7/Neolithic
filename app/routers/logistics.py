@@ -1,5 +1,4 @@
 """Logistics router — transport and storage provider discovery."""
-import math
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,17 +11,10 @@ from app.schemas.logistics import (
     TransportEstimateReq,
     TransportEstimateOut,
 )
+from app.utils.haversine import haversine_km
+from app.utils.spatial import distance_km_expr, is_postgres, within_radius_filter
 
 router = APIRouter()
-
-
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    r = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return r * c
 
 
 @router.get("", response_model=List[LogisticsProviderOut])
@@ -34,7 +26,31 @@ async def list_logistics_providers(
     radius_km: Optional[float] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """List logistics providers with optional type and geo-filtering."""
+    """List logistics providers with optional type and PostGIS geo-filtering."""
+    if lat is not None and lng is not None and is_postgres(db):
+        dist_col = distance_km_expr(LogisticsProvider.geom, lat, lng).label("distance_km")
+        query = select(LogisticsProvider, dist_col).where(LogisticsProvider.geom.is_not(None))
+        if type:
+            query = query.where(LogisticsProvider.type == type)
+        if radius_km is not None:
+            query = query.where(within_radius_filter(LogisticsProvider.geom, lat, lng, radius_km))
+        query = query.order_by(dist_col.asc())
+        rows = (await db.execute(query)).all()
+        return [
+            LogisticsProviderOut(
+                id=p.id,
+                name=p.name,
+                type=p.type,
+                lat=p.lat,
+                lng=p.lng,
+                distance_km=round(float(dist_km), 2) if dist_km is not None else None,
+                capacity_kg=p.capacity_kg,
+                contact=p.contact,
+                source=p.source or "demo",
+            )
+            for p, dist_km in rows
+        ]
+
     query = select(LogisticsProvider)
     if type:
         query = query.where(LogisticsProvider.type == type)
@@ -72,12 +88,42 @@ async def get_nearby_logistics(
     radius_km: float = Query(50.0, description="Radius in kilometers"),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Retrieve nearby storage facilities and transport operators partitioned by type."""
-    result = await db.execute(select(LogisticsProvider))
-    providers = result.scalars().all()
-
+    """Retrieve nearby storage facilities and transport operators using PostGIS ST_DWithin."""
     storage = []
     transport = []
+
+    if is_postgres(db):
+        dist_col = distance_km_expr(LogisticsProvider.geom, lat, lng).label("distance_km")
+        query = (
+            select(LogisticsProvider, dist_col)
+            .where(within_radius_filter(LogisticsProvider.geom, lat, lng, radius_km))
+            .order_by(dist_col.asc())
+        )
+        rows = (await db.execute(query)).all()
+        for p, dist_km in rows:
+            item = {
+                "id": p.id,
+                "name": p.name,
+                "type": p.type,
+                "lat": p.lat,
+                "lng": p.lng,
+                "distance_km": round(float(dist_km), 2),
+                "capacity_kg": p.capacity_kg,
+                "contact": p.contact,
+                "source": p.source or "demo",
+            }
+            if p.type == "storage":
+                storage.append(item)
+            else:
+                transport.append(item)
+        return {
+            "storage": storage,
+            "transport": transport,
+            "total": len(storage) + len(transport),
+        }
+
+    result = await db.execute(select(LogisticsProvider))
+    providers = result.scalars().all()
 
     for p in providers:
         dist = round(haversine_km(lat, lng, p.lat, p.lng), 2)

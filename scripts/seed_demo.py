@@ -299,11 +299,11 @@ async def seed(csv_path: Path) -> None:
         d1 = BuyerDemand(buyer_id=buyer1.id, commodity_id=commodities["Onion"].id,
                          market_id=markets["Lasalgaon APMC"].id, quantity_qtl=100,
                          expected_price_paise=onion_las, desired_grade="B", status="active",
-                         lat=buyer1.lat, lng=buyer1.lng, source="demo")
+                         lat=buyer1.lat, lng=buyer1.lng, geom=_point(buyer1.lat, buyer1.lng), source="demo")
         d2 = BuyerDemand(buyer_id=buyer2.id, commodity_id=commodities["Soyabean"].id,
                          market_id=markets["Latur APMC"].id, quantity_qtl=50,
                          expected_price_paise=latest_modal("Soyabean", "Latur APMC"), desired_grade="B",
-                         status="active", lat=buyer2.lat, lng=buyer2.lng, source="demo")
+                         status="active", lat=buyer2.lat, lng=buyer2.lng, geom=_point(buyer2.lat, buyer2.lng), source="demo")
         db.add_all([d1, d2])
         await db.flush()
 

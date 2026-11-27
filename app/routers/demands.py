@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role
@@ -17,6 +17,7 @@ from app.engines.matching_engine import (
     PriceOptimizedStrategy,
     matching_engine,
 )
+from app.utils.spatial import is_postgres, make_wkt_point, within_radius_filter
 
 router = APIRouter()
 
@@ -40,6 +41,7 @@ async def create_demand(
         desired_grade=payload.desired_grade,
         lat=user.lat,
         lng=user.lng,
+        geom=make_wkt_point(user.lat, user.lng) if is_postgres(db) else None,
         status="active"
     )
     db.add(demand)
@@ -76,9 +78,6 @@ async def get_demand_matches(
     if demand is None or demand.buyer_id != user.id:
         raise HTTPException(status_code=404, detail="Demand not found")
 
-    lot_result = await db.execute(select(Lot).where(Lot.commodity_id == demand.commodity_id))
-    lots = lot_result.scalars().all()
-    
     # Instantiate strategy based on client request (GoF Strategy Pattern)
     if strategy == "fast_clearance":
         strat = FastClearanceStrategy()
@@ -86,6 +85,21 @@ async def get_demand_matches(
         strat = PriceOptimizedStrategy()
     else:
         strat = GreedyHaversineStrategy()
+
+    lot_query = (
+        select(Lot)
+        .where(Lot.commodity_id == demand.commodity_id)
+        .where(Lot.status.notin_(("sold", "cancelled")))
+    )
+    if is_postgres(db) and demand.lat is not None and demand.lng is not None:
+        lot_query = lot_query.where(
+            or_(
+                Lot.geom.is_(None),
+                within_radius_filter(Lot.geom, demand.lat, demand.lng, strat.max_radius_km),
+            )
+        )
+    lot_result = await db.execute(lot_query)
+    lots = lot_result.scalars().all()
 
     engine = MatchingEngine(strategy=strat)
     matches_dict = engine.match_lots_for_demand(lots, demand)

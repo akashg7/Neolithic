@@ -30,6 +30,7 @@ from app.repositories.fpo_repository import IFpoRepository
 from app.repositories.otp_repository import IOtpRepository
 from app.repositories.user_repository import IUserRepository
 from app.schemas.auth import AuthResponse, OtpRequestRes, RegisterRequest, UserResponse
+from app.utils.spatial import is_postgres, make_wkt_point
 
 
 def _utcnow() -> datetime:
@@ -167,6 +168,7 @@ class AuthService:
                 district_db_id = (await resolve(self.user_repo.session, "district", payload.district_id)).id
             except ResolveError:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown district")
+        user_session = getattr(self.user_repo, "session", None)
         user = await self.user_repo.create(User(
             name=payload.name,
             phone=payload.phone,
@@ -176,6 +178,7 @@ class AuthService:
             village=payload.village,
             lat=payload.lat,
             lng=payload.lng,
+            geom=make_wkt_point(payload.lat, payload.lng) if is_postgres(user_session) else None,
         ))
 
         try:
